@@ -15,7 +15,7 @@ Replace manual paddle stacking at pickleball sessions. An organizer creates a se
 - Late arrivals, breaks, leaving early, adding and removing courts mid-session.
 - A saved **player roster**: players added in any session are remembered and can be picked at the next setup instead of retyped.
 - **Player photos:** the organizer can take a photo with the device camera (or pick one) for each player; faces show on court cards, "Up next", and the waiting list.
-- **Local-first with Supabase sync:** the roster and photos are saved on the device first and work with no signal. When the organizer is signed in (email code, no password), they sync to a Supabase project, so the roster is available on any device and survives clearing browser data. The app is fully usable signed out; the roster is then local only.
+- **Local-first with Supabase sync:** the roster and photos are saved on the device first and work with no signal. When the organizer is signed in (an emailed link, no password), they sync to a Supabase project, so the roster is available on any device and survives clearing browser data. The app is fully usable signed out; the roster is then local only.
 - The live session is saved in the browser; installable as a PWA; works offline.
 - Responsive UI with a clean, minimalist look; light and dark themes.
 
@@ -80,14 +80,15 @@ The roster is stored on the device in IndexedDB, separate from any session, so i
 RosterPlayer {
   id,                    // uuid generated on the device
   name,
-  photoVersion: number,  // 0 = no photo; increments each time the photo changes
+  photoVersion: number,  // 0 = no photo; increments each time the photo changes, back to 0 on removal
+  photoSeq: number,      // only ever goes up, even on removal; names the photo's file online
   lastPlayedAt?,
   updatedAt,             // server time once synced; local edit time until then
   deletedAt?             // soft delete, so deletions can sync to other devices
 }
 ```
 
-IndexedDB stores: `players`, `photos` (player id → JPEG blob), `outbox` (changes not yet pushed), `syncMeta` (last pull cursor, signed-in user).
+IndexedDB stores: `players`, `photos` (player id → JPEG blob), `outbox` (one mark per player with changes not yet pushed, each with a revision that is never reused), `syncMeta` (last pull cursor, signed-in user, and the last outbox revision).
 
 - A session `Player` gets an optional `rosterId`. Its name is copied at session start; its photo is looked up from the roster by `rosterId` when rendering. If the roster entry is later renamed, changed, or deleted, game state is unaffected and the UI falls back to initials where needed.
 - Roster names are unique case-insensitively among non-deleted entries. Adding a name that already exists selects the existing entry instead of creating a duplicate.
@@ -107,7 +108,7 @@ IndexedDB stores: `players`, `photos` (player id → JPEG blob), `outbox` (chang
 
 **Principle:** the device is the source of truth while playing. The app never waits on the network; sync runs in the background when the organizer is signed in and online.
 
-**Auth.** Supabase Auth email one-time code (6 digits, no password). The session persists on the device. Signing out stops sync but keeps the local roster. The app works fully while signed out; a small banner offers "Sign in to back up and sync your players".
+**Auth.** Supabase Auth emailed magic link (no password). The link brings the organizer back to the app, which picks the session up from the page address. The session persists on the device. Signing out stops sync but keeps the local roster. The app works fully while signed out; a small banner offers "Sign in to back up and sync your players".
 
 **Schema.**
 - Table `players`: `owner_id uuid default auth.uid()`, `id uuid`, `name text`, `photo_version int default 0` (a count of the photo's changes on a device; it can return to 0), `photo_seq int default 0` (only ever goes up, and names the storage file), `last_played_at timestamptz`, `deleted_at timestamptz`, `updated_at timestamptz` (set by a database trigger on every write, using the time of the write). Primary key `(owner_id, id)`. Unique index on `(owner_id, lower(btrim(name)))` where `deleted_at is null`.
@@ -117,7 +118,7 @@ IndexedDB stores: `players`, `photos` (player id → JPEG blob), `outbox` (chang
 - Schema, policies, and bucket are defined in versioned SQL migrations in `supabase/migrations/`.
 
 **Sync algorithm.**
-1. Every local roster change (add, rename, photo change, delete, `lastPlayedAt`) is written to IndexedDB and appended to the `outbox` immediately.
+1. Every local roster change (add, rename, photo change, delete, `lastPlayedAt`) is written to IndexedDB, and the player is marked in the `outbox`, in one transaction. A mark says only that the player has changes not yet pushed; the push reads the player's current state.
 2. When signed in and online (and again on reconnect, app focus, and every few minutes while open), sync **pushes** the outbox in order: upsert the `players` row, then upload the new photo file if `photoVersion` changed, then delete the superseded photo file. A failed step stays in the outbox and is retried with backoff.
 3. Sync then **pulls** rows with `updated_at` greater than the stored cursor, merges them into IndexedDB, and downloads any photo whose `photo_version` is newer than the local copy (via authenticated download, stored as a local blob so display never needs the network).
 4. **Conflicts:** last write wins per player, using the server `updated_at`. A local change still waiting in the outbox is never overwritten by a pulled row; it is pushed afterward. If another device created a player with the same name (unique-index violation), the two are merged: the existing server entry is kept, and the local entry's photo is adopted if the server entry has none.
