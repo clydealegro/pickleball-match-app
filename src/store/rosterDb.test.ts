@@ -35,6 +35,12 @@ describe('roster db', () => {
     expect(await listRoster()).toHaveLength(1);
   });
 
+  it('does not create duplicates when adds with the same name overlap', async () => {
+    const results = await Promise.all(['Ann', 'ann', ' ANN '].map((n) => addRosterPlayer(n)));
+    expect(await listRoster()).toHaveLength(1);
+    expect(new Set(results.map((p) => p.id)).size).toBe(1);
+  });
+
   it('rejects empty names', async () => {
     await expect(addRosterPlayer('   ')).rejects.toThrow(/name/i);
   });

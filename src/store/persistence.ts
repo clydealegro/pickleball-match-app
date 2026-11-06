@@ -8,6 +8,28 @@ export interface Persisted {
   undoStack: Session[];
 }
 
+const isObject = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null;
+
+function isCourt(x: unknown): boolean {
+  return (
+    isObject(x) &&
+    typeof x.id === 'string' &&
+    typeof x.number === 'number' &&
+    (x.status === 'empty' || x.status === 'playing') &&
+    typeof x.closing === 'boolean'
+  );
+}
+
+function isPlayer(x: unknown): boolean {
+  return (
+    isObject(x) &&
+    typeof x.id === 'string' &&
+    typeof x.name === 'string' &&
+    (x.status === 'active' || x.status === 'break' || x.status === 'left') &&
+    typeof x.gamesPlayed === 'number'
+  );
+}
+
 function isSession(x: unknown): x is Session {
   if (typeof x !== 'object' || x === null) return false;
   const s = x as Record<string, unknown>;
@@ -16,9 +38,13 @@ function isSession(x: unknown): x is Session {
     typeof s.name === 'string' &&
     (s.mode === 'fairness' || s.mode === 'queue') &&
     Array.isArray(s.courts) &&
+    s.courts.every(isCourt) &&
     Array.isArray(s.players) &&
+    s.players.every(isPlayer) &&
     Array.isArray(s.queueOrder) &&
+    s.queueOrder.every((id) => typeof id === 'string') &&
     Array.isArray(s.history) &&
+    s.history.every(isObject) &&
     typeof s.gameSeq === 'number'
   );
 }

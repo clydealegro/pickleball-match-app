@@ -32,6 +32,19 @@ describe('persistence', () => {
     expect(loadPersisted()).toBeNull();
   });
 
+  it('returns null when stored courts or players have the wrong shape', () => {
+    const s = newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }, makeCtx());
+    const store = (session: unknown) =>
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, session, undoStack: [] }));
+    store({ ...s, courts: [null] });
+    expect(loadPersisted()).toBeNull();
+    const { name: _name, ...nameless } = s.players[0];
+    store({ ...s, players: [nameless, ...s.players.slice(1)] });
+    expect(loadPersisted()).toBeNull();
+    store(s);
+    expect(loadPersisted()?.session).toEqual(s);
+  });
+
   it('clears the stored session', () => {
     savePersisted({ session: null, undoStack: [] });
     clearPersisted();

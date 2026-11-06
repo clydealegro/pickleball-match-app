@@ -18,28 +18,88 @@ interface RosterSchema extends DBSchema {
 }
 
 const DB_NAME = 'pickleball-roster';
-let dbPromise: Promise<IDBPDatabase<RosterSchema>> | null = null;
 
-function db(): Promise<IDBPDatabase<RosterSchema>> {
-  dbPromise ??= openDB<RosterSchema>(DB_NAME, 1, {
-    upgrade(database) {
-      database.createObjectStore('players', { keyPath: 'id' });
-    },
-  });
-  return dbPromise;
+interface Backend {
+  getAll(): Promise<RosterPlayer[]>;
+  get(id: string): Promise<RosterPlayer | undefined>;
+  put(player: RosterPlayer): Promise<unknown>;
+  close?(): void;
 }
 
-/** Test helper: closes and deletes the database. */
+let backendPromise: Promise<Backend> | null = null;
+let persistent = true;
+
+function idbBackend(database: IDBPDatabase<RosterSchema>): Backend {
+  return {
+    getAll: () => database.getAll('players'),
+    get: (id) => database.get('players', id),
+    put: (player) => database.put('players', player),
+    close: () => database.close(),
+  };
+}
+
+function memoryBackend(): Backend {
+  const map = new Map<string, RosterPlayer>();
+  return {
+    getAll: async () => [...map.values()].map((p) => ({ ...p })),
+    get: async (id) => {
+      const p = map.get(id);
+      return p && { ...p };
+    },
+    put: async (player) => {
+      map.set(player.id, { ...player });
+    },
+  };
+}
+
+async function openBackend(): Promise<Backend> {
+  try {
+    const database = await openDB<RosterSchema>(DB_NAME, 1, {
+      upgrade(d) {
+        d.createObjectStore('players', { keyPath: 'id' });
+      },
+    });
+    return idbBackend(database);
+  } catch {
+    // Private mode or blocked storage: keep working for this visit, without saving.
+    persistent = false;
+    return memoryBackend();
+  }
+}
+
+function db(): Promise<Backend> {
+  backendPromise ??= openBackend();
+  return backendPromise;
+}
+
+/** False when IndexedDB is unavailable and saved players only live in memory. */
+export function isRosterPersistent(): boolean {
+  return persistent;
+}
+
+/** Test helper: closes and deletes the database, and clears the fallback state. */
 export async function resetRosterDbForTests(): Promise<void> {
-  if (dbPromise) (await dbPromise).close();
-  dbPromise = null;
+  if (backendPromise) (await backendPromise).close?.();
+  backendPromise = null;
+  persistent = true;
   await deleteDB(DB_NAME);
+}
+
+/** Serializes read-modify-write operations so overlapping calls cannot interleave. */
+let queue: Promise<unknown> = Promise.resolve();
+function serial<T>(fn: () => Promise<T>): Promise<T> {
+  const run = queue.then(() => fn());
+  queue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
 }
 
 const norm = (name: string) => name.trim().toLowerCase();
 
 async function liveEntries(): Promise<RosterPlayer[]> {
-  return (await (await db()).getAll('players')).filter((p) => !p.deletedAt);
+  return (await (await db()).getAll()).filter((p) => !p.deletedAt);
 }
 
 export async function listRoster(): Promise<RosterPlayer[]> {
@@ -52,40 +112,48 @@ export async function listRoster(): Promise<RosterPlayer[]> {
 export async function addRosterPlayer(name: string, now = Date.now()): Promise<RosterPlayer> {
   const clean = name.trim();
   if (!clean) throw new Error('Enter a name for the player.');
-  const existing = (await liveEntries()).find((p) => norm(p.name) === norm(clean));
-  if (existing) return existing;
-  const player: RosterPlayer = { id: newId(), name: clean, photoVersion: 0, updatedAt: now };
-  await (await db()).put('players', player);
-  return player;
+  return serial(async () => {
+    const existing = (await liveEntries()).find((p) => norm(p.name) === norm(clean));
+    if (existing) return existing;
+    const player: RosterPlayer = { id: newId(), name: clean, photoVersion: 0, updatedAt: now };
+    await (await db()).put(player);
+    return player;
+  });
 }
 
 export async function renameRosterPlayer(id: string, name: string, now = Date.now()): Promise<void> {
   const clean = name.trim();
   if (!clean) throw new Error('Enter a name for the player.');
-  const entries = await liveEntries();
-  if (entries.some((p) => p.id !== id && norm(p.name) === norm(clean))) {
-    throw new Error(`${clean} is already saved.`);
-  }
-  const current = entries.find((p) => p.id === id);
-  if (!current) throw new Error('That player no longer exists.');
-  await (await db()).put('players', { ...current, name: clean, updatedAt: now });
-}
-
-export async function deleteRosterPlayer(id: string, now = Date.now()): Promise<void> {
-  const database = await db();
-  const current = await database.get('players', id);
-  if (!current || current.deletedAt) return;
-  await database.put('players', { ...current, deletedAt: now, updatedAt: now });
-}
-
-export async function markRosterPlayed(ids: string[], at: number): Promise<void> {
-  const database = await db();
-  for (const id of ids) {
-    const current = await database.get('players', id);
-    if (current && !current.deletedAt) {
-      await database.put('players', { ...current, lastPlayedAt: at, updatedAt: at });
+  return serial(async () => {
+    const entries = await liveEntries();
+    if (entries.some((p) => p.id !== id && norm(p.name) === norm(clean))) {
+      throw new Error(`${clean} is already saved.`);
     }
-  }
+    const current = entries.find((p) => p.id === id);
+    if (!current) throw new Error('That player no longer exists.');
+    await (await db()).put({ ...current, name: clean, updatedAt: now });
+  });
+}
+
+export function deleteRosterPlayer(id: string, now = Date.now()): Promise<void> {
+  return serial(async () => {
+    const database = await db();
+    const current = await database.get(id);
+    if (!current || current.deletedAt) return;
+    await database.put({ ...current, deletedAt: now, updatedAt: now });
+  });
+}
+
+export function markRosterPlayed(ids: string[], at: number): Promise<void> {
+  return serial(async () => {
+    const database = await db();
+    for (const id of ids) {
+      const current = await database.get(id);
+      if (current && !current.deletedAt) {
+        await database.put({ ...current, lastPlayedAt: at, updatedAt: at });
+      }
+    }
+  });
 }
 
 /** The players of the most recent session: everyone sharing the latest lastPlayedAt. */

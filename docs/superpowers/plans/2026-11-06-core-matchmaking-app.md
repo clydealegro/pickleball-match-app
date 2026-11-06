@@ -1985,6 +1985,19 @@ describe('persistence', () => {
     expect(loadPersisted()).toBeNull();
   });
 
+  it('returns null when stored courts or players have the wrong shape', () => {
+    const s = newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }, makeCtx());
+    const store = (session: unknown) =>
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, session, undoStack: [] }));
+    store({ ...s, courts: [null] });
+    expect(loadPersisted()).toBeNull();
+    const { name: _name, ...nameless } = s.players[0];
+    store({ ...s, players: [nameless, ...s.players.slice(1)] });
+    expect(loadPersisted()).toBeNull();
+    store(s);
+    expect(loadPersisted()?.session).toEqual(s);
+  });
+
   it('clears the stored session', () => {
     savePersisted({ session: null, undoStack: [] });
     clearPersisted();
@@ -2132,6 +2145,28 @@ export interface Persisted {
   undoStack: Session[];
 }
 
+const isObject = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null;
+
+function isCourt(x: unknown): boolean {
+  return (
+    isObject(x) &&
+    typeof x.id === 'string' &&
+    typeof x.number === 'number' &&
+    (x.status === 'empty' || x.status === 'playing') &&
+    typeof x.closing === 'boolean'
+  );
+}
+
+function isPlayer(x: unknown): boolean {
+  return (
+    isObject(x) &&
+    typeof x.id === 'string' &&
+    typeof x.name === 'string' &&
+    (x.status === 'active' || x.status === 'break' || x.status === 'left') &&
+    typeof x.gamesPlayed === 'number'
+  );
+}
+
 function isSession(x: unknown): x is Session {
   if (typeof x !== 'object' || x === null) return false;
   const s = x as Record<string, unknown>;
@@ -2140,9 +2175,13 @@ function isSession(x: unknown): x is Session {
     typeof s.name === 'string' &&
     (s.mode === 'fairness' || s.mode === 'queue') &&
     Array.isArray(s.courts) &&
+    s.courts.every(isCourt) &&
     Array.isArray(s.players) &&
+    s.players.every(isPlayer) &&
     Array.isArray(s.queueOrder) &&
+    s.queueOrder.every((id) => typeof id === 'string') &&
     Array.isArray(s.history) &&
+    s.history.every(isObject) &&
     typeof s.gameSeq === 'number'
   );
 }
@@ -2264,7 +2303,7 @@ export const useSessionStore = create<SessionState>()((set, get) => {
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run src/store/persistence.test.ts src/store/sessionStore.test.ts`
-Expected: PASS — 13 tests.
+Expected: PASS — 14 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -2279,7 +2318,7 @@ git commit -m "feat(store): persisted session store with bounded undo"
 
 **Files:**
 - Create: `src/store/rosterDb.ts`, `src/store/rosterStore.ts`
-- Test: `src/store/rosterDb.test.ts`
+- Test: `src/store/rosterDb.test.ts`, `src/store/rosterDb.fallback.test.ts`, `src/store/rosterStore.test.ts`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2321,6 +2360,12 @@ describe('roster db', () => {
     expect(await listRoster()).toHaveLength(1);
   });
 
+  it('does not create duplicates when adds with the same name overlap', async () => {
+    const results = await Promise.all(['Ann', 'ann', ' ANN '].map((n) => addRosterPlayer(n)));
+    expect(await listRoster()).toHaveLength(1);
+    expect(new Set(results.map((p) => p.id)).size).toBe(1);
+  });
+
   it('rejects empty names', async () => {
     await expect(addRosterPlayer('   ')).rejects.toThrow(/name/i);
   });
@@ -2360,9 +2405,139 @@ describe('roster db', () => {
 });
 ```
 
+These two cover the in-memory fallback (IndexedDB unavailable) and the roster store, including that a running session is unaffected by roster edits:
+
+```ts file=src/store/rosterDb.fallback.test.ts
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('idb', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('idb')>()),
+  openDB: vi.fn().mockRejectedValue(new Error('blocked')),
+}));
+
+import {
+  addRosterPlayer,
+  deleteRosterPlayer,
+  isRosterPersistent,
+  lastSessionIds,
+  listRoster,
+  markRosterPlayed,
+  renameRosterPlayer,
+  resetRosterDbForTests,
+} from './rosterDb';
+
+beforeEach(async () => {
+  await resetRosterDbForTests();
+});
+
+describe('roster db without IndexedDB', () => {
+  it('keeps players in memory and reports that nothing is persisted', async () => {
+    expect(isRosterPersistent()).toBe(true);
+    const ann = await addRosterPlayer('Ann');
+    await addRosterPlayer('Ben');
+    expect(isRosterPersistent()).toBe(false);
+    expect((await listRoster()).map((p) => p.name)).toEqual(['Ann', 'Ben']);
+    expect((await addRosterPlayer(' ann ')).id).toBe(ann.id);
+  });
+
+  it('renames and soft deletes', async () => {
+    const ann = await addRosterPlayer('Ann');
+    const ben = await addRosterPlayer('Ben');
+    await renameRosterPlayer(ann.id, 'Annie');
+    await expect(renameRosterPlayer(ann.id, 'ben')).rejects.toThrow(/already/i);
+    await deleteRosterPlayer(ben.id);
+    expect((await listRoster()).map((p) => p.name)).toEqual(['Annie']);
+    expect((await addRosterPlayer('Ben')).id).not.toBe(ben.id);
+  });
+
+  it('marks players as played', async () => {
+    const a = await addRosterPlayer('Ann');
+    const b = await addRosterPlayer('Ben');
+    await markRosterPlayed([a.id], 1_000);
+    await markRosterPlayed([b.id], 2_000);
+    expect(lastSessionIds(await listRoster())).toEqual([b.id]);
+  });
+
+  it('starts fresh after a reset', async () => {
+    await addRosterPlayer('Ann');
+    await resetRosterDbForTests();
+    expect(isRosterPersistent()).toBe(true);
+    expect(await listRoster()).toEqual([]);
+  });
+});
+```
+
+```ts file=src/store/rosterStore.test.ts
+import { beforeEach, describe, expect, it } from 'vitest';
+import { resetRosterDbForTests } from './rosterDb';
+import { useRosterStore } from './rosterStore';
+import { useSessionStore } from './sessionStore';
+
+beforeEach(async () => {
+  localStorage.clear();
+  useSessionStore.setState({ session: null, undoStack: [], saveFailed: false });
+  await resetRosterDbForTests();
+  useRosterStore.setState({ players: [], loaded: false, persistent: true });
+});
+
+describe('rosterStore', () => {
+  it('adds a player and does not duplicate the same name', async () => {
+    const ann = await useRosterStore.getState().add('Ann');
+    expect(useRosterStore.getState().players).toEqual([ann]);
+    const again = await useRosterStore.getState().add(' ann ');
+    expect(again.id).toBe(ann.id);
+    expect(useRosterStore.getState().players).toHaveLength(1);
+  });
+
+  it('renames and removes players', async () => {
+    const { add, rename, remove } = useRosterStore.getState();
+    const ann = await add('Ann');
+    const ben = await add('Ben');
+    await rename(ann.id, 'Annie');
+    expect(useRosterStore.getState().players.map((p) => p.name)).toEqual(['Annie', 'Ben']);
+    await remove(ben.id);
+    expect(useRosterStore.getState().players.map((p) => p.name)).toEqual(['Annie']);
+  });
+
+  it('loads the saved players and reports that they persist', async () => {
+    await useRosterStore.getState().add('Ann');
+    useRosterStore.setState({ players: [], loaded: false });
+    await useRosterStore.getState().load();
+    expect(useRosterStore.getState().loaded).toBe(true);
+    expect(useRosterStore.getState().persistent).toBe(true);
+    expect(useRosterStore.getState().players.map((p) => p.name)).toEqual(['Ann']);
+  });
+
+  it('does not change a running session when the roster is edited', async () => {
+    const { add, rename, remove } = useRosterStore.getState();
+    const names = ['Ann', 'Ben', 'Cy', 'Dee'];
+    const saved = [];
+    for (const name of names) saved.push(await add(name));
+    const res = useSessionStore.getState().start({
+      name: 'Open play',
+      mode: 'fairness',
+      courtCount: 1,
+      players: saved.map((p) => ({ name: p.name, rosterId: p.id })),
+    });
+    expect(res.ok).toBe(true);
+    const snapshot = structuredClone(useSessionStore.getState().session);
+    expect(snapshot?.players.map((p) => p.rosterId)).toEqual(saved.map((p) => p.id));
+
+    await rename(saved[0].id, 'Annie');
+    await remove(saved[1].id);
+
+    expect(useRosterStore.getState().players.map((p) => p.name)).toEqual(['Annie', 'Cy', 'Dee']);
+    expect(useSessionStore.getState().session).toEqual(snapshot);
+    expect(JSON.parse(JSON.stringify(useSessionStore.getState().session))).toEqual(
+      JSON.parse(JSON.stringify(snapshot)),
+    );
+  });
+});
+```
+
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `npx vitest run src/store/rosterDb.test.ts`
+Run: `npx vitest run src/store/rosterDb.test.ts src/store/rosterDb.fallback.test.ts src/store/rosterStore.test.ts`
 Expected: FAIL — `Failed to resolve import "./rosterDb"`.
 
 - [ ] **Step 3: Implement**
@@ -2388,28 +2563,88 @@ interface RosterSchema extends DBSchema {
 }
 
 const DB_NAME = 'pickleball-roster';
-let dbPromise: Promise<IDBPDatabase<RosterSchema>> | null = null;
 
-function db(): Promise<IDBPDatabase<RosterSchema>> {
-  dbPromise ??= openDB<RosterSchema>(DB_NAME, 1, {
-    upgrade(database) {
-      database.createObjectStore('players', { keyPath: 'id' });
-    },
-  });
-  return dbPromise;
+interface Backend {
+  getAll(): Promise<RosterPlayer[]>;
+  get(id: string): Promise<RosterPlayer | undefined>;
+  put(player: RosterPlayer): Promise<unknown>;
+  close?(): void;
 }
 
-/** Test helper: closes and deletes the database. */
+let backendPromise: Promise<Backend> | null = null;
+let persistent = true;
+
+function idbBackend(database: IDBPDatabase<RosterSchema>): Backend {
+  return {
+    getAll: () => database.getAll('players'),
+    get: (id) => database.get('players', id),
+    put: (player) => database.put('players', player),
+    close: () => database.close(),
+  };
+}
+
+function memoryBackend(): Backend {
+  const map = new Map<string, RosterPlayer>();
+  return {
+    getAll: async () => [...map.values()].map((p) => ({ ...p })),
+    get: async (id) => {
+      const p = map.get(id);
+      return p && { ...p };
+    },
+    put: async (player) => {
+      map.set(player.id, { ...player });
+    },
+  };
+}
+
+async function openBackend(): Promise<Backend> {
+  try {
+    const database = await openDB<RosterSchema>(DB_NAME, 1, {
+      upgrade(d) {
+        d.createObjectStore('players', { keyPath: 'id' });
+      },
+    });
+    return idbBackend(database);
+  } catch {
+    // Private mode or blocked storage: keep working for this visit, without saving.
+    persistent = false;
+    return memoryBackend();
+  }
+}
+
+function db(): Promise<Backend> {
+  backendPromise ??= openBackend();
+  return backendPromise;
+}
+
+/** False when IndexedDB is unavailable and saved players only live in memory. */
+export function isRosterPersistent(): boolean {
+  return persistent;
+}
+
+/** Test helper: closes and deletes the database, and clears the fallback state. */
 export async function resetRosterDbForTests(): Promise<void> {
-  if (dbPromise) (await dbPromise).close();
-  dbPromise = null;
+  if (backendPromise) (await backendPromise).close?.();
+  backendPromise = null;
+  persistent = true;
   await deleteDB(DB_NAME);
+}
+
+/** Serializes read-modify-write operations so overlapping calls cannot interleave. */
+let queue: Promise<unknown> = Promise.resolve();
+function serial<T>(fn: () => Promise<T>): Promise<T> {
+  const run = queue.then(() => fn());
+  queue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
 }
 
 const norm = (name: string) => name.trim().toLowerCase();
 
 async function liveEntries(): Promise<RosterPlayer[]> {
-  return (await (await db()).getAll('players')).filter((p) => !p.deletedAt);
+  return (await (await db()).getAll()).filter((p) => !p.deletedAt);
 }
 
 export async function listRoster(): Promise<RosterPlayer[]> {
@@ -2422,40 +2657,48 @@ export async function listRoster(): Promise<RosterPlayer[]> {
 export async function addRosterPlayer(name: string, now = Date.now()): Promise<RosterPlayer> {
   const clean = name.trim();
   if (!clean) throw new Error('Enter a name for the player.');
-  const existing = (await liveEntries()).find((p) => norm(p.name) === norm(clean));
-  if (existing) return existing;
-  const player: RosterPlayer = { id: newId(), name: clean, photoVersion: 0, updatedAt: now };
-  await (await db()).put('players', player);
-  return player;
+  return serial(async () => {
+    const existing = (await liveEntries()).find((p) => norm(p.name) === norm(clean));
+    if (existing) return existing;
+    const player: RosterPlayer = { id: newId(), name: clean, photoVersion: 0, updatedAt: now };
+    await (await db()).put(player);
+    return player;
+  });
 }
 
 export async function renameRosterPlayer(id: string, name: string, now = Date.now()): Promise<void> {
   const clean = name.trim();
   if (!clean) throw new Error('Enter a name for the player.');
-  const entries = await liveEntries();
-  if (entries.some((p) => p.id !== id && norm(p.name) === norm(clean))) {
-    throw new Error(`${clean} is already saved.`);
-  }
-  const current = entries.find((p) => p.id === id);
-  if (!current) throw new Error('That player no longer exists.');
-  await (await db()).put('players', { ...current, name: clean, updatedAt: now });
-}
-
-export async function deleteRosterPlayer(id: string, now = Date.now()): Promise<void> {
-  const database = await db();
-  const current = await database.get('players', id);
-  if (!current || current.deletedAt) return;
-  await database.put('players', { ...current, deletedAt: now, updatedAt: now });
-}
-
-export async function markRosterPlayed(ids: string[], at: number): Promise<void> {
-  const database = await db();
-  for (const id of ids) {
-    const current = await database.get('players', id);
-    if (current && !current.deletedAt) {
-      await database.put('players', { ...current, lastPlayedAt: at, updatedAt: at });
+  return serial(async () => {
+    const entries = await liveEntries();
+    if (entries.some((p) => p.id !== id && norm(p.name) === norm(clean))) {
+      throw new Error(`${clean} is already saved.`);
     }
-  }
+    const current = entries.find((p) => p.id === id);
+    if (!current) throw new Error('That player no longer exists.');
+    await (await db()).put({ ...current, name: clean, updatedAt: now });
+  });
+}
+
+export function deleteRosterPlayer(id: string, now = Date.now()): Promise<void> {
+  return serial(async () => {
+    const database = await db();
+    const current = await database.get(id);
+    if (!current || current.deletedAt) return;
+    await database.put({ ...current, deletedAt: now, updatedAt: now });
+  });
+}
+
+export function markRosterPlayed(ids: string[], at: number): Promise<void> {
+  return serial(async () => {
+    const database = await db();
+    for (const id of ids) {
+      const current = await database.get(id);
+      if (current && !current.deletedAt) {
+        await database.put({ ...current, lastPlayedAt: at, updatedAt: at });
+      }
+    }
+  });
 }
 
 /** The players of the most recent session: everyone sharing the latest lastPlayedAt. */
@@ -2472,6 +2715,7 @@ import { create } from 'zustand';
 import {
   addRosterPlayer,
   deleteRosterPlayer,
+  isRosterPersistent,
   listRoster,
   markRosterPlayed,
   renameRosterPlayer,
@@ -2481,6 +2725,8 @@ import {
 interface RosterState {
   players: RosterPlayer[];
   loaded: boolean;
+  /** False when saved players only live in memory (IndexedDB unavailable). */
+  persistent: boolean;
   load: () => Promise<void>;
   add: (name: string) => Promise<RosterPlayer>;
   rename: (id: string, name: string) => Promise<void>;
@@ -2489,10 +2735,14 @@ interface RosterState {
 }
 
 export const useRosterStore = create<RosterState>()((set) => {
-  const refresh = async () => set({ players: await listRoster(), loaded: true });
+  const refresh = async () => {
+    const players = await listRoster();
+    set({ players, loaded: true, persistent: isRosterPersistent() });
+  };
   return {
     players: [],
     loaded: false,
+    persistent: true,
     load: refresh,
     async add(name) {
       const player = await addRosterPlayer(name);
@@ -2518,7 +2768,7 @@ export const useRosterStore = create<RosterState>()((set) => {
 - [ ] **Step 4: Run tests and typecheck**
 
 Run: `npx vitest run src/store && npm run typecheck`
-Expected: PASS for all store tests; typecheck clean.
+Expected: PASS — all store tests (rosterDb 9, rosterDb.fallback 4, rosterStore 4, plus Task 10's); typecheck clean.
 
 - [ ] **Step 5: Commit**
 
@@ -4400,6 +4650,7 @@ import { ThemeToggle } from './ThemeToggle';
 export default function App() {
   const session = useSessionStore((s) => s.session);
   const saveFailed = useSessionStore((s) => s.saveFailed);
+  const rosterPersistent = useRosterStore((s) => s.persistent);
   const loadRoster = useRosterStore((s) => s.load);
   const [managing, setManaging] = useState(false);
 
@@ -4429,6 +4680,11 @@ export default function App() {
       {saveFailed && (
         <p className="notice" role="status">
           Not saved — this browser is blocking storage. The session still works, but a refresh will lose it.
+        </p>
+      )}
+      {!rosterPersistent && (
+        <p className="notice" role="status">
+          Saved players can't be stored in this browser, so names will be forgotten when the app closes.
         </p>
       )}
       <main>{screen}</main>
