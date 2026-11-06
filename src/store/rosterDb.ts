@@ -58,11 +58,11 @@ function idbBackend(database: IDBPDatabase<RosterSchema>): Backend {
     },
     async putWithPhoto(player, photo) {
       const tx = database.transaction(['players', 'photos'], 'readwrite');
-      // Taken first, so aborting below cannot leave an unhandled rejection behind.
+      // Created first, so aborting below does not leave this promise rejecting with nobody listening.
       const done = tx.done.catch(() => undefined);
       try {
-        // The photo request goes first: a request that throws on the spot (such as a detached
-        // buffer) does not abort the transaction, so nothing else may be written before it.
+        // Issued first, so a request that throws on the spot (such as a detached buffer) does so
+        // before any other request exists. The abort in the catch guarantees nothing is saved.
         await Promise.all([
           photo
             ? tx.objectStore('photos').put({ id: player.id, type: photo.type, data: photo.data })
@@ -101,8 +101,10 @@ function memoryBackend(): Backend {
       return p && { type: p.type, data: p.data.slice(0) };
     },
     putWithPhoto: async (player, photo) => {
+      // Copy first: if the copy throws, nothing has been written yet.
+      const copy = photo && { type: photo.type, data: photo.data.slice(0) };
       map.set(player.id, { ...player });
-      if (photo) photos.set(player.id, { type: photo.type, data: photo.data.slice(0) });
+      if (copy) photos.set(player.id, copy);
       else photos.delete(player.id);
     },
   };

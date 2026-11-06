@@ -61,6 +61,15 @@ describe('roster db without IndexedDB', () => {
     expect(await getRosterPhoto(ann.id)).toBeUndefined();
   });
 
+  it('saves nothing at all when a photo cannot be copied', async () => {
+    const ann = await addRosterPlayer('Ann');
+    const data = new Uint8Array([1]).buffer;
+    structuredClone(data, { transfer: [data] }); // detaches the buffer, so it cannot be copied
+    await expect(setRosterPhoto(ann.id, { type: 'image/jpeg', data })).rejects.toThrow();
+    expect((await listRoster())[0].photoVersion).toBe(0);
+    expect(await getRosterPhoto(ann.id)).toBeUndefined();
+  });
+
   it('starts fresh after a reset', async () => {
     await addRosterPlayer('Ann');
     await resetRosterDbForTests();
