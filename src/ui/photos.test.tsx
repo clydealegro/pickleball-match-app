@@ -162,6 +162,7 @@ describe('photos in the app', () => {
     const user = userEvent.setup();
     render(<App />);
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
+    await waitFor(() => expect(useRosterStore.getState().players).toHaveLength(4)); // the adds are async
     const ann = useRosterStore.getState().players.find((p) => p.name === 'Ann')!;
     await act(() => useRosterStore.getState().setPhoto(ann.id, { type: 'image/jpeg', data: new Uint8Array([9]).buffer }));
     await user.click(await screen.findByRole('button', { name: 'Start session (4 players)' }));
