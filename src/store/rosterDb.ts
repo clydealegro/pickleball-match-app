@@ -57,6 +57,11 @@ interface RosterTx {
   deletePhoto(id: string): Promise<void>;
   /** Marks the player as having changes to push. */
   markDirty(id: string): Promise<void>;
+  getPhoto(id: string): Promise<PhotoData | undefined>;
+  /** The player's outbox mark, if there is one. */
+  getMark(id: string): Promise<OutboxEntry | undefined>;
+  /** Removes the player's mark whatever its revision. */
+  clearMark(id: string): Promise<void>;
 }
 
 interface Backend {
@@ -133,6 +138,17 @@ function idbBackend(database: IDBPDatabase<RosterSchema>): Backend {
           await tx.objectStore('outbox').put({ playerId: id, rev: lastRev });
           if (has('syncMeta')) await tx.objectStore('syncMeta').put(lastRev, REV_KEY);
         },
+        async getPhoto(id) {
+          if (!has('photos')) return undefined;
+          const record = await tx.objectStore('photos').get(id);
+          return record && { type: record.type, data: record.data };
+        },
+        async getMark(id) {
+          return has('outbox') ? tx.objectStore('outbox').get(id) : undefined;
+        },
+        async clearMark(id) {
+          if (has('outbox')) await tx.objectStore('outbox').delete(id);
+        },
       };
       try {
         const result = await work(view);
@@ -204,6 +220,17 @@ function memoryBackend(): Backend {
         markDirty: async (id) => {
           lastRev += 1;
           outbox.set(id, { playerId: id, rev: lastRev });
+        },
+        getPhoto: async (id) => {
+          const p = photos.get(id);
+          return p && { type: p.type, data: p.data.slice(0) };
+        },
+        getMark: async (id) => {
+          const entry = outbox.get(id);
+          return entry && { ...entry };
+        },
+        clearMark: async (id) => {
+          outbox.delete(id);
         },
       };
       try {
@@ -313,9 +340,26 @@ function serial<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
+const changeListeners = new Set<() => void>();
+
+/**
+ * Calls `listener` after a change made on this device is saved (an add, a rename, a photo, a delete, a played mark).
+ * Changes the sync engine makes itself do not call it. Returns a function that stops listening.
+ */
+export function subscribeRosterChanges(listener: () => void): () => void {
+  changeListeners.add(listener);
+  return () => {
+    changeListeners.delete(listener);
+  };
+}
+
 /** Runs a change as one transaction, after the earlier calls from this tab. */
-function write<T>(work: (tx: RosterTx) => Promise<T>): Promise<T> {
-  return serial(async () => (await db()).run(work));
+function write<T>(work: (tx: RosterTx) => Promise<T>, { quiet = false } = {}): Promise<T> {
+  return serial(async () => {
+    const result = await (await db()).run(work);
+    if (!quiet) changeListeners.forEach((listener) => listener());
+    return result;
+  });
 }
 
 const norm = (name: string) => name.trim().toLowerCase();
@@ -449,6 +493,97 @@ export function queueAllForSync(): Promise<number> {
     for (const player of all) await tx.markDirty(player.id);
     return all.length;
   });
+}
+
+/** One player row as the server has it, checked, with times in milliseconds. */
+export interface PulledPlayer {
+  id: string;
+  name: string;
+  photoVersion: number;
+  photoSeq: number;
+  lastPlayedAt?: number;
+  deletedAt?: number;
+  /** Server time of the last write. */
+  updatedAt: number;
+}
+
+/**
+ * Saves a row pulled from the server, in one transaction, without marking the player for a push. Leaves the player
+ * alone (`'pending'`) when they have a change still waiting to be pushed: that change wins and is pushed afterwards.
+ * `photo` is the picture for the row's `photoSeq` when it had to be downloaded, `null` when the row has no usable
+ * picture, and `undefined` when the picture on this device is already the right one.
+ */
+export function applyPulledPlayer(
+  pulled: PulledPlayer,
+  photo: PhotoData | null | undefined,
+): Promise<'applied' | 'pending' | 'unchanged'> {
+  return write(
+    async (tx) => {
+      if (await tx.getMark(pulled.id)) return 'pending';
+      const local = await tx.get(pulled.id);
+      if (pulled.deletedAt !== undefined) {
+        // A player this device never had, or already deleted, needs nothing.
+        if (!local || local.deletedAt !== undefined) return 'unchanged';
+        await tx.put({ ...local, deletedAt: pulled.deletedAt, updatedAt: pulled.updatedAt });
+        await tx.deletePhoto(pulled.id);
+        return 'applied';
+      }
+      const hasPhoto = pulled.photoVersion > 0 && photo !== null;
+      const next: RosterPlayer = {
+        id: pulled.id,
+        name: pulled.name,
+        photoVersion: hasPhoto ? pulled.photoVersion : 0,
+        // Only ever goes up, whatever the server says.
+        photoSeq: Math.max(local?.photoSeq ?? 0, pulled.photoSeq),
+        updatedAt: pulled.updatedAt,
+        ...(pulled.lastPlayedAt === undefined ? {} : { lastPlayedAt: pulled.lastPlayedAt }),
+      };
+      const same =
+        local !== undefined &&
+        local.deletedAt === undefined &&
+        local.name === next.name &&
+        local.photoVersion === next.photoVersion &&
+        local.photoSeq === next.photoSeq &&
+        local.lastPlayedAt === next.lastPlayedAt;
+      if (same && photo === undefined) return 'unchanged';
+      await tx.put(next);
+      if (photo) await tx.putPhoto(pulled.id, photo);
+      else if (photo === null || pulled.photoVersion === 0) await tx.deletePhoto(pulled.id);
+      return 'applied';
+    },
+    { quiet: true },
+  );
+}
+
+/**
+ * Two players that are really one (the same name saved on two devices): keeps `keepId`, the entry the server has,
+ * and retires `localId`. The retired player stays on this device as a deleted entry that is never pushed. The kept
+ * player adopts the retired one's photo when they have none, and the later played time. Whatever the kept player
+ * gains is marked for a push.
+ */
+export function mergeLocalInto(localId: string, keepId: string, now = Date.now()): Promise<void> {
+  return write(
+    async (tx) => {
+      const retired = await tx.get(localId);
+      const kept = await tx.get(keepId);
+      if (!retired || !kept || localId === keepId) throw new Error('Both players must exist to be merged.');
+      let next = kept;
+      const photo = retired.photoVersion > 0 ? await tx.getPhoto(localId) : undefined;
+      if (kept.photoVersion === 0 && photo) {
+        next = { ...next, photoVersion: 1, photoSeq: kept.photoSeq + 1 };
+        await tx.putPhoto(keepId, photo);
+      }
+      if ((retired.lastPlayedAt ?? 0) > (kept.lastPlayedAt ?? 0)) next = { ...next, lastPlayedAt: retired.lastPlayedAt };
+      if (next !== kept) {
+        await tx.put({ ...next, updatedAt: now });
+        await tx.markDirty(keepId);
+      }
+      await tx.put({ ...retired, deletedAt: now, updatedAt: now });
+      await tx.deletePhoto(localId);
+      await tx.clearMark(localId);
+    },
+    { quiet: true },
+  );
 }
 
 /** Small values the sync engine keeps between visits, such as the last pull time. */
