@@ -13,6 +13,7 @@ Replace manual paddle stacking at pickleball sessions. An organizer creates a se
 - Two matchmaking modes: **fairness** (default) and **simple queue** (classic paddle stack).
 - Courts, players, a waiting list, an "up next" preview, and undo.
 - Late arrivals, breaks, leaving early, adding and removing courts mid-session.
+- A saved **player roster** on the device: players added in any session are remembered and can be picked at the next setup instead of retyped.
 - State is saved in the browser; installable as a PWA; works offline.
 - Responsive UI with a clean, minimalist look; light and dark themes.
 
@@ -20,7 +21,7 @@ Replace manual paddle stacking at pickleball sessions. An organizer creates a se
 - Live sync so players can follow along on their own phones (needs a backend; the storage layer is isolated so it can be swapped).
 - Score entry and leaderboards.
 - Skill ratings and skill-balanced teams.
-- Accounts, saved player groups across devices, session history beyond the current device.
+- Accounts, automatic sync of the player roster across devices, session history beyond the current device. (v1 offers a manual copy/paste backup of the roster instead.)
 
 ## Architecture
 
@@ -66,6 +67,21 @@ FinishedGame { team1, team2, courtNumber, startedAt, finishedAt }
 ```
 
 `startedAt` is a timestamp, so court timers survive refreshes.
+
+### Saved roster
+
+The roster is stored separately from any session, so it outlives sessions:
+
+```
+Roster {
+  players: { id, name, lastPlayedAt? }[]
+}
+```
+
+- A session's `Player` entries are created from roster entries by name (copied, not linked). Editing or deleting a roster entry never changes a session in progress.
+- Roster names are unique case-insensitively. Adding a name that already exists in the roster selects the existing entry instead of creating a duplicate.
+- Every player added during setup or mid-session is added to the roster automatically.
+- `lastPlayedAt` is updated when a session ends, and powers the "Same as last session" shortcut (the players of the most recent session).
 
 ## Matchmaking engine
 
@@ -125,6 +141,8 @@ Mobile-first. On wide screens the same content uses a two-column layout.
 
 - Session name, number of courts (stepper), mode (fairness / simple queue) as option chips.
 - Add players by typing names one at a time or pasting a list (one name per line).
+- **Saved players:** the roster appears as a tappable multi-select list (checkbox rows with a sticky "Add N" button). Shortcuts: "Select all" and "Same as last session". Newly typed names are saved to the roster automatically.
+- **Manage players:** a "Saved players" screen reachable from Setup to rename or delete roster entries, and to **copy** the roster as text or **paste** a list to restore it (one name per line; duplicates are ignored).
 - A single "Start session" button at the bottom. Disabled until there are at least 4 players.
 
 ### 2. Live session (main screen)
@@ -156,6 +174,7 @@ Reference screens were gathered from Mobbin: Tempo (setup chips and dark pill bu
 ## Persistence and offline
 
 - The full session state and undo stack are written to `localStorage` after every action (key includes a schema version).
+- The roster is stored under its own `localStorage` key (with its own schema version) so starting or ending a session never touches it. It is local to the browser and device: clearing site data removes it, which is what the copy/paste backup is for.
 - On load, the saved session is restored; if the saved data is corrupt or from an incompatible version, the app starts at Setup and does not crash.
 - A service worker caches the app shell so it works with no signal. The app is installable as a PWA.
 
@@ -169,7 +188,7 @@ Reference screens were gathered from Mobbin: Tempo (setup chips and dark pill bu
 
 - **Engine unit tests (Vitest):** fewest-games-first selection; waited-longest tie-break; partner and opponent repeat minimization; seeded randomness; fewer than 4 available; multiple empty courts; queue mode ordering; late arrival starting value; break/leave immediate and pending; court add/remove (including `closing`); undo; finishing games updates counts.
 - **Property-style check:** over a long simulated session with a fixed roster (e.g. 13 players, 3 courts, 100 games, no breaks or late arrivals), no active player's games played differs from another's by more than 1 whenever all courts are idle between rounds.
-- **Store tests:** persistence round trip, corrupt-data fallback, undo stack bound.
+- **Store tests:** persistence round trip, corrupt-data fallback, undo stack bound; roster persists across sessions, auto-adds new names, rejects case-insensitive duplicates, and is unaffected by editing or deleting entries during a session; roster paste ignores duplicates and blank lines.
 - **UI tests (Testing Library):** create a session, finish a game, mark a break, undo — the main happy path.
 
 ## Project structure
