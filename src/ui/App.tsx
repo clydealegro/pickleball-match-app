@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRosterStore } from '../store/rosterStore';
 import { useAuthStore } from '../sync/auth';
+import { startSyncCoordinator } from '../sync/coordinator';
 import { useUpdateStore } from '../pwa';
 import { useSessionStore } from '../store/sessionStore';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -29,6 +30,9 @@ export default function App() {
   useEffect(() => {
     void initAuth();
   }, [initAuth]);
+
+  // Keeps saved players backed up while signed in. It does nothing without a backend or a signed-in organizer.
+  useEffect(() => startSyncCoordinator(), []);
 
   let screen;
   if (!session) {

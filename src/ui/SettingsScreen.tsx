@@ -48,8 +48,8 @@ export function SettingsScreen({ onBack }: Props) {
         {status === 'signedOut' && (
           <form className="stack" noValidate onSubmit={submitEmail}>
             <p className="muted">
-              Sign in with your email. There is no password: we email you a link. Backing up your saved players comes
-              in a later update.
+              Sign in with your email. There is no password: we email you a link. Once you are signed in, your saved
+              players and their photos are backed up online and shared between your devices.
             </p>
             <label className="label" htmlFor="auth-email">
               Email
