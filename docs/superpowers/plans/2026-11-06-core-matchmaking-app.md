@@ -3364,7 +3364,7 @@ p {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--accent);
+  background: transparent;
   border: 2px solid var(--ink);
 }
 
@@ -3400,6 +3400,10 @@ p {
 
 .spread {
   justify-content: space-between;
+}
+
+.row-flex.spread {
+  flex-wrap: wrap;
 }
 
 .muted {
@@ -3462,7 +3466,7 @@ p {
 }
 
 .btn-small {
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 14px;
   font-size: 14px;
 }
@@ -3528,6 +3532,10 @@ fieldset {
   background: var(--surface);
   font-weight: 600;
   cursor: pointer;
+}
+
+.option input:checked + span::before {
+  content: '✓ ';
 }
 
 .option input:checked + span {
@@ -3630,6 +3638,10 @@ button.chip {
   gap: 4px;
 }
 
+.list.card {
+  padding: 8px;
+}
+
 .row-btn,
 .check {
   display: flex;
@@ -3716,6 +3728,10 @@ legend {
   gap: 12px;
 }
 
+.court > .tag {
+  align-self: flex-start;
+}
+
 .court-live {
   border-left: 6px solid var(--accent);
 }
@@ -3761,6 +3777,17 @@ legend {
   color: var(--accent-ink);
   background: rgba(255, 255, 255, 0.55);
   border-color: transparent;
+}
+
+.up-next .chip-name {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.up-next .avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 14px;
 }
 
 .up-next-court {
@@ -3839,6 +3866,17 @@ caption {
   text-align: left;
   font-weight: 700;
   padding-bottom: 8px;
+}
+
+/* ---------- Sticky primary action ---------- */
+.sticky-bar {
+  position: sticky;
+  bottom: 0;
+  padding: 12px 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 ```
 
@@ -4080,15 +4118,17 @@ export function SetupScreen({ onManage }: Props) {
         )}
       </section>
 
-      <button
-        type="button"
-        className="btn btn-primary btn-block"
-        disabled={!canStart}
-        onClick={startSession}
-      >
-        {canStart ? `Start session (${chosen.length} players)` : 'Start session'}
-      </button>
-      {!canStart && <p className="muted">Select at least {MIN_PLAYERS} players to start.</p>}
+      <div className="sticky-bar">
+        <button
+          type="button"
+          className="btn btn-primary btn-block"
+          disabled={!canStart}
+          onClick={startSession}
+        >
+          {canStart ? `Start session (${chosen.length} players)` : 'Start session'}
+        </button>
+        {!canStart && <p className="muted">Select at least {MIN_PLAYERS} players to start.</p>}
+      </div>
     </div>
   );
 }
@@ -4584,6 +4624,16 @@ export function LiveScreen({ session }: { session: Session }) {
     [session.players],
   );
 
+  function selectPlayer(id: string) {
+    setError(null);
+    setSelectedId(id);
+  }
+
+  function openAdd() {
+    setError(null);
+    setAdding(true);
+  }
+
   function run(action: Parameters<typeof apply>[0]) {
     const res = apply(action);
     setError(res.ok ? null : res.error);
@@ -4622,14 +4672,14 @@ export function LiveScreen({ session }: { session: Session }) {
               playersById={playersById}
               onFinish={() => run((s, ctx) => engine.finishGame(s, court.id, ctx))}
               onToggleClosing={() => run((s) => engine.removeCourt(s, court.id))}
-              onSelectPlayer={setSelectedId}
+              onSelectPlayer={selectPlayer}
             />
           ))}
         </div>
 
         <div className="stack">
           <UpNextCard session={session} />
-          <WaitingList session={session} onSelect={setSelectedId} onAdd={() => setAdding(true)} />
+          <WaitingList session={session} onSelect={selectPlayer} onAdd={openAdd} />
         </div>
       </div>
 
@@ -4769,6 +4819,21 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Add to session' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/already/i);
+  });
+
+  it('clears a stale error once another sheet is opened', async () => {
+    const user = userEvent.setup();
+    await startFivePlayerSession(user);
+
+    // The setup default is two courts: remove the idle one, then try to remove the last one.
+    await user.click(screen.getAllByRole('button', { name: 'Remove court' })[1]);
+    await user.click(screen.getByRole('button', { name: 'Remove court' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('At least one court must stay open.');
+
+    const waitingList = screen.getByRole('list', { name: 'Waiting' });
+    await user.click(within(waitingList).getByRole('button'));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('ends the session, shows the summary, and remembers the players for next time', async () => {

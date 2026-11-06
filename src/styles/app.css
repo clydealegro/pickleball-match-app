@@ -86,7 +86,7 @@ p {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--accent);
+  background: transparent;
   border: 2px solid var(--ink);
 }
 
@@ -122,6 +122,10 @@ p {
 
 .spread {
   justify-content: space-between;
+}
+
+.row-flex.spread {
+  flex-wrap: wrap;
 }
 
 .muted {
@@ -184,7 +188,7 @@ p {
 }
 
 .btn-small {
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 14px;
   font-size: 14px;
 }
@@ -250,6 +254,10 @@ fieldset {
   background: var(--surface);
   font-weight: 600;
   cursor: pointer;
+}
+
+.option input:checked + span::before {
+  content: '✓ ';
 }
 
 .option input:checked + span {
@@ -352,6 +360,10 @@ button.chip {
   gap: 4px;
 }
 
+.list.card {
+  padding: 8px;
+}
+
 .row-btn,
 .check {
   display: flex;
@@ -438,6 +450,10 @@ legend {
   gap: 12px;
 }
 
+.court > .tag {
+  align-self: flex-start;
+}
+
 .court-live {
   border-left: 6px solid var(--accent);
 }
@@ -483,6 +499,17 @@ legend {
   color: var(--accent-ink);
   background: rgba(255, 255, 255, 0.55);
   border-color: transparent;
+}
+
+.up-next .chip-name {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.up-next .avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 14px;
 }
 
 .up-next-court {
@@ -561,4 +588,15 @@ caption {
   text-align: left;
   font-weight: 700;
   padding-bottom: 8px;
+}
+
+/* ---------- Sticky primary action ---------- */
+.sticky-bar {
+  position: sticky;
+  bottom: 0;
+  padding: 12px 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }

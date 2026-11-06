@@ -212,15 +212,17 @@ export function SetupScreen({ onManage }: Props) {
         )}
       </section>
 
-      <button
-        type="button"
-        className="btn btn-primary btn-block"
-        disabled={!canStart}
-        onClick={startSession}
-      >
-        {canStart ? `Start session (${chosen.length} players)` : 'Start session'}
-      </button>
-      {!canStart && <p className="muted">Select at least {MIN_PLAYERS} players to start.</p>}
+      <div className="sticky-bar">
+        <button
+          type="button"
+          className="btn btn-primary btn-block"
+          disabled={!canStart}
+          onClick={startSession}
+        >
+          {canStart ? `Start session (${chosen.length} players)` : 'Start session'}
+        </button>
+        {!canStart && <p className="muted">Select at least {MIN_PLAYERS} players to start.</p>}
+      </div>
     </div>
   );
 }

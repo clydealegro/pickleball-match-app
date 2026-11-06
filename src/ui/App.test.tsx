@@ -91,6 +91,21 @@ describe('App', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/already/i);
   });
 
+  it('clears a stale error once another sheet is opened', async () => {
+    const user = userEvent.setup();
+    await startFivePlayerSession(user);
+
+    // The setup default is two courts: remove the idle one, then try to remove the last one.
+    await user.click(screen.getAllByRole('button', { name: 'Remove court' })[1]);
+    await user.click(screen.getByRole('button', { name: 'Remove court' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('At least one court must stay open.');
+
+    const waitingList = screen.getByRole('list', { name: 'Waiting' });
+    await user.click(within(waitingList).getByRole('button'));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('ends the session, shows the summary, and remembers the players for next time', async () => {
     const user = userEvent.setup();
     vi.spyOn(window, 'confirm').mockReturnValue(true);

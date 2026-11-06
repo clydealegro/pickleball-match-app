@@ -24,6 +24,16 @@ export function LiveScreen({ session }: { session: Session }) {
     [session.players],
   );
 
+  function selectPlayer(id: string) {
+    setError(null);
+    setSelectedId(id);
+  }
+
+  function openAdd() {
+    setError(null);
+    setAdding(true);
+  }
+
   function run(action: Parameters<typeof apply>[0]) {
     const res = apply(action);
     setError(res.ok ? null : res.error);
@@ -62,14 +72,14 @@ export function LiveScreen({ session }: { session: Session }) {
               playersById={playersById}
               onFinish={() => run((s, ctx) => engine.finishGame(s, court.id, ctx))}
               onToggleClosing={() => run((s) => engine.removeCourt(s, court.id))}
-              onSelectPlayer={setSelectedId}
+              onSelectPlayer={selectPlayer}
             />
           ))}
         </div>
 
         <div className="stack">
           <UpNextCard session={session} />
-          <WaitingList session={session} onSelect={setSelectedId} onAdd={() => setAdding(true)} />
+          <WaitingList session={session} onSelect={selectPlayer} onAdd={openAdd} />
         </div>
       </div>
 
