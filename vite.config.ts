@@ -2,6 +2,9 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vitest/config';
 
+// The project has no @types/node; this is the only Node API the config uses.
+declare const process: { allowedNodeEnvironmentFlags: ReadonlySet<string> };
+
 export default defineConfig(({ mode }) => ({
   base: './',
   plugins: [
@@ -36,5 +39,13 @@ export default defineConfig(({ mode }) => ({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // Newer Node versions ship their own localStorage global that gets in the way of jsdom's. Switch it off where the flag exists.
+    poolOptions: {
+      forks: {
+        execArgv: process.allowedNodeEnvironmentFlags.has('--no-experimental-webstorage')
+          ? ['--no-experimental-webstorage']
+          : [],
+      },
+    },
   },
 }));
