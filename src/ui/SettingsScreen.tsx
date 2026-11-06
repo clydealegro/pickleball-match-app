@@ -6,18 +6,12 @@ interface Props {
 }
 
 export function SettingsScreen({ onBack }: Props) {
-  const { status, email, error, busy, sendCode, verifyCode, changeEmail, signOut } = useAuthStore();
+  const { status, email, error, busy, sendLink, changeEmail, signOut } = useAuthStore();
   const [emailInput, setEmailInput] = useState('');
-  const [code, setCode] = useState('');
 
   function submitEmail(event: FormEvent) {
     event.preventDefault();
-    void sendCode(emailInput);
-  }
-
-  function submitCode(event: FormEvent) {
-    event.preventDefault();
-    void verifyCode(code);
+    void sendLink(emailInput);
   }
 
   return (
@@ -54,8 +48,8 @@ export function SettingsScreen({ onBack }: Props) {
         {status === 'signedOut' && (
           <form className="stack" noValidate onSubmit={submitEmail}>
             <p className="muted">
-              Sign in with your email. There is no password: we email you a 6-digit code. Backing up your saved players
-              comes in a later update.
+              Sign in with your email. There is no password: we email you a link. Backing up your saved players comes
+              in a later update.
             </p>
             <label className="label" htmlFor="auth-email">
               Email
@@ -70,43 +64,24 @@ export function SettingsScreen({ onBack }: Props) {
               onChange={(e) => setEmailInput(e.target.value)}
             />
             <button type="submit" className="btn btn-primary" disabled={busy || !emailInput.trim()}>
-              {busy ? 'Sending…' : 'Send me a code'}
+              {busy ? 'Sending…' : 'Send me a link'}
             </button>
           </form>
         )}
 
-        {status === 'codeSent' && (
-          <form className="stack" onSubmit={submitCode}>
+        {status === 'linkSent' && (
+          <div className="stack">
             <p>
-              We sent a 6-digit code to <strong style={{ overflowWrap: 'anywhere' }}>{email}</strong>. It can take a minute to arrive.
+              We sent a sign-in link to <strong style={{ overflowWrap: 'anywhere' }}>{email}</strong>. It can take a minute to
+              arrive. Open it on this device. It works once.
             </p>
-            <label className="label" htmlFor="auth-code">
-              6-digit code
-            </label>
-            <input
-              id="auth-code"
-              className="field"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              autoFocus
-              value={code}
-              // Keep only the digits, so a code pasted as "123 456" or "123-456" still works.
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            />
-            <button type="submit" className="btn btn-primary" disabled={busy || !code.trim()}>
-              {busy ? 'Checking…' : 'Sign in'}
+            <button type="button" className="btn" disabled={busy} onClick={() => void sendLink(email ?? '')}>
+              {busy ? 'Sending…' : 'Send the link again'}
             </button>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => {
-                setCode('');
-                changeEmail();
-              }}
-            >
+            <button type="button" className="btn btn-ghost" onClick={changeEmail}>
               Use a different email
             </button>
-          </form>
+          </div>
         )}
 
         {status === 'signedIn' && (

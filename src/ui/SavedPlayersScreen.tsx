@@ -78,7 +78,7 @@ export function SavedPlayersScreen({ onBack }: Props) {
           Signed in as {authEmail}
         </p>
       )}
-      {(authStatus === 'signedOut' || authStatus === 'codeSent') && <p className="muted">Signed out</p>}
+      {(authStatus === 'signedOut' || authStatus === 'linkSent') && <p className="muted">Signed out</p>}
 
       {error && (
         <p className="error" role="alert">

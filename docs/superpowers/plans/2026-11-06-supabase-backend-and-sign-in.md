@@ -54,6 +54,9 @@ Tasks 2 to 6 and 8 to 10 do not need the Supabase project. They can be built and
 | `src/ui/App.tsx`, `SetupScreen.tsx`, `SavedPlayersScreen.tsx` | Task 10: Settings view, button, sign-in state |
 | `docs/DEPLOY.md` | Task 11: the two settings |
 
+
+> **Changed after this plan was executed (6 Nov 2026):** sign-in is an emailed magic link, not a typed 6-digit code. On a project without custom SMTP, Supabase locks the email templates and sends a link with no code, so Task 1 step 2 (edit the templates) cannot be done and decision 3 no longer applies. The sign-in store, the client (`detectSessionInUrl` is now on), the Settings screen and their tests were changed to match; the code blocks in Tasks 6, 8 and 9 show the earlier code flow and are out of date. The repo is the source of truth.
+
 ---
 
 ### Task 1: Choose the Supabase project and set up the sign-in email

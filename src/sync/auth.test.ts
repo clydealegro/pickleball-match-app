@@ -1,5 +1,5 @@
 import type { AuthError, Session } from '@supabase/supabase-js';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAuthStore, type AuthClient } from './auth';
 
 const session = (email: string) => ({ user: { email } }) as unknown as Session;
@@ -16,7 +16,6 @@ function fakeClient(over: Partial<Record<keyof AuthClient, unknown>> = {}) {
       return { data: { subscription: { unsubscribe: vi.fn() } } };
     }),
     signInWithOtp: vi.fn().mockResolvedValue({ data: {}, error: null }),
-    verifyOtp: vi.fn().mockResolvedValue({ data: { session: session('ann@example.com') }, error: null }),
     signOut: vi.fn().mockResolvedValue({ error: null }),
     ...over,
   };
@@ -28,7 +27,7 @@ describe('auth store', () => {
     const store = createAuthStore(() => null);
     await store.getState().init();
     expect(store.getState().status).toBe('unconfigured');
-    await store.getState().sendCode('ann@example.com');
+    await store.getState().sendLink('ann@example.com');
     expect(store.getState().status).toBe('unconfigured');
   });
 
@@ -109,21 +108,64 @@ describe('auth store', () => {
     expect(store.getState().error).toBe('Some message');
   });
 
-  describe('sending a code', () => {
-    it('asks for the code and remembers the address', async () => {
+  describe('a sign-in link that did not work', () => {
+    function arriveWith(hash: string) {
+      window.history.replaceState(null, '', '/' + hash);
+    }
+    afterEach(() => window.history.replaceState(null, '', '/'));
+
+    it('says so and tidies the page address when the link has expired or was used', async () => {
+      arriveWith('#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired');
+      const { client } = fakeClient();
+      const store = createAuthStore(() => client);
+      await store.getState().init();
+      expect(store.getState()).toMatchObject({ status: 'signedOut', error: expect.stringMatching(/did not work.*expired or been used/i) });
+      expect(window.location.hash).toBe('');
+    });
+
+    it('stays quiet when the address has nothing to do with sign-in', async () => {
+      arriveWith('#players');
+      const { client } = fakeClient();
+      const store = createAuthStore(() => client);
+      await store.getState().init();
+      expect(store.getState().error).toBeNull();
+      expect(window.location.hash).toBe('#players');
+    });
+  });
+
+  describe('sending a link', () => {
+    it('asks for a link that returns to this app, and remembers the address', async () => {
       const { client, auth } = fakeClient();
       const store = createAuthStore(() => client);
       await store.getState().init();
-      await store.getState().sendCode('  ann@example.com ');
-      expect(auth.signInWithOtp).toHaveBeenCalledWith({ email: 'ann@example.com' });
-      expect(store.getState()).toMatchObject({ status: 'codeSent', email: 'ann@example.com', error: null, busy: false });
+      await store.getState().sendLink('  ann@example.com ');
+      expect(auth.signInWithOtp).toHaveBeenCalledWith({ email: 'ann@example.com', options: { emailRedirectTo: window.location.origin } });
+      expect(store.getState()).toMatchObject({ status: 'linkSent', email: 'ann@example.com', error: null, busy: false });
+    });
+
+    it('signs in when the link is opened in another tab of this browser', async () => {
+      const { client, emit } = fakeClient();
+      const store = createAuthStore(() => client);
+      await store.getState().init();
+      await store.getState().sendLink('ann@example.com');
+      emit('SIGNED_IN', session('ann@example.com'));
+      expect(store.getState()).toMatchObject({ status: 'signedIn', email: 'ann@example.com', error: null });
+    });
+
+    it('lets the user go back and use a different email', async () => {
+      const { client } = fakeClient();
+      const store = createAuthStore(() => client);
+      await store.getState().init();
+      await store.getState().sendLink('ann@example.com');
+      store.getState().changeEmail();
+      expect(store.getState()).toMatchObject({ status: 'signedOut', error: null });
     });
 
     it('rejects an address that is not an email without asking Supabase', async () => {
       const { client, auth } = fakeClient();
       const store = createAuthStore(() => client);
       await store.getState().init();
-      await store.getState().sendCode('ann');
+      await store.getState().sendLink('ann');
       expect(auth.signInWithOtp).not.toHaveBeenCalled();
       expect(store.getState()).toMatchObject({ status: 'signedOut', error: 'Enter a valid email address.' });
     });
@@ -132,7 +174,7 @@ describe('auth store', () => {
       const { client } = fakeClient({ signInWithOtp: vi.fn().mockResolvedValue({ data: {}, error: failure(429) }) });
       const store = createAuthStore(() => client);
       await store.getState().init();
-      await store.getState().sendCode('ann@example.com');
+      await store.getState().sendLink('ann@example.com');
       expect(store.getState().status).toBe('signedOut');
       expect(store.getState().error).toMatch(/too many sign-in emails/i);
       expect(store.getState().busy).toBe(false);
@@ -142,7 +184,7 @@ describe('auth store', () => {
       const { client } = fakeClient({ signInWithOtp: vi.fn().mockResolvedValue({ data: {}, error: failure(0) }) });
       const store = createAuthStore(() => client);
       await store.getState().init();
-      await store.getState().sendCode('ann@example.com');
+      await store.getState().sendLink('ann@example.com');
       expect(store.getState().error).toBe('No connection. Try again when you are online.');
     });
 
@@ -151,7 +193,7 @@ describe('auth store', () => {
       const { client } = fakeClient({ signInWithOtp: vi.fn().mockRejectedValue(new TypeError('fetch failed')) });
       const store = createAuthStore(() => client);
       await store.getState().init();
-      await store.getState().sendCode('ann@example.com');
+      await store.getState().sendLink('ann@example.com');
       online.mockRestore();
       expect(store.getState()).toMatchObject({ busy: false, error: 'No connection. Try again when you are online.' });
     });
@@ -160,7 +202,7 @@ describe('auth store', () => {
       const { client, auth } = fakeClient();
       const store = createAuthStore(() => client);
       await store.getState().init();
-      await Promise.all([store.getState().sendCode('ann@example.com'), store.getState().sendCode('ann@example.com')]);
+      await Promise.all([store.getState().sendLink('ann@example.com'), store.getState().sendLink('ann@example.com')]);
       expect(auth.signInWithOtp).toHaveBeenCalledTimes(1);
     });
 
@@ -168,73 +210,8 @@ describe('auth store', () => {
       const { client } = fakeClient({ signInWithOtp: vi.fn().mockResolvedValue({ data: {}, error: failure(500) }) });
       const store = createAuthStore(() => client);
       await store.getState().init();
-      await store.getState().sendCode('ann@example.com');
-      expect(store.getState().error).toBe("Couldn't send the code. Check the address and try again.");
-    });
-  });
-
-  describe('entering the code', () => {
-    async function codeSent(over: Partial<Record<keyof AuthClient, unknown>> = {}) {
-      const fake = fakeClient(over);
-      const store = createAuthStore(() => fake.client);
-      await store.getState().init();
-      await store.getState().sendCode('ann@example.com');
-      return { store, ...fake };
-    }
-
-    it('signs in with the six digits', async () => {
-      const { store, auth } = await codeSent();
-      await store.getState().verifyCode(' 123456 ');
-      expect(auth.verifyOtp).toHaveBeenCalledWith({ email: 'ann@example.com', token: '123456', type: 'email' });
-      expect(store.getState()).toMatchObject({ status: 'signedIn', email: 'ann@example.com', error: null });
-    });
-
-    it('rejects anything but six digits without asking Supabase', async () => {
-      const { store, auth } = await codeSent();
-      await store.getState().verifyCode('12345');
-      await store.getState().verifyCode('12345a');
-      expect(auth.verifyOtp).not.toHaveBeenCalled();
-      expect(store.getState()).toMatchObject({ status: 'codeSent', error: 'Enter the 6-digit code from the email.' });
-    });
-
-    it('tells the user a wrong or expired code did not work and keeps them on the code step', async () => {
-      const { store } = await codeSent({ verifyOtp: vi.fn().mockResolvedValue({ data: { session: null }, error: failure(403) }) });
-      await store.getState().verifyCode('000000');
-      expect(store.getState().status).toBe('codeSent');
-      expect(store.getState().error).toMatch(/did not work/i);
-    });
-
-    it('explains a rate limit', async () => {
-      const { store } = await codeSent({ verifyOtp: vi.fn().mockResolvedValue({ data: { session: null }, error: failure(429) }) });
-      await store.getState().verifyCode('000000');
-      expect(store.getState().error).toMatch(/too many/i);
-    });
-
-    it('says there is no connection when checking the code', async () => {
-      const { store } = await codeSent({ verifyOtp: vi.fn().mockResolvedValue({ data: { session: null }, error: failure(0) }) });
-      await store.getState().verifyCode('123456');
-      expect(store.getState().status).toBe('codeSent');
-      expect(store.getState().error).toBe('No connection. Try again when you are online.');
-    });
-
-    it('ignores a second submit while the first is running, so one good code is not spent twice', async () => {
-      const { store, auth } = await codeSent();
-      await Promise.all([store.getState().verifyCode('123456'), store.getState().verifyCode('123456')]);
-      expect(auth.verifyOtp).toHaveBeenCalledTimes(1);
-      expect(store.getState()).toMatchObject({ status: 'signedIn', error: null });
-    });
-
-    it('is ready again after the client throws', async () => {
-      const { store } = await codeSent({ verifyOtp: vi.fn().mockRejectedValue(new Error('boom')) });
-      await store.getState().verifyCode('123456');
-      expect(store.getState()).toMatchObject({ status: 'codeSent', busy: false });
-      expect(store.getState().error).toMatch(/did not work/i);
-    });
-
-    it('lets the user go back and use a different email', async () => {
-      const { store } = await codeSent();
-      store.getState().changeEmail();
-      expect(store.getState()).toMatchObject({ status: 'signedOut', error: null });
+      await store.getState().sendLink('ann@example.com');
+      expect(store.getState().error).toBe("Couldn't send the link. Check the address and try again.");
     });
   });
 

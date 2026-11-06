@@ -62,7 +62,7 @@ describe('getSupabase', () => {
     expect(error).toHaveBeenCalledWith(expect.stringMatching(/secret key/i));
   });
 
-  it('keeps the session on the device and does not look for one in the page address', async () => {
+  it('keeps the session on the device and picks one up from a sign-in link in the page address', async () => {
     const createClient = vi.fn(() => ({ auth: {} }));
     vi.resetModules();
     vi.doMock('@supabase/supabase-js', () => ({ createClient }));
@@ -71,7 +71,7 @@ describe('getSupabase', () => {
     const { getSupabase } = await import('./client');
     getSupabase();
     expect(createClient).toHaveBeenCalledWith('https://abc.supabase.co', 'sb_publishable_abc123', {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     });
   });
 

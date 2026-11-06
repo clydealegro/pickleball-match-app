@@ -5,34 +5,46 @@ import { getSupabase } from './client';
 /** The parts of Supabase Auth this app uses. */
 export type AuthClient = Pick<
   SupabaseClient['auth'],
-  'getSession' | 'onAuthStateChange' | 'signInWithOtp' | 'verifyOtp' | 'signOut'
+  'getSession' | 'onAuthStateChange' | 'signInWithOtp' | 'signOut'
 >;
 
 /**
  * `unknown`: there may be a saved session, but it could not be checked (no connection). The app then says neither
  * "signed in" nor "signed out", and anything that syncs must neither sync nor clear.
  */
-export type AuthStatus = 'unconfigured' | 'loading' | 'unknown' | 'signedOut' | 'codeSent' | 'signedIn';
+export type AuthStatus = 'unconfigured' | 'loading' | 'unknown' | 'signedOut' | 'linkSent' | 'signedIn';
 
 export interface AuthState {
   status: AuthStatus;
-  /** The signed-in email, or the address a code was sent to. */
+  /** The signed-in email, or the address a sign-in link was sent to. */
   email: string | null;
   error: string | null;
   busy: boolean;
   init: () => Promise<void>;
-  sendCode: (email: string) => Promise<void>;
-  verifyCode: (code: string) => Promise<void>;
-  /** Go back from "enter the code" to "enter your email". */
+  sendLink: (email: string) => Promise<void>;
+  /** Go back from "check your email" to "enter your email". */
   changeEmail: () => void;
   signOut: () => Promise<void>;
 }
 
 const TOO_MANY = 'Too many sign-in emails right now. Wait a few minutes and try again.';
 const OFFLINE = 'No connection. Try again when you are online.';
+const BAD_LINK = 'That sign-in link did not work. It may have expired or been used already. Ask for a new one.';
 
 /** Checking a saved session that needs a refresh can take about 25 seconds with no connection; do not wait for it. */
 const SESSION_CHECK_MS = 3000;
+
+/**
+ * A sign-in link that failed (expired, or already used) comes back with the reason in the page address. Supabase does
+ * not report it to the app, so read it here, say so, and tidy the address. Returns true when there was one.
+ */
+function takeLinkError(): boolean {
+  if (typeof window === 'undefined') return false;
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  if (!params.has('error') && !params.has('error_code') && !params.has('error_description')) return false;
+  window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+  return true;
+}
 
 function isRateLimited(error: { status?: number }): boolean {
   return error.status === 429;
@@ -76,6 +88,7 @@ export function createAuthStore(getClient: () => { auth: AuthClient } | null, se
           return;
         }
         let timer: ReturnType<typeof setTimeout> | undefined;
+        if (takeLinkError()) set({ error: BAD_LINK });
         try {
           // Keep the status in step with the session: sign-in, sign-out and a session that ended. The callback must
           // stay free of other Supabase calls.
@@ -107,7 +120,7 @@ export function createAuthStore(getClient: () => { auth: AuthClient } | null, se
         }
       },
 
-      async sendCode(rawEmail) {
+      async sendLink(rawEmail) {
         const client = getClient();
         if (!client || get().busy) return;
         const email = rawEmail.trim();
@@ -115,34 +128,15 @@ export function createAuthStore(getClient: () => { auth: AuthClient } | null, se
           set({ error: 'Enter a valid email address.' });
           return;
         }
-        const failure = "Couldn't send the code. Check the address and try again.";
+        const failure = "Couldn't send the link. Check the address and try again.";
         await guarded(failure, async () => {
-          const { error } = await client.auth.signInWithOtp({ email });
+          // The link brings the person back to this app; supabase-js picks the session up from the page address.
+          const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
           if (error) {
             set({ error: isRateLimited(error) ? TOO_MANY : isOffline(error) ? OFFLINE : failure });
             return;
           }
-          set({ status: 'codeSent', email });
-        });
-      },
-
-      async verifyCode(rawCode) {
-        const client = getClient();
-        const email = get().email;
-        if (!client || !email || get().busy) return;
-        const token = rawCode.trim();
-        if (!/^\d{6}$/.test(token)) {
-          set({ error: 'Enter the 6-digit code from the email.' });
-          return;
-        }
-        const failure = 'That code did not work. Check it, or go back and ask for a new one.';
-        await guarded(failure, async () => {
-          const { data, error } = await client.auth.verifyOtp({ email, token, type: 'email' });
-          if (error || !data.session) {
-            set({ error: error && isRateLimited(error) ? TOO_MANY : error && isOffline(error) ? OFFLINE : failure });
-            return;
-          }
-          set({ status: 'signedIn', email: data.session.user.email ?? email, error: null });
+          set({ status: 'linkSent', email });
         });
       },
 

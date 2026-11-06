@@ -1,5 +1,5 @@
 import type { AuthError, Session } from '@supabase/supabase-js';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -16,7 +16,6 @@ function fakeClient(over: Record<string, unknown> = {}) {
       getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
       onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
       signInWithOtp: vi.fn().mockResolvedValue({ data: {}, error: null }),
-      verifyOtp: vi.fn().mockResolvedValue({ data: { session: session('ann@example.com') }, error: null }),
       signOut: vi.fn().mockResolvedValue({ error: null }),
       ...over,
     },
@@ -61,35 +60,50 @@ describe('Settings screen', () => {
     expect(screen.queryByRole('heading', { name: 'Settings' })).not.toBeInTheDocument();
   });
 
-  it('signs in with an emailed code, then signs out', async () => {
+  it('asks for a link, and tells the user to open it on this device', async () => {
     const client = fakeClient();
     const user = await startApp(client);
     await openSettings(user);
 
     await user.type(await screen.findByLabelText('Email'), 'ann@example.com');
-    await user.click(screen.getByRole('button', { name: 'Send me a code' }));
-    expect(client.auth.signInWithOtp).toHaveBeenCalledWith({ email: 'ann@example.com' });
-    expect(await screen.findByText(/we sent a 6-digit code to/i)).toHaveTextContent('ann@example.com');
+    await user.click(screen.getByRole('button', { name: 'Send me a link' }));
+    expect(client.auth.signInWithOtp).toHaveBeenCalledWith({
+      email: 'ann@example.com',
+      options: { emailRedirectTo: window.location.origin },
+    });
+    expect(await screen.findByText(/we sent a sign-in link to/i)).toHaveTextContent('ann@example.com');
+    expect(screen.queryByLabelText(/6-digit code/i)).not.toBeInTheDocument();
+  });
 
-    await user.type(screen.getByLabelText('6-digit code'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-    expect(client.auth.verifyOtp).toHaveBeenCalledWith({ email: 'ann@example.com', token: '123456', type: 'email' });
+  it('can send the link again', async () => {
+    const client = fakeClient();
+    const user = await startApp(client);
+    await openSettings(user);
+    await user.type(await screen.findByLabelText('Email'), 'ann@example.com');
+    await user.click(screen.getByRole('button', { name: 'Send me a link' }));
+    await user.click(await screen.findByRole('button', { name: 'Send the link again' }));
+    expect(client.auth.signInWithOtp).toHaveBeenCalledTimes(2);
+  });
+
+  it('signs in when the link is opened, then signs out', async () => {
+    let notify: ((event: string, s: Session | null) => void) | undefined;
+    const client = fakeClient({
+      onAuthStateChange: vi.fn((cb: (event: string, s: Session | null) => void) => {
+        notify = cb;
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      }),
+    });
+    const user = await startApp(client);
+    await openSettings(user);
+    await user.type(await screen.findByLabelText('Email'), 'ann@example.com');
+    await user.click(screen.getByRole('button', { name: 'Send me a link' }));
+    await screen.findByText(/we sent a sign-in link to/i);
+
+    act(() => notify?.('SIGNED_IN', session('ann@example.com')));
     expect(await screen.findByText(/signed in as/i)).toHaveTextContent('ann@example.com');
 
     await user.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(await screen.findByLabelText('Email')).toBeInTheDocument();
-  });
-
-  it('shows a plain message when the code is wrong and stays on the code step', async () => {
-    const client = fakeClient({ verifyOtp: vi.fn().mockResolvedValue({ data: { session: null }, error: failure(403) }) });
-    const user = await startApp(client);
-    await openSettings(user);
-    await user.type(await screen.findByLabelText('Email'), 'ann@example.com');
-    await user.click(screen.getByRole('button', { name: 'Send me a code' }));
-    await user.type(await screen.findByLabelText('6-digit code'), '000000');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(/did not work/i);
-    expect(screen.getByLabelText('6-digit code')).toBeInTheDocument();
   });
 
   it('explains a rate limit and lets the user go back to change the email', async () => {
@@ -97,10 +111,10 @@ describe('Settings screen', () => {
     const user = await startApp(client);
     await openSettings(user);
     await user.type(await screen.findByLabelText('Email'), 'ann@example.com');
-    await user.click(screen.getByRole('button', { name: 'Send me a code' }));
+    await user.click(screen.getByRole('button', { name: 'Send me a link' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/too many sign-in emails/i);
 
-    await user.click(screen.getByRole('button', { name: 'Send me a code' }));
+    await user.click(screen.getByRole('button', { name: 'Send me a link' }));
     await user.click(await screen.findByRole('button', { name: 'Use a different email' }));
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -111,7 +125,7 @@ describe('Settings screen', () => {
     const user = await startApp(client);
     await openSettings(user);
     await user.type(await screen.findByLabelText('Email'), 'ann');
-    await user.click(screen.getByRole('button', { name: 'Send me a code' }));
+    await user.click(screen.getByRole('button', { name: 'Send me a link' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Enter a valid email address.');
     expect(client.auth.signInWithOtp).not.toHaveBeenCalled();
   });
@@ -123,18 +137,6 @@ describe('Settings screen', () => {
     expect(await screen.findByText(/can't check sign-in without a connection/i)).toBeInTheDocument();
     expect(screen.queryByLabelText('Email')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
-  });
-
-  it('accepts a code pasted with a space in it', async () => {
-    const client = fakeClient();
-    const user = await startApp(client);
-    await openSettings(user);
-    await user.type(await screen.findByLabelText('Email'), 'ann@example.com');
-    await user.click(screen.getByRole('button', { name: 'Send me a code' }));
-    await user.type(await screen.findByLabelText('6-digit code'), '123 456');
-    expect(screen.getByLabelText('6-digit code')).toHaveValue('123456');
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-    expect(client.auth.verifyOtp).toHaveBeenCalledWith({ email: 'ann@example.com', token: '123456', type: 'email' });
   });
 
   it('starts signed in when this device already has a session', async () => {

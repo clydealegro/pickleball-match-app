@@ -34,8 +34,8 @@ export function getSupabase(): SupabaseClient | null {
     client = null;
   } else {
     try {
-      // Sign-in uses a code typed into the app, not a link, so there is nothing to pick up from the page address.
-      client = createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+      // Sign-in is an emailed link that brings the person back to the app with the session in the page address.
+      client = createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
     } catch {
       // The message names the setting, never its value.
       console.error('Could not create the Supabase client. Check that VITE_SUPABASE_URL is the project address, like https://abc.supabase.co.');
