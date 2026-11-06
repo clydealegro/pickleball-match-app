@@ -26,6 +26,9 @@ interface Backend {
   close?(): void;
 }
 
+/** Serializes read-modify-write operations so overlapping calls cannot interleave. */
+let queue: Promise<unknown> = Promise.resolve();
+
 let backendPromise: Promise<Backend> | null = null;
 let persistent = true;
 
@@ -54,9 +57,19 @@ function memoryBackend(): Backend {
 
 async function openBackend(): Promise<Backend> {
   try {
-    const database = await openDB<RosterSchema>(DB_NAME, 1, {
+    let database: IDBPDatabase<RosterSchema> | undefined;
+    database = await openDB<RosterSchema>(DB_NAME, 1, {
       upgrade(d) {
         d.createObjectStore('players', { keyPath: 'id' });
+      },
+      // The browser closed the connection (e.g. iOS Safari when backgrounded): reopen on next use.
+      terminated() {
+        backendPromise = null;
+      },
+      // Another tab wants to upgrade or delete the database: step aside and reopen later.
+      blocking() {
+        database?.close();
+        backendPromise = null;
       },
     });
     return idbBackend(database);
@@ -79,14 +92,14 @@ export function isRosterPersistent(): boolean {
 
 /** Test helper: closes and deletes the database, and clears the fallback state. */
 export async function resetRosterDbForTests(): Promise<void> {
+  await queue.catch(() => undefined);
   if (backendPromise) (await backendPromise).close?.();
   backendPromise = null;
   persistent = true;
+  queue = Promise.resolve();
   await deleteDB(DB_NAME);
 }
 
-/** Serializes read-modify-write operations so overlapping calls cannot interleave. */
-let queue: Promise<unknown> = Promise.resolve();
 function serial<T>(fn: () => Promise<T>): Promise<T> {
   const run = queue.then(() => fn());
   queue = run.then(
@@ -104,7 +117,7 @@ async function liveEntries(): Promise<RosterPlayer[]> {
 
 export async function listRoster(): Promise<RosterPlayer[]> {
   return (await liveEntries()).sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || a.id.localeCompare(b.id),
   );
 }
 
@@ -126,11 +139,12 @@ export async function renameRosterPlayer(id: string, name: string, now = Date.no
   if (!clean) throw new Error('Enter a name for the player.');
   return serial(async () => {
     const entries = await liveEntries();
+    const current = entries.find((p) => p.id === id);
+    if (!current) throw new Error('That player no longer exists.');
+    if (current.name === clean) return;
     if (entries.some((p) => p.id !== id && norm(p.name) === norm(clean))) {
       throw new Error(`${clean} is already saved.`);
     }
-    const current = entries.find((p) => p.id === id);
-    if (!current) throw new Error('That player no longer exists.');
     await (await db()).put({ ...current, name: clean, updatedAt: now });
   });
 }
@@ -147,10 +161,14 @@ export function deleteRosterPlayer(id: string, now = Date.now()): Promise<void> 
 export function markRosterPlayed(ids: string[], at: number): Promise<void> {
   return serial(async () => {
     const database = await db();
-    for (const id of ids) {
+    for (const id of new Set(ids)) {
       const current = await database.get(id);
       if (current && !current.deletedAt) {
-        await database.put({ ...current, lastPlayedAt: at, updatedAt: at });
+        await database.put({
+          ...current,
+          lastPlayedAt: Math.max(current.lastPlayedAt ?? 0, at),
+          updatedAt: at,
+        });
       }
     }
   });

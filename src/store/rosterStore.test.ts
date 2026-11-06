@@ -38,6 +38,12 @@ describe('rosterStore', () => {
     expect(useRosterStore.getState().players.map((p) => p.name)).toEqual(['Ann']);
   });
 
+  it('records when a player last played', async () => {
+    const ann = await useRosterStore.getState().add('Ann');
+    await useRosterStore.getState().markPlayed([ann.id], 4_000);
+    expect(useRosterStore.getState().players[0].lastPlayedAt).toBe(4_000);
+  });
+
   it('does not change a running session when the roster is edited', async () => {
     const { add, rename, remove } = useRosterStore.getState();
     const names = ['Ann', 'Ben', 'Cy', 'Dee'];

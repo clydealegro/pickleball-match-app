@@ -9,14 +9,22 @@ export interface Persisted {
 }
 
 const isObject = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null;
+const isNum = (x: unknown): x is number => typeof x === 'number';
+const isTeam = (x: unknown): boolean =>
+  Array.isArray(x) && x.length === 2 && x.every((id) => typeof id === 'string');
+
+function isGame(x: unknown): boolean {
+  return isObject(x) && isTeam(x.team1) && isTeam(x.team2) && isNum(x.startedAt);
+}
 
 function isCourt(x: unknown): boolean {
   return (
     isObject(x) &&
     typeof x.id === 'string' &&
-    typeof x.number === 'number' &&
+    isNum(x.number) &&
     (x.status === 'empty' || x.status === 'playing') &&
-    typeof x.closing === 'boolean'
+    typeof x.closing === 'boolean' &&
+    (x.status !== 'playing' || isGame(x.game))
   );
 }
 
@@ -26,26 +34,41 @@ function isPlayer(x: unknown): boolean {
     typeof x.id === 'string' &&
     typeof x.name === 'string' &&
     (x.status === 'active' || x.status === 'break' || x.status === 'left') &&
-    typeof x.gamesPlayed === 'number'
+    isNum(x.gamesPlayed) &&
+    isNum(x.lastFinishedSeq) &&
+    isNum(x.tieKey) &&
+    isObject(x.partnerCounts) &&
+    isObject(x.opponentCounts)
+  );
+}
+
+function isFinishedGame(x: unknown): boolean {
+  return (
+    isObject(x) &&
+    isTeam(x.team1) &&
+    isTeam(x.team2) &&
+    isNum(x.courtNumber) &&
+    isNum(x.startedAt) &&
+    isNum(x.finishedAt)
   );
 }
 
 function isSession(x: unknown): x is Session {
-  if (typeof x !== 'object' || x === null) return false;
-  const s = x as Record<string, unknown>;
+  if (!isObject(x)) return false;
   return (
-    typeof s.id === 'string' &&
-    typeof s.name === 'string' &&
-    (s.mode === 'fairness' || s.mode === 'queue') &&
-    Array.isArray(s.courts) &&
-    s.courts.every(isCourt) &&
-    Array.isArray(s.players) &&
-    s.players.every(isPlayer) &&
-    Array.isArray(s.queueOrder) &&
-    s.queueOrder.every((id) => typeof id === 'string') &&
-    Array.isArray(s.history) &&
-    s.history.every(isObject) &&
-    typeof s.gameSeq === 'number'
+    typeof x.id === 'string' &&
+    typeof x.name === 'string' &&
+    (x.mode === 'fairness' || x.mode === 'queue') &&
+    Array.isArray(x.courts) &&
+    x.courts.every(isCourt) &&
+    Array.isArray(x.players) &&
+    x.players.every(isPlayer) &&
+    Array.isArray(x.queueOrder) &&
+    x.queueOrder.every((id) => typeof id === 'string') &&
+    Array.isArray(x.history) &&
+    x.history.every(isFinishedGame) &&
+    isNum(x.gameSeq) &&
+    isNum(x.createdAt)
   );
 }
 

@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as engine from '../engine';
 import { MAX_UNDO, useSessionStore } from './sessionStore';
-import { STORAGE_KEY } from './persistence';
+import { savePersisted, STORAGE_KEY } from './persistence';
 
 const players = ['Ann', 'Ben', 'Cy', 'Dee', 'Eve'].map((name) => ({ name }));
 
@@ -84,5 +84,22 @@ describe('sessionStore', () => {
     } finally {
       Storage.prototype.setItem = original;
     }
+  });
+
+  it('restores the session and undo stack from storage when the app reloads', async () => {
+    start();
+    const prev = useSessionStore.getState().session!;
+    const courtId = prev.courts[0].id;
+    useSessionStore.getState().apply((s, ctx) => engine.finishGame(s, courtId, ctx));
+    const { session, undoStack } = useSessionStore.getState();
+    expect(undoStack).toEqual([prev]);
+    localStorage.clear();
+    expect(savePersisted({ session, undoStack })).toBe(true);
+
+    vi.resetModules();
+    const fresh = await import('./sessionStore');
+    expect(fresh.useSessionStore).not.toBe(useSessionStore);
+    expect(fresh.useSessionStore.getState().session).toEqual(session);
+    expect(fresh.useSessionStore.getState().undoStack).toEqual([prev]);
   });
 });

@@ -1946,7 +1946,7 @@ git commit -m "test(engine): long-session simulation and operation fuzzing again
 
 **Files:**
 - Create: `src/lib/id.ts`, `src/store/liveCtx.ts`, `src/store/persistence.ts`, `src/store/sessionStore.ts`
-- Test: `src/store/persistence.test.ts`, `src/store/sessionStore.test.ts`
+- Test: `src/lib/id.test.ts`, `src/store/persistence.test.ts`, `src/store/sessionStore.test.ts`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1998,6 +1998,21 @@ describe('persistence', () => {
     expect(loadPersisted()?.session).toEqual(s);
   });
 
+  it('returns null when a player lacks its counters or a playing court lacks its game', () => {
+    const s = newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }, makeCtx());
+    expect(s.courts[0].status).toBe('playing');
+    const store = (session: unknown) =>
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, session, undoStack: [] }));
+    const { partnerCounts: _p, ...noCounts } = s.players[0];
+    store({ ...s, players: [noCounts, ...s.players.slice(1)] });
+    expect(loadPersisted()).toBeNull();
+    const { game: _g, ...noGame } = s.courts[0];
+    store({ ...s, courts: [noGame] });
+    expect(loadPersisted()).toBeNull();
+    store(s);
+    expect(loadPersisted()?.session).toEqual(s);
+  });
+
   it('clears the stored session', () => {
     savePersisted({ session: null, undoStack: [] });
     clearPersisted();
@@ -2015,14 +2030,31 @@ describe('persistence', () => {
       Storage.prototype.setItem = original;
     }
   });
+
+  it('retries with a short undo stack when the first write hits the quota', () => {
+    const s = newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }, makeCtx());
+    const original = Storage.prototype.setItem;
+    let calls = 0;
+    Storage.prototype.setItem = function (this: Storage, key: string, value: string) {
+      if (calls++ === 0) throw new Error('quota');
+      return original.call(this, key, value);
+    };
+    try {
+      expect(savePersisted({ session: s, undoStack: Array.from({ length: 20 }, () => s) })).toBe(true);
+    } finally {
+      Storage.prototype.setItem = original;
+    }
+    expect(calls).toBe(2);
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).undoStack.length).toBeLessThanOrEqual(5);
+  });
 });
 ```
 
 ```ts file=src/store/sessionStore.test.ts
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as engine from '../engine';
 import { MAX_UNDO, useSessionStore } from './sessionStore';
-import { STORAGE_KEY } from './persistence';
+import { savePersisted, STORAGE_KEY } from './persistence';
 
 const players = ['Ann', 'Ben', 'Cy', 'Dee', 'Eve'].map((name) => ({ name }));
 
@@ -2106,20 +2138,74 @@ describe('sessionStore', () => {
       Storage.prototype.setItem = original;
     }
   });
+
+  it('restores the session and undo stack from storage when the app reloads', async () => {
+    start();
+    const prev = useSessionStore.getState().session!;
+    const courtId = prev.courts[0].id;
+    useSessionStore.getState().apply((s, ctx) => engine.finishGame(s, courtId, ctx));
+    const { session, undoStack } = useSessionStore.getState();
+    expect(undoStack).toEqual([prev]);
+    localStorage.clear();
+    expect(savePersisted({ session, undoStack })).toBe(true);
+
+    vi.resetModules();
+    const fresh = await import('./sessionStore');
+    expect(fresh.useSessionStore).not.toBe(useSessionStore);
+    expect(fresh.useSessionStore.getState().session).toEqual(session);
+    expect(fresh.useSessionStore.getState().undoStack).toEqual([prev]);
+  });
+});
+```
+
+```ts file=src/lib/id.test.ts
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { newId } from './id';
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe('newId', () => {
+  it('is unique across many calls', () => {
+    const ids = new Set(Array.from({ length: 1000 }, () => newId()));
+    expect(ids.size).toBe(1000);
+  });
+
+  it('builds a v4 UUID from getRandomValues when randomUUID is unavailable', () => {
+    vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) });
+    const ids = Array.from({ length: 50 }, () => newId());
+    for (const id of ids) {
+      expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    }
+    expect(new Set(ids).size).toBe(50);
+  });
+
+  it('still returns an id with no crypto at all', () => {
+    vi.stubGlobal('crypto', undefined);
+    expect(newId()).not.toBe('');
+  });
 });
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `npx vitest run src/store`
+Run: `npx vitest run src/lib/id.test.ts src/store`
 Expected: FAIL — `Failed to resolve import "./persistence"` / `"./sessionStore"`.
 
 - [ ] **Step 3: Implement**
 
 ```ts file=src/lib/id.ts
+const hex = (n: number) => n.toString(16).padStart(2, '0');
+
 export function newId(): string {
   const c = globalThis.crypto;
   if (c && typeof c.randomUUID === 'function') return c.randomUUID();
+  if (c && typeof c.getRandomValues === 'function') {
+    const b = c.getRandomValues(new Uint8Array(16));
+    b[6] = (b[6] & 0x0f) | 0x40; // version 4
+    b[8] = (b[8] & 0x3f) | 0x80; // RFC 4122 variant
+    const h = Array.from(b, hex).join('');
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+  }
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 ```
@@ -2146,14 +2232,22 @@ export interface Persisted {
 }
 
 const isObject = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null;
+const isNum = (x: unknown): x is number => typeof x === 'number';
+const isTeam = (x: unknown): boolean =>
+  Array.isArray(x) && x.length === 2 && x.every((id) => typeof id === 'string');
+
+function isGame(x: unknown): boolean {
+  return isObject(x) && isTeam(x.team1) && isTeam(x.team2) && isNum(x.startedAt);
+}
 
 function isCourt(x: unknown): boolean {
   return (
     isObject(x) &&
     typeof x.id === 'string' &&
-    typeof x.number === 'number' &&
+    isNum(x.number) &&
     (x.status === 'empty' || x.status === 'playing') &&
-    typeof x.closing === 'boolean'
+    typeof x.closing === 'boolean' &&
+    (x.status !== 'playing' || isGame(x.game))
   );
 }
 
@@ -2163,26 +2257,41 @@ function isPlayer(x: unknown): boolean {
     typeof x.id === 'string' &&
     typeof x.name === 'string' &&
     (x.status === 'active' || x.status === 'break' || x.status === 'left') &&
-    typeof x.gamesPlayed === 'number'
+    isNum(x.gamesPlayed) &&
+    isNum(x.lastFinishedSeq) &&
+    isNum(x.tieKey) &&
+    isObject(x.partnerCounts) &&
+    isObject(x.opponentCounts)
+  );
+}
+
+function isFinishedGame(x: unknown): boolean {
+  return (
+    isObject(x) &&
+    isTeam(x.team1) &&
+    isTeam(x.team2) &&
+    isNum(x.courtNumber) &&
+    isNum(x.startedAt) &&
+    isNum(x.finishedAt)
   );
 }
 
 function isSession(x: unknown): x is Session {
-  if (typeof x !== 'object' || x === null) return false;
-  const s = x as Record<string, unknown>;
+  if (!isObject(x)) return false;
   return (
-    typeof s.id === 'string' &&
-    typeof s.name === 'string' &&
-    (s.mode === 'fairness' || s.mode === 'queue') &&
-    Array.isArray(s.courts) &&
-    s.courts.every(isCourt) &&
-    Array.isArray(s.players) &&
-    s.players.every(isPlayer) &&
-    Array.isArray(s.queueOrder) &&
-    s.queueOrder.every((id) => typeof id === 'string') &&
-    Array.isArray(s.history) &&
-    s.history.every(isObject) &&
-    typeof s.gameSeq === 'number'
+    typeof x.id === 'string' &&
+    typeof x.name === 'string' &&
+    (x.mode === 'fairness' || x.mode === 'queue') &&
+    Array.isArray(x.courts) &&
+    x.courts.every(isCourt) &&
+    Array.isArray(x.players) &&
+    x.players.every(isPlayer) &&
+    Array.isArray(x.queueOrder) &&
+    x.queueOrder.every((id) => typeof id === 'string') &&
+    Array.isArray(x.history) &&
+    x.history.every(isFinishedGame) &&
+    isNum(x.gameSeq) &&
+    isNum(x.createdAt)
   );
 }
 
@@ -2302,8 +2411,8 @@ export const useSessionStore = create<SessionState>()((set, get) => {
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `npx vitest run src/store/persistence.test.ts src/store/sessionStore.test.ts`
-Expected: PASS — 14 tests.
+Run: `npx vitest run src/lib/id.test.ts src/store/persistence.test.ts src/store/sessionStore.test.ts`
+Expected: PASS — 20 tests (id 3, persistence 9, sessionStore 8).
 
 - [ ] **Step 5: Commit**
 
@@ -2318,7 +2427,7 @@ git commit -m "feat(store): persisted session store with bounded undo"
 
 **Files:**
 - Create: `src/store/rosterDb.ts`, `src/store/rosterStore.ts`
-- Test: `src/store/rosterDb.test.ts`, `src/store/rosterDb.fallback.test.ts`, `src/store/rosterStore.test.ts`
+- Test: `src/store/rosterDb.test.ts`, `src/store/rosterDb.fallback.test.ts`, `src/store/rosterDb.reconnect.test.ts`, `src/store/rosterStore.test.ts`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2402,10 +2511,57 @@ describe('roster db', () => {
     await addRosterPlayer('Ann');
     expect(lastSessionIds(await listRoster())).toEqual([]);
   });
+
+  it('markRosterPlayed skips deleted and unknown ids and ignores duplicates', async () => {
+    const a = await addRosterPlayer('Ann');
+    const b = await addRosterPlayer('Ben');
+    await deleteRosterPlayer(b.id);
+    await markRosterPlayed([a.id, a.id, b.id, 'missing'], 1_000);
+    const roster = await listRoster();
+    expect(roster).toHaveLength(1);
+    expect(roster[0].lastPlayedAt).toBe(1_000);
+  });
+
+  it('markRosterPlayed never moves lastPlayedAt backwards', async () => {
+    const a = await addRosterPlayer('Ann');
+    await markRosterPlayed([a.id], 5_000);
+    await markRosterPlayed([a.id], 2_000);
+    expect((await listRoster())[0].lastPlayedAt).toBe(5_000);
+  });
+
+  it('orders names that collate equally by id', async () => {
+    const a = await addRosterPlayer('Ann');
+    const b = await addRosterPlayer('Ánn');
+    expect((await listRoster()).map((p) => p.id)).toEqual([a.id, b.id].sort());
+  });
+
+  it('rename reports a missing player even when the new name is taken', async () => {
+    await addRosterPlayer('Ben');
+    await expect(renameRosterPlayer('missing', 'Ben')).rejects.toThrow(/no longer exists/i);
+  });
+
+  it('allows a case-only rename', async () => {
+    const ann = await addRosterPlayer('Ann');
+    await renameRosterPlayer(ann.id, 'ann', 2_000);
+    expect((await listRoster())[0]).toMatchObject({ name: 'ann', updatedAt: 2_000 });
+  });
+
+  it('does not write when the name is unchanged', async () => {
+    const ann = await addRosterPlayer('Ann', 1_000);
+    await renameRosterPlayer(ann.id, '  Ann ', 2_000);
+    expect((await listRoster())[0].updatedAt).toBe(1_000);
+  });
+
+  it('deleting an unknown or already deleted player is a no-op', async () => {
+    const ann = await addRosterPlayer('Ann');
+    await expect(deleteRosterPlayer('missing')).resolves.toBeUndefined();
+    await deleteRosterPlayer(ann.id, 3_000);
+    await expect(deleteRosterPlayer(ann.id, 4_000)).resolves.toBeUndefined();
+  });
 });
 ```
 
-These two cover the in-memory fallback (IndexedDB unavailable) and the roster store, including that a running session is unaffected by roster edits:
+These cover the in-memory fallback (IndexedDB unavailable), reconnecting after the browser drops the connection, and the roster store, including that a running session is unaffected by roster edits:
 
 ```ts file=src/store/rosterDb.fallback.test.ts
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -2432,6 +2588,7 @@ beforeEach(async () => {
 
 describe('roster db without IndexedDB', () => {
   it('keeps players in memory and reports that nothing is persisted', async () => {
+    // Optimistic by design: it only turns false once opening IndexedDB has actually failed.
     expect(isRosterPersistent()).toBe(true);
     const ann = await addRosterPlayer('Ann');
     await addRosterPlayer('Ben');
@@ -2508,6 +2665,12 @@ describe('rosterStore', () => {
     expect(useRosterStore.getState().players.map((p) => p.name)).toEqual(['Ann']);
   });
 
+  it('records when a player last played', async () => {
+    const ann = await useRosterStore.getState().add('Ann');
+    await useRosterStore.getState().markPlayed([ann.id], 4_000);
+    expect(useRosterStore.getState().players[0].lastPlayedAt).toBe(4_000);
+  });
+
   it('does not change a running session when the roster is edited', async () => {
     const { add, rename, remove } = useRosterStore.getState();
     const names = ['Ann', 'Ben', 'Cy', 'Dee'];
@@ -2535,9 +2698,65 @@ describe('rosterStore', () => {
 });
 ```
 
+```ts file=src/store/rosterDb.reconnect.test.ts
+import type { OpenDBCallbacks } from 'idb';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { opened } = vi.hoisted(() => ({
+  opened: [] as Array<OpenDBCallbacks<never>>,
+}));
+
+vi.mock('idb', async (importOriginal) => {
+  const real = await importOriginal<typeof import('idb')>();
+  return {
+    ...real,
+    openDB: vi.fn((name: string, version: number, callbacks: OpenDBCallbacks<never>) => {
+      opened.push(callbacks);
+      return real.openDB(name, version, callbacks as never);
+    }),
+  };
+});
+
+import {
+  addRosterPlayer,
+  isRosterPersistent,
+  listRoster,
+  resetRosterDbForTests,
+} from './rosterDb';
+
+beforeEach(async () => {
+  await resetRosterDbForTests();
+  opened.length = 0;
+});
+
+describe('roster db connection recovery', () => {
+  it('reuses one connection while it stays open', async () => {
+    await addRosterPlayer('Ann');
+    await listRoster();
+    expect(opened).toHaveLength(1);
+  });
+
+  it('reopens after the browser terminates the connection', async () => {
+    await addRosterPlayer('Ann');
+    opened[0].terminated!();
+    expect((await listRoster()).map((p) => p.name)).toEqual(['Ann']);
+    await addRosterPlayer('Ben');
+    expect(opened).toHaveLength(2);
+    expect(isRosterPersistent()).toBe(true);
+  });
+
+  it('closes and reopens when another tab needs the database', async () => {
+    await addRosterPlayer('Ann');
+    opened[0].blocking!(1, null, new Event('versionchange') as never);
+    expect((await listRoster()).map((p) => p.name)).toEqual(['Ann']);
+    expect(opened).toHaveLength(2);
+  });
+});
+```
+
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `npx vitest run src/store/rosterDb.test.ts src/store/rosterDb.fallback.test.ts src/store/rosterStore.test.ts`
+Run: `npx vitest run src/store/rosterDb.test.ts src/store/rosterDb.fallback.test.ts src/store/rosterDb.reconnect.test.ts src/store/rosterStore.test.ts`
 Expected: FAIL — `Failed to resolve import "./rosterDb"`.
 
 - [ ] **Step 3: Implement**
@@ -2571,6 +2790,9 @@ interface Backend {
   close?(): void;
 }
 
+/** Serializes read-modify-write operations so overlapping calls cannot interleave. */
+let queue: Promise<unknown> = Promise.resolve();
+
 let backendPromise: Promise<Backend> | null = null;
 let persistent = true;
 
@@ -2599,9 +2821,19 @@ function memoryBackend(): Backend {
 
 async function openBackend(): Promise<Backend> {
   try {
-    const database = await openDB<RosterSchema>(DB_NAME, 1, {
+    let database: IDBPDatabase<RosterSchema> | undefined;
+    database = await openDB<RosterSchema>(DB_NAME, 1, {
       upgrade(d) {
         d.createObjectStore('players', { keyPath: 'id' });
+      },
+      // The browser closed the connection (e.g. iOS Safari when backgrounded): reopen on next use.
+      terminated() {
+        backendPromise = null;
+      },
+      // Another tab wants to upgrade or delete the database: step aside and reopen later.
+      blocking() {
+        database?.close();
+        backendPromise = null;
       },
     });
     return idbBackend(database);
@@ -2624,14 +2856,14 @@ export function isRosterPersistent(): boolean {
 
 /** Test helper: closes and deletes the database, and clears the fallback state. */
 export async function resetRosterDbForTests(): Promise<void> {
+  await queue.catch(() => undefined);
   if (backendPromise) (await backendPromise).close?.();
   backendPromise = null;
   persistent = true;
+  queue = Promise.resolve();
   await deleteDB(DB_NAME);
 }
 
-/** Serializes read-modify-write operations so overlapping calls cannot interleave. */
-let queue: Promise<unknown> = Promise.resolve();
 function serial<T>(fn: () => Promise<T>): Promise<T> {
   const run = queue.then(() => fn());
   queue = run.then(
@@ -2649,7 +2881,7 @@ async function liveEntries(): Promise<RosterPlayer[]> {
 
 export async function listRoster(): Promise<RosterPlayer[]> {
   return (await liveEntries()).sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || a.id.localeCompare(b.id),
   );
 }
 
@@ -2671,11 +2903,12 @@ export async function renameRosterPlayer(id: string, name: string, now = Date.no
   if (!clean) throw new Error('Enter a name for the player.');
   return serial(async () => {
     const entries = await liveEntries();
+    const current = entries.find((p) => p.id === id);
+    if (!current) throw new Error('That player no longer exists.');
+    if (current.name === clean) return;
     if (entries.some((p) => p.id !== id && norm(p.name) === norm(clean))) {
       throw new Error(`${clean} is already saved.`);
     }
-    const current = entries.find((p) => p.id === id);
-    if (!current) throw new Error('That player no longer exists.');
     await (await db()).put({ ...current, name: clean, updatedAt: now });
   });
 }
@@ -2692,10 +2925,14 @@ export function deleteRosterPlayer(id: string, now = Date.now()): Promise<void> 
 export function markRosterPlayed(ids: string[], at: number): Promise<void> {
   return serial(async () => {
     const database = await db();
-    for (const id of ids) {
+    for (const id of new Set(ids)) {
       const current = await database.get(id);
       if (current && !current.deletedAt) {
-        await database.put({ ...current, lastPlayedAt: at, updatedAt: at });
+        await database.put({
+          ...current,
+          lastPlayedAt: Math.max(current.lastPlayedAt ?? 0, at),
+          updatedAt: at,
+        });
       }
     }
   });
@@ -2768,7 +3005,7 @@ export const useRosterStore = create<RosterState>()((set) => {
 - [ ] **Step 4: Run tests and typecheck**
 
 Run: `npx vitest run src/store && npm run typecheck`
-Expected: PASS — all store tests (rosterDb 9, rosterDb.fallback 4, rosterStore 4, plus Task 10's); typecheck clean.
+Expected: PASS — all store tests (rosterDb 16, rosterDb.fallback 4, rosterDb.reconnect 3, rosterStore 5, plus Task 10's); typecheck clean.
 
 - [ ] **Step 5: Commit**
 
@@ -2776,6 +3013,7 @@ Expected: PASS — all store tests (rosterDb 9, rosterDb.fallback 4, rosterStore
 git add src/store
 git commit -m "feat(store): IndexedDB roster with soft delete and roster store"
 ```
+
 
 ---
 

@@ -77,4 +77,51 @@ describe('roster db', () => {
     await addRosterPlayer('Ann');
     expect(lastSessionIds(await listRoster())).toEqual([]);
   });
+
+  it('markRosterPlayed skips deleted and unknown ids and ignores duplicates', async () => {
+    const a = await addRosterPlayer('Ann');
+    const b = await addRosterPlayer('Ben');
+    await deleteRosterPlayer(b.id);
+    await markRosterPlayed([a.id, a.id, b.id, 'missing'], 1_000);
+    const roster = await listRoster();
+    expect(roster).toHaveLength(1);
+    expect(roster[0].lastPlayedAt).toBe(1_000);
+  });
+
+  it('markRosterPlayed never moves lastPlayedAt backwards', async () => {
+    const a = await addRosterPlayer('Ann');
+    await markRosterPlayed([a.id], 5_000);
+    await markRosterPlayed([a.id], 2_000);
+    expect((await listRoster())[0].lastPlayedAt).toBe(5_000);
+  });
+
+  it('orders names that collate equally by id', async () => {
+    const a = await addRosterPlayer('Ann');
+    const b = await addRosterPlayer('Ánn');
+    expect((await listRoster()).map((p) => p.id)).toEqual([a.id, b.id].sort());
+  });
+
+  it('rename reports a missing player even when the new name is taken', async () => {
+    await addRosterPlayer('Ben');
+    await expect(renameRosterPlayer('missing', 'Ben')).rejects.toThrow(/no longer exists/i);
+  });
+
+  it('allows a case-only rename', async () => {
+    const ann = await addRosterPlayer('Ann');
+    await renameRosterPlayer(ann.id, 'ann', 2_000);
+    expect((await listRoster())[0]).toMatchObject({ name: 'ann', updatedAt: 2_000 });
+  });
+
+  it('does not write when the name is unchanged', async () => {
+    const ann = await addRosterPlayer('Ann', 1_000);
+    await renameRosterPlayer(ann.id, '  Ann ', 2_000);
+    expect((await listRoster())[0].updatedAt).toBe(1_000);
+  });
+
+  it('deleting an unknown or already deleted player is a no-op', async () => {
+    const ann = await addRosterPlayer('Ann');
+    await expect(deleteRosterPlayer('missing')).resolves.toBeUndefined();
+    await deleteRosterPlayer(ann.id, 3_000);
+    await expect(deleteRosterPlayer(ann.id, 4_000)).resolves.toBeUndefined();
+  });
 });

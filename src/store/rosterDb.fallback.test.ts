@@ -22,6 +22,7 @@ beforeEach(async () => {
 
 describe('roster db without IndexedDB', () => {
   it('keeps players in memory and reports that nothing is persisted', async () => {
+    // Optimistic by design: it only turns false once opening IndexedDB has actually failed.
     expect(isRosterPersistent()).toBe(true);
     const ann = await addRosterPlayer('Ann');
     await addRosterPlayer('Ben');
