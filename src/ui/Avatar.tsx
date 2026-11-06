@@ -12,13 +12,14 @@ export function initials(name: string): string {
 interface AvatarProps {
   name: string;
   size?: 'sm' | 'md' | 'lg';
-  /** Provided once player photos exist; initials are shown until then. */
+  /** A photo to show; initials are shown without one. */
   photoUrl?: string;
 }
 
 export function Avatar({ name, size = 'md', photoUrl }: AvatarProps) {
   if (photoUrl) {
-    return <img className={`avatar avatar-${size}`} src={photoUrl} alt={name} />;
+    // The name is always written next to the avatar, so the picture is decorative.
+    return <img className={`avatar avatar-${size}`} src={photoUrl} alt="" />;
   }
   return (
     <span className={`avatar avatar-${size}`} aria-hidden="true">

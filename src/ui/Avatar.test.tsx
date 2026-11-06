@@ -29,8 +29,11 @@ describe('Avatar', () => {
     expect(screen.getByText('AL')).toBeInTheDocument();
   });
 
-  it('shows the photo when a url is given', () => {
-    render(<Avatar name="Ann Lee" photoUrl="blob:x" />);
-    expect(screen.getByRole('img', { name: 'Ann Lee' })).toHaveAttribute('src', 'blob:x');
+  it('shows the photo when a url is given, as a decorative image', () => {
+    const { container } = render(<Avatar name="Ann Lee" photoUrl="blob:x" />);
+    const img = container.querySelector('img');
+    expect(img).toHaveAttribute('src', 'blob:x');
+    expect(img).toHaveAttribute('alt', '');
+    expect(screen.queryByText('AL')).not.toBeInTheDocument();
   });
 });
