@@ -8,12 +8,15 @@ vi.mock('idb', async (importOriginal) => ({
 import {
   addRosterPlayer,
   deleteRosterPlayer,
+  getRosterPhoto,
   isRosterPersistent,
   lastSessionIds,
   listRoster,
   markRosterPlayed,
+  removeRosterPhoto,
   renameRosterPlayer,
   resetRosterDbForTests,
+  setRosterPhoto,
 } from './rosterDb';
 
 beforeEach(async () => {
@@ -47,6 +50,15 @@ describe('roster db without IndexedDB', () => {
     await markRosterPlayed([a.id], 1_000);
     await markRosterPlayed([b.id], 2_000);
     expect(lastSessionIds(await listRoster())).toEqual([b.id]);
+  });
+
+  it('keeps photos in memory too', async () => {
+    const ann = await addRosterPlayer('Ann');
+    await setRosterPhoto(ann.id, { type: 'image/jpeg', data: new Uint8Array([7]).buffer });
+    expect(Array.from(new Uint8Array((await getRosterPhoto(ann.id))!.data))).toEqual([7]);
+    expect((await listRoster())[0].photoVersion).toBe(1);
+    await removeRosterPhoto(ann.id);
+    expect(await getRosterPhoto(ann.id)).toBeUndefined();
   });
 
   it('starts fresh after a reset', async () => {

@@ -4,7 +4,7 @@ import { newId } from '../lib/id';
 export interface RosterPlayer {
   id: string;
   name: string;
-  /** 0 = no photo. Used by the photos plan. */
+  /** 0 = no photo; raised each time the photo changes. */
   photoVersion: number;
   lastPlayedAt?: number;
   /** Local edit time until synced (sync plan). */
@@ -13,8 +13,20 @@ export interface RosterPlayer {
   deletedAt?: number;
 }
 
+/** A processed photo as raw bytes. Plain bytes (not a Blob) keep the storage layer simple and testable. */
+export interface PhotoData {
+  type: string;
+  data: ArrayBuffer;
+}
+
+interface PhotoRecord extends PhotoData {
+  /** The roster player's id. */
+  id: string;
+}
+
 interface RosterSchema extends DBSchema {
   players: { key: string; value: RosterPlayer };
+  photos: { key: string; value: PhotoRecord };
 }
 
 const DB_NAME = 'pickleball-roster';
@@ -23,6 +35,9 @@ interface Backend {
   getAll(): Promise<RosterPlayer[]>;
   get(id: string): Promise<RosterPlayer | undefined>;
   put(player: RosterPlayer): Promise<unknown>;
+  getPhoto(id: string): Promise<PhotoData | undefined>;
+  /** Saves a player and their photo (or removes the photo when `photo` is null) in one transaction. */
+  putWithPhoto(player: RosterPlayer, photo: PhotoData | null): Promise<unknown>;
   close?(): void;
 }
 
@@ -37,12 +52,27 @@ function idbBackend(database: IDBPDatabase<RosterSchema>): Backend {
     getAll: () => database.getAll('players'),
     get: (id) => database.get('players', id),
     put: (player) => database.put('players', player),
+    async getPhoto(id) {
+      const record = await database.get('photos', id);
+      return record && { type: record.type, data: record.data };
+    },
+    async putWithPhoto(player, photo) {
+      const tx = database.transaction(['players', 'photos'], 'readwrite');
+      await Promise.all([
+        tx.objectStore('players').put(player),
+        photo
+          ? tx.objectStore('photos').put({ id: player.id, type: photo.type, data: photo.data })
+          : tx.objectStore('photos').delete(player.id),
+        tx.done,
+      ]);
+    },
     close: () => database.close(),
   };
 }
 
 function memoryBackend(): Backend {
   const map = new Map<string, RosterPlayer>();
+  const photos = new Map<string, PhotoData>();
   return {
     getAll: async () => [...map.values()].map((p) => ({ ...p })),
     get: async (id) => {
@@ -52,11 +82,20 @@ function memoryBackend(): Backend {
     put: async (player) => {
       map.set(player.id, { ...player });
     },
+    getPhoto: async (id) => {
+      const p = photos.get(id);
+      return p && { ...p };
+    },
+    putWithPhoto: async (player, photo) => {
+      map.set(player.id, { ...player });
+      if (photo) photos.set(player.id, { ...photo });
+      else photos.delete(player.id);
+    },
   };
 }
 
 /** The schema version this build writes. Bump it, and branch on `oldVersion` in `upgrade`, to change the schema. */
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 /** True when the database on disk is newer than the version this build asked for. */
 function isVersionError(error: unknown): boolean {
@@ -69,6 +108,7 @@ async function openBackend(): Promise<Backend> {
     // Each step runs only for databases older than it, so upgrades work from any earlier version.
     upgrade(d, oldVersion) {
       if (oldVersion < 1) d.createObjectStore('players', { keyPath: 'id' });
+      if (oldVersion < 2) d.createObjectStore('photos', { keyPath: 'id' });
     },
     // The browser closed the connection (e.g. iOS Safari when backgrounded): reopen on next use.
     terminated() {
@@ -175,7 +215,32 @@ export function deleteRosterPlayer(id: string, now = Date.now()): Promise<void> 
     const database = await db();
     const current = await database.get(id);
     if (!current || current.deletedAt) return;
-    await database.put({ ...current, deletedAt: now, updatedAt: now });
+    await database.putWithPhoto({ ...current, deletedAt: now, updatedAt: now }, null);
+  });
+}
+
+/** The saved photo for a player, or undefined when they have none on this device. */
+export async function getRosterPhoto(id: string): Promise<PhotoData | undefined> {
+  return (await db()).getPhoto(id);
+}
+
+/** Saves a photo for a player and raises their photo version. */
+export function setRosterPhoto(id: string, photo: PhotoData, now = Date.now()): Promise<void> {
+  return serial(async () => {
+    const database = await db();
+    const current = await database.get(id);
+    if (!current || current.deletedAt) throw new Error('That player no longer exists.');
+    await database.putWithPhoto({ ...current, photoVersion: current.photoVersion + 1, updatedAt: now }, photo);
+  });
+}
+
+/** Removes a player's photo and sets their photo version back to 0. */
+export function removeRosterPhoto(id: string, now = Date.now()): Promise<void> {
+  return serial(async () => {
+    const database = await db();
+    const current = await database.get(id);
+    if (!current || current.deletedAt || current.photoVersion === 0) return;
+    await database.putWithPhoto({ ...current, photoVersion: 0, updatedAt: now }, null);
   });
 }
 
