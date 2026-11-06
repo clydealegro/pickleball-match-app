@@ -621,3 +621,44 @@ caption {
   flex-direction: column;
   gap: 8px;
 }
+
+/* ---------- Photos ---------- */
+.avatar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.avatar-btn:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.photo-preview {
+  align-self: center;
+  width: 192px;
+  height: 192px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  object-fit: cover;
+}
+
+/* A list row with a button beside its label (the label keeps the full width). */
+.list > li.has-action {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.has-action > .check {
+  flex: 1;
+  min-width: 0;
+}
