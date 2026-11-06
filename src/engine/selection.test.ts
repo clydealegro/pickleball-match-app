@@ -23,6 +23,13 @@ describe('bestSplit', () => {
     ]);
   });
 
+  it('clamps the tie-break index when rng returns 1', () => {
+    expect(bestSplit(four(), () => 1)).toEqual([
+      ['a', 'd'],
+      ['b', 'c'],
+    ]);
+  });
+
   it('avoids repeating a partnership', () => {
     const [a, b, c, d] = four();
     a.partnerCounts = { b: 1 };

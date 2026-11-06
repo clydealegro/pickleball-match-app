@@ -50,7 +50,9 @@ src/
     courts.ts     (+ courts.test.ts)     add / remove court
     preview.ts    (+ preview.test.ts)    "up next"
     summary.ts    (+ summary.test.ts)    end-of-session stats + text
+    invariants.ts                        assertInvariants test helper
     simulation.test.ts                   long-session fairness check
+    fuzz.test.ts                         seeded random-operation fuzzing
     index.ts
   store/
     liveCtx.ts persistence.ts (+ test) sessionStore.ts (+ test)
@@ -517,6 +519,13 @@ describe('bestSplit', () => {
     ]);
   });
 
+  it('clamps the tie-break index when rng returns 1', () => {
+    expect(bestSplit(four(), () => 1)).toEqual([
+      ['a', 'd'],
+      ['b', 'c'],
+    ]);
+  });
+
   it('avoids repeating a partnership', () => {
     const [a, b, c, d] = four();
     a.partnerCounts = { b: 1 };
@@ -725,7 +734,7 @@ export function bestSplit(four: Player[], rng: () => number): [Team, Team] {
   const costs = options.map(([t1, t2]) => splitCost(t1, t2));
   const min = Math.min(...costs);
   const best = options.filter((_, i) => costs[i] === min);
-  const [t1, t2] = best[Math.floor(rng() * best.length)];
+  const [t1, t2] = best[Math.min(best.length - 1, Math.floor(rng() * best.length))];
   return [
     [t1[0].id, t1[1].id],
     [t2[0].id, t2[1].id],
@@ -736,7 +745,7 @@ export function bestSplit(four: Player[], rng: () => number): [Team, Team] {
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run src/engine/selection.test.ts src/engine/pool.test.ts`
-Expected: PASS — 11 tests.
+Expected: PASS — 12 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -1221,6 +1230,7 @@ import { finishGame } from './game';
 import { addPlayer } from './session';
 import { setPlayerStatus } from './status';
 import { expectEngineError, idOf, makeCtx, mkPlayer, mkSession, newTestSession } from './testing';
+import { removeCourt } from './courts';
 import { onCourtIds } from './pool';
 
 describe('setPlayerStatus', () => {
@@ -1279,15 +1289,70 @@ describe('setPlayerStatus', () => {
     expect(highBack.players.find((p) => p.id === 'high')!.gamesPlayed).toBe(9);
   });
 
-  it('returning can fill a waiting court', () => {
-    let s = newTestSession(['A', 'B', 'C', 'D', 'E']);
-    const waiterId = s.queueOrder[0];
-    s = setPlayerStatus(s, waiterId, 'break', makeCtx());
+  it('returning can fill an idle court', () => {
+    let s = newTestSession(['A', 'B', 'C', 'D']);
+    const a = idOf(s, 'A');
+    s = setPlayerStatus(s, a, 'break', makeCtx());
     s = finishGame(s, s.courts[0].id, makeCtx(2));
-    // Four players refilled the court. Put one on break so only 3 remain after the next game.
-    const next = setPlayerStatus(s, waiterId, 'active', makeCtx(3));
-    expect(next.players.find((p) => p.id === waiterId)!.status).toBe('active');
-    expect(onCourtIds(next).size + next.queueOrder.length).toBe(5);
+    // A went on break, so only 3 are available and the court is idle.
+    expect(s.courts[0].status).toBe('empty');
+    expect(s.queueOrder).toHaveLength(3);
+
+    s = setPlayerStatus(s, a, 'active', makeCtx(3));
+    expect(s.courts[0].status).toBe('playing');
+    expect(s.queueOrder).toHaveLength(0);
+  });
+
+  it('pending leave is applied when the game ends', () => {
+    let s = newTestSession(['A', 'B', 'C', 'D', 'E']);
+    const onCourt = [...onCourtIds(s)][0];
+    s = setPlayerStatus(s, onCourt, 'left', makeCtx());
+    expect(s.players.find((p) => p.id === onCourt)!.pendingStatus).toBe('left');
+    s = finishGame(s, s.courts[0].id, makeCtx(2));
+    const p = s.players.find((q) => q.id === onCourt)!;
+    expect(p.status).toBe('left');
+    expect(p.pendingStatus).toBeUndefined();
+    expect(s.queueOrder).not.toContain(onCourt);
+    expect(onCourtIds(s).has(onCourt)).toBe(false);
+  });
+
+  it('break then leave while on court overwrites the pending value', () => {
+    let s = newTestSession(['A', 'B', 'C', 'D', 'E']);
+    const id = [...onCourtIds(s)][0];
+    s = setPlayerStatus(s, id, 'break', makeCtx());
+    s = setPlayerStatus(s, id, 'left', makeCtx());
+    expect(s.players.find((p) => p.id === id)!.pendingStatus).toBe('left');
+    s = finishGame(s, s.courts[0].id, makeCtx(2));
+    expect(s.players.find((p) => p.id === id)!.status).toBe('left');
+  });
+
+  it('applies a pending break on a closing court', () => {
+    const names = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    let s = newTestSession(names, { courts: 2 });
+    const court2 = s.courts[1];
+    s = removeCourt(s, court2.id);
+    expect(s.courts[1].closing).toBe(true);
+    const game = s.courts[1].game!;
+    const four = [...game.team1, ...game.team2];
+    const breaker = four[0];
+    s = setPlayerStatus(s, breaker, 'break', makeCtx());
+    s = finishGame(s, court2.id, makeCtx(2));
+    expect(s.courts.find((c) => c.id === court2.id)).toBeUndefined();
+    expect(s.players.find((p) => p.id === breaker)!.status).toBe('break');
+    expect(s.queueOrder).not.toContain(breaker);
+    expect(s.queueOrder).toHaveLength(3);
+    for (const id of four.slice(1)) expect(s.queueOrder).toContain(id);
+  });
+
+  it('a cancelled pending status requeues the player exactly once', () => {
+    let s = newTestSession(['A', 'B', 'C', 'D', 'E']);
+    const id = [...onCourtIds(s)][0];
+    s = setPlayerStatus(s, id, 'break', makeCtx());
+    s = setPlayerStatus(s, id, 'active', makeCtx());
+    s = finishGame(s, s.courts[0].id, makeCtx(2));
+    const appearances =
+      s.queueOrder.filter((q) => q === id).length + (onCourtIds(s).has(id) ? 1 : 0);
+    expect(appearances).toBe(1);
   });
 
   it('a player who left cannot return, but the name can be re-added', () => {
@@ -1334,9 +1399,9 @@ import { cloneSession } from './clone';
 import { EngineError } from './errors';
 import { fillCourts } from './fill';
 import { lateArrivalGames, onCourtIds, playerById } from './pool';
-import type { Ctx, PlayerId, Session } from './types';
+import type { Ctx, PlayerId, PlayerStatus, Session } from './types';
 
-export type StatusTarget = 'active' | 'break' | 'left';
+export type StatusTarget = PlayerStatus;
 
 /**
  * Break / leave: immediate for waiting players; for a player on court it is
@@ -1555,6 +1620,13 @@ describe('summarize', () => {
     expect(text).toContain('Ann: 1 game');
     expect(text).toContain('partner');
   });
+
+  it('uses the local date when a timezone offset is given', () => {
+    const ctx = makeCtx(1, Date.UTC(2026, 10, 7, 3, 0));
+    const s = newTestSession(['Ann', 'Ben', 'Cy', 'Dee'], { courts: 1 }, ctx);
+    expect(formatSummaryText(s).startsWith('Test — 2026-11-07')).toBe(true);
+    expect(formatSummaryText(s, -480).startsWith('Test — 2026-11-06')).toBe(true);
+  });
 });
 ```
 
@@ -1584,8 +1656,10 @@ export function previewNext(s: Session): UpNext | null {
   const open = s.courts.filter((c) => !c.closing);
   const empty = open.find((c) => c.status === 'empty');
   const soonest = open
-    .filter((c) => c.status === 'playing' && c.game)
-    .sort((a, b) => a.game!.startedAt - b.game!.startedAt)[0];
+    .flatMap((c) =>
+      c.status === 'playing' && c.game ? [{ number: c.number, startedAt: c.game.startedAt }] : [],
+    )
+    .sort((a, b) => a.startedAt - b.startedAt)[0];
   const court = empty ?? soonest;
   if (!court) return null;
   return { courtNumber: court.number, playerIds: waiting.slice(0, 4).map((p) => p.id) };
@@ -1625,8 +1699,8 @@ function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`;
 }
 
-export function formatSummaryText(s: Session): string {
-  const date = new Date(s.createdAt).toISOString().slice(0, 10);
+export function formatSummaryText(s: Session, tzOffsetMinutes = 0): string {
+  const date = new Date(s.createdAt + tzOffsetMinutes * 60_000).toISOString().slice(0, 10);
   const lines = [`${s.name} — ${date}`, `${plural(s.history.length, 'game')} played`, ''];
   for (const row of summarize(s)) {
     const partners = row.partners.length
@@ -1670,35 +1744,68 @@ git commit -m "feat(engine): up-next preview, summary, and public index"
 
 ---
 
-### Task 9: Long-session fairness simulation
+### Task 9: Long-session fairness simulation and operation fuzzing
 
 **Files:**
+- Create: `src/engine/invariants.ts`, `src/engine/fuzz.test.ts`
 - Test: `src/engine/simulation.test.ts`
 
-- [ ] **Step 1: Write the simulation test**
+- [ ] **Step 1: Write the shared invariants helper**
+
+Both the simulation and the fuzz test call `assertInvariants` after every operation. It is a test helper (it uses Vitest's `expect`), kept in the engine folder next to `testing.ts`.
+
+```ts file=src/engine/invariants.ts
+import { expect } from 'vitest';
+import { availablePlayers, onCourtIds } from './pool';
+import type { Session } from './types';
+
+/** Test helper: asserts the structural invariants every engine operation must preserve. */
+export function assertInvariants(s: Session): void {
+  // queueOrder is exactly the set of available players, with no duplicates.
+  const waiting = availablePlayers(s)
+    .map((p) => p.id)
+    .sort();
+  expect([...s.queueOrder].sort()).toEqual(waiting);
+
+  // Nobody is on two courts or twice in one game.
+  const gameIds = s.courts.flatMap((c) => (c.game ? [...c.game.team1, ...c.game.team2] : []));
+  expect(new Set(gameIds).size).toBe(gameIds.length);
+  expect(onCourtIds(s).size).toBe(gameIds.length);
+
+  // Every player appears at most once across the queue and the courts.
+  const everywhere = [...s.queueOrder, ...gameIds];
+  expect(new Set(everywhere).size).toBe(everywhere.length);
+
+  // Players on break or who left are neither waiting nor playing.
+  for (const p of s.players) {
+    if (p.status === 'break' || p.status === 'left') {
+      expect(s.queueOrder).not.toContain(p.id);
+      expect(gameIds).not.toContain(p.id);
+    }
+  }
+
+  // Court numbers are unique, and a closing court is always mid-game.
+  const numbers = s.courts.map((c) => c.number);
+  expect(new Set(numbers).size).toBe(numbers.length);
+  for (const c of s.courts) {
+    if (c.closing) expect(c.status).toBe('playing');
+  }
+
+  // Idle courts only exist when fewer than 4 are waiting.
+  if (s.courts.some((c) => c.status === 'empty')) expect(waiting.length).toBeLessThan(4);
+}
+```
+
+- [ ] **Step 2: Write the simulation test**
 
 This runs a realistic session — 13 players, 3 courts, 100 finished games, always finishing the court that started earliest — in both modes, and checks invariants after **every** step.
 
 ```ts file=src/engine/simulation.test.ts
 import { describe, expect, it } from 'vitest';
 import { finishGame } from './game';
-import { availablePlayers, onCourtIds } from './pool';
+import { assertInvariants } from './invariants';
 import { makeCtx, newTestSession } from './testing';
 import type { Mode, Session } from './types';
-
-function assertInvariants(s: Session): void {
-  // queueOrder is exactly the set of available players, with no duplicates.
-  const waiting = availablePlayers(s)
-    .map((p) => p.id)
-    .sort();
-  expect([...s.queueOrder].sort()).toEqual(waiting);
-  // Nobody is on two courts or twice in one game.
-  const ids = s.courts.flatMap((c) => (c.game ? [...c.game.team1, ...c.game.team2] : []));
-  expect(new Set(ids).size).toBe(ids.length);
-  expect(onCourtIds(s).size).toBe(ids.length);
-  // Idle courts only exist when fewer than 4 are waiting.
-  if (s.courts.some((c) => c.status === 'empty')) expect(waiting.length).toBeLessThan(4);
-}
 
 function spread(s: Session): number {
   const games = s.players.filter((p) => p.status === 'active').map((p) => p.gamesPlayed);
@@ -1745,16 +1852,92 @@ describe.each<Mode>(['fairness', 'queue'])('long session (%s mode)', (mode) => {
 });
 ```
 
-- [ ] **Step 2: Run the simulation**
+- [ ] **Step 3: Run the simulation**
 
 Run: `npx vitest run src/engine/simulation.test.ts`
 Expected: PASS — 4 tests. If `worstSpread` is above 1 or an invariant fails, that is a real engine bug: fix `fill.ts`/`game.ts`, not the test.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Write and run the operation fuzz test**
+
+For both modes and seeds 1–5 this builds a 9-player, 2-court session and applies 250 seeded random operations (finish a game, add a player, set a player active/break/left, add a court, remove a court), calling `assertInvariants` after every successful one. `CANNOT_RETURN`, `LAST_COURT` and `NOT_PLAYING` are legitimate refusals and are skipped; any other error fails the test.
+
+```ts file=src/engine/fuzz.test.ts
+import { describe, expect, it } from 'vitest';
+import { addCourt, removeCourt } from './courts';
+import { EngineError } from './errors';
+import { finishGame } from './game';
+import { assertInvariants } from './invariants';
+import { mulberry32 } from './rng';
+import { addPlayer } from './session';
+import { setPlayerStatus } from './status';
+import { makeCtx, newTestSession } from './testing';
+import type { Mode, PlayerStatus, Session } from './types';
+
+const TOLERATED = new Set(['CANNOT_RETURN', 'LAST_COURT', 'NOT_PLAYING']);
+const TARGETS: PlayerStatus[] = ['active', 'break', 'left'];
+const STEPS = 250;
+
+function pick<T>(items: T[], rng: () => number): T {
+  return items[Math.min(items.length - 1, Math.floor(rng() * items.length))];
+}
+
+describe.each<Mode>(['fairness', 'queue'])('operation fuzzing (%s mode)', (mode) => {
+  for (const seed of [1, 2, 3, 4, 5]) {
+    it(`keeps every invariant over ${STEPS} random operations (seed ${seed})`, () => {
+      const rng = mulberry32(seed);
+      const base = makeCtx(seed, 0);
+      const names = Array.from({ length: 9 }, (_, i) => `P${i + 1}`);
+      let s: Session = newTestSession(names, { courts: 2, mode }, base);
+      assertInvariants(s);
+      let nextName = names.length + 1;
+      let applied = 0;
+
+      for (let step = 1; step <= STEPS; step++) {
+        const ctx = { ...base, now: step * 60_000 };
+        const kind = Math.floor(rng() * 5);
+        try {
+          switch (kind) {
+            case 0: {
+              const playing = s.courts.filter((c) => c.status === 'playing');
+              if (playing.length === 0) continue;
+              s = finishGame(s, pick(playing, rng).id, ctx);
+              break;
+            }
+            case 1:
+              s = addPlayer(s, { name: `P${nextName++}` }, ctx);
+              break;
+            case 2:
+              s = setPlayerStatus(s, pick(s.players, rng).id, pick(TARGETS, rng), ctx);
+              break;
+            case 3:
+              if (s.courts.length >= 5) continue;
+              s = addCourt(s, ctx);
+              break;
+            default:
+              s = removeCourt(s, pick(s.courts, rng).id);
+          }
+        } catch (e) {
+          if (e instanceof EngineError && TOLERATED.has(e.code)) continue;
+          throw e;
+        }
+        applied++;
+        assertInvariants(s);
+      }
+
+      expect(applied).toBeGreaterThan(0);
+    });
+  }
+});
+```
+
+Run: `npx vitest run src/engine/fuzz.test.ts`
+Expected: PASS — 10 tests. A failure is a real engine bug (the failing seed and step reproduce it exactly): fix the engine, not the invariants or the test.
+
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/engine/simulation.test.ts
-git commit -m "test(engine): long-session fairness and invariants simulation"
+git add src/engine/invariants.ts src/engine/simulation.test.ts src/engine/fuzz.test.ts
+git commit -m "test(engine): long-session simulation and operation fuzzing against invariants"
 ```
 
 ---
@@ -4138,7 +4321,9 @@ export function SummaryScreen({ session }: { session: Session }) {
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(engine.formatSummaryText(session));
+      // Pass the device's UTC offset so the date in the text is the local date.
+      const offsetMinutes = -new Date(session.createdAt).getTimezoneOffset();
+      await navigator.clipboard.writeText(engine.formatSummaryText(session, offsetMinutes));
       setMessage('Copied to clipboard.');
     } catch {
       setMessage('Could not copy automatically.');
@@ -4591,7 +4776,7 @@ git commit -m "docs: add README"
 | Court add / remove / closing / last court | 5, 7 |
 | Undo (bounded 50) | 10 |
 | Up-next preview | 8, 14 |
-| Fairness/invariant simulation | 9 |
+| Fairness/invariant simulation and operation fuzzing | 9 |
 | Session persistence, corrupt-data fallback, "not saved" notice | 10, 15 |
 | Saved roster: auto-add, unique names, rename, delete, "Same as last session", select all | 11, 13, 15 |
 | Setup, Live, Summary screens; responsive two-column layout | 13, 14, 15, 12 (CSS) |

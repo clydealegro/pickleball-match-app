@@ -2,9 +2,9 @@ import { cloneSession } from './clone';
 import { EngineError } from './errors';
 import { fillCourts } from './fill';
 import { lateArrivalGames, onCourtIds, playerById } from './pool';
-import type { Ctx, PlayerId, Session } from './types';
+import type { Ctx, PlayerId, PlayerStatus, Session } from './types';
 
-export type StatusTarget = 'active' | 'break' | 'left';
+export type StatusTarget = PlayerStatus;
 
 /**
  * Break / leave: immediate for waiting players; for a player on court it is

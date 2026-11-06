@@ -28,7 +28,7 @@ export function bestSplit(four: Player[], rng: () => number): [Team, Team] {
   const costs = options.map(([t1, t2]) => splitCost(t1, t2));
   const min = Math.min(...costs);
   const best = options.filter((_, i) => costs[i] === min);
-  const [t1, t2] = best[Math.floor(rng() * best.length)];
+  const [t1, t2] = best[Math.min(best.length - 1, Math.floor(rng() * best.length))];
   return [
     [t1[0].id, t1[1].id],
     [t2[0].id, t2[1].id],

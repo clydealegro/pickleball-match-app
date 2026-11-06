@@ -3,6 +3,7 @@ import { finishGame } from './game';
 import { addPlayer } from './session';
 import { setPlayerStatus } from './status';
 import { expectEngineError, idOf, makeCtx, mkPlayer, mkSession, newTestSession } from './testing';
+import { removeCourt } from './courts';
 import { onCourtIds } from './pool';
 
 describe('setPlayerStatus', () => {
@@ -61,15 +62,70 @@ describe('setPlayerStatus', () => {
     expect(highBack.players.find((p) => p.id === 'high')!.gamesPlayed).toBe(9);
   });
 
-  it('returning can fill a waiting court', () => {
-    let s = newTestSession(['A', 'B', 'C', 'D', 'E']);
-    const waiterId = s.queueOrder[0];
-    s = setPlayerStatus(s, waiterId, 'break', makeCtx());
+  it('returning can fill an idle court', () => {
+    let s = newTestSession(['A', 'B', 'C', 'D']);
+    const a = idOf(s, 'A');
+    s = setPlayerStatus(s, a, 'break', makeCtx());
     s = finishGame(s, s.courts[0].id, makeCtx(2));
-    // Four players refilled the court. Put one on break so only 3 remain after the next game.
-    const next = setPlayerStatus(s, waiterId, 'active', makeCtx(3));
-    expect(next.players.find((p) => p.id === waiterId)!.status).toBe('active');
-    expect(onCourtIds(next).size + next.queueOrder.length).toBe(5);
+    // A went on break, so only 3 are available and the court is idle.
+    expect(s.courts[0].status).toBe('empty');
+    expect(s.queueOrder).toHaveLength(3);
+
+    s = setPlayerStatus(s, a, 'active', makeCtx(3));
+    expect(s.courts[0].status).toBe('playing');
+    expect(s.queueOrder).toHaveLength(0);
+  });
+
+  it('pending leave is applied when the game ends', () => {
+    let s = newTestSession(['A', 'B', 'C', 'D', 'E']);
+    const onCourt = [...onCourtIds(s)][0];
+    s = setPlayerStatus(s, onCourt, 'left', makeCtx());
+    expect(s.players.find((p) => p.id === onCourt)!.pendingStatus).toBe('left');
+    s = finishGame(s, s.courts[0].id, makeCtx(2));
+    const p = s.players.find((q) => q.id === onCourt)!;
+    expect(p.status).toBe('left');
+    expect(p.pendingStatus).toBeUndefined();
+    expect(s.queueOrder).not.toContain(onCourt);
+    expect(onCourtIds(s).has(onCourt)).toBe(false);
+  });
+
+  it('break then leave while on court overwrites the pending value', () => {
+    let s = newTestSession(['A', 'B', 'C', 'D', 'E']);
+    const id = [...onCourtIds(s)][0];
+    s = setPlayerStatus(s, id, 'break', makeCtx());
+    s = setPlayerStatus(s, id, 'left', makeCtx());
+    expect(s.players.find((p) => p.id === id)!.pendingStatus).toBe('left');
+    s = finishGame(s, s.courts[0].id, makeCtx(2));
+    expect(s.players.find((p) => p.id === id)!.status).toBe('left');
+  });
+
+  it('applies a pending break on a closing court', () => {
+    const names = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    let s = newTestSession(names, { courts: 2 });
+    const court2 = s.courts[1];
+    s = removeCourt(s, court2.id);
+    expect(s.courts[1].closing).toBe(true);
+    const game = s.courts[1].game!;
+    const four = [...game.team1, ...game.team2];
+    const breaker = four[0];
+    s = setPlayerStatus(s, breaker, 'break', makeCtx());
+    s = finishGame(s, court2.id, makeCtx(2));
+    expect(s.courts.find((c) => c.id === court2.id)).toBeUndefined();
+    expect(s.players.find((p) => p.id === breaker)!.status).toBe('break');
+    expect(s.queueOrder).not.toContain(breaker);
+    expect(s.queueOrder).toHaveLength(3);
+    for (const id of four.slice(1)) expect(s.queueOrder).toContain(id);
+  });
+
+  it('a cancelled pending status requeues the player exactly once', () => {
+    let s = newTestSession(['A', 'B', 'C', 'D', 'E']);
+    const id = [...onCourtIds(s)][0];
+    s = setPlayerStatus(s, id, 'break', makeCtx());
+    s = setPlayerStatus(s, id, 'active', makeCtx());
+    s = finishGame(s, s.courts[0].id, makeCtx(2));
+    const appearances =
+      s.queueOrder.filter((q) => q === id).length + (onCourtIds(s).has(id) ? 1 : 0);
+    expect(appearances).toBe(1);
   });
 
   it('a player who left cannot return, but the name can be re-added', () => {

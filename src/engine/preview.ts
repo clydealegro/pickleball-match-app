@@ -16,8 +16,10 @@ export function previewNext(s: Session): UpNext | null {
   const open = s.courts.filter((c) => !c.closing);
   const empty = open.find((c) => c.status === 'empty');
   const soonest = open
-    .filter((c) => c.status === 'playing' && c.game)
-    .sort((a, b) => a.game!.startedAt - b.game!.startedAt)[0];
+    .flatMap((c) =>
+      c.status === 'playing' && c.game ? [{ number: c.number, startedAt: c.game.startedAt }] : [],
+    )
+    .sort((a, b) => a.startedAt - b.startedAt)[0];
   const court = empty ?? soonest;
   if (!court) return null;
   return { courtNumber: court.number, playerIds: waiting.slice(0, 4).map((p) => p.id) };

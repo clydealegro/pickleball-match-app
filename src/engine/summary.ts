@@ -30,8 +30,8 @@ function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`;
 }
 
-export function formatSummaryText(s: Session): string {
-  const date = new Date(s.createdAt).toISOString().slice(0, 10);
+export function formatSummaryText(s: Session, tzOffsetMinutes = 0): string {
+  const date = new Date(s.createdAt + tzOffsetMinutes * 60_000).toISOString().slice(0, 10);
   const lines = [`${s.name} — ${date}`, `${plural(s.history.length, 'game')} played`, ''];
   for (const row of summarize(s)) {
     const partners = row.partners.length

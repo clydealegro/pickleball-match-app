@@ -1,22 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { finishGame } from './game';
-import { availablePlayers, onCourtIds } from './pool';
+import { assertInvariants } from './invariants';
 import { makeCtx, newTestSession } from './testing';
 import type { Mode, Session } from './types';
-
-function assertInvariants(s: Session): void {
-  // queueOrder is exactly the set of available players, with no duplicates.
-  const waiting = availablePlayers(s)
-    .map((p) => p.id)
-    .sort();
-  expect([...s.queueOrder].sort()).toEqual(waiting);
-  // Nobody is on two courts or twice in one game.
-  const ids = s.courts.flatMap((c) => (c.game ? [...c.game.team1, ...c.game.team2] : []));
-  expect(new Set(ids).size).toBe(ids.length);
-  expect(onCourtIds(s).size).toBe(ids.length);
-  // Idle courts only exist when fewer than 4 are waiting.
-  if (s.courts.some((c) => c.status === 'empty')) expect(waiting.length).toBeLessThan(4);
-}
 
 function spread(s: Session): number {
   const games = s.players.filter((p) => p.status === 'active').map((p) => p.gamesPlayed);

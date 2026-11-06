@@ -28,4 +28,11 @@ describe('summarize', () => {
     expect(text).toContain('Ann: 1 game');
     expect(text).toContain('partner');
   });
+
+  it('uses the local date when a timezone offset is given', () => {
+    const ctx = makeCtx(1, Date.UTC(2026, 10, 7, 3, 0));
+    const s = newTestSession(['Ann', 'Ben', 'Cy', 'Dee'], { courts: 1 }, ctx);
+    expect(formatSummaryText(s).startsWith('Test — 2026-11-07')).toBe(true);
+    expect(formatSummaryText(s, -480).startsWith('Test — 2026-11-06')).toBe(true);
+  });
 });
