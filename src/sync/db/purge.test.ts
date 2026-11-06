@@ -48,6 +48,15 @@ describe('delete_my_players()', () => {
     await expect(run(db, 'anon', 'select public.delete_my_players()')).rejects.toThrow(/permission denied/i);
   });
 
+  it('pins an empty search path on both functions, so no one can hijack a name they look up', async () => {
+    const { rows } = await db.query<{ proname: string; proconfig: string[] | null }>(
+      `select proname, proconfig from pg_proc
+       where pronamespace = 'public'::regnamespace and proname in ('delete_my_players', 'set_updated_at') order by proname`,
+    );
+    expect(rows.map((r) => r.proname)).toEqual(['delete_my_players', 'set_updated_at']);
+    for (const row of rows) expect(row.proconfig).toContain('search_path=""');
+  });
+
   it('is not callable by default: only signed-in users hold execute', async () => {
     const { rows } = await db.query<{ grantee: string }>(
       `select distinct grantee from information_schema.routine_privileges

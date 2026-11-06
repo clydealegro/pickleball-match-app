@@ -79,8 +79,9 @@ begin
   -- Alice's data survived Bob's purge, and the photo bucket is private and small.
   select count(*) into n from public.players where owner_id = alice;
   assert n = 1, 'Bob''s purge touched Alice''s players';
-  select count(*) into n from storage.buckets where id = 'player-photos' and public = false and file_size_limit = 204800;
-  assert n = 1, 'The player-photos bucket should be private with a 200 KB limit';
+  select count(*) into n from storage.buckets
+    where id = 'player-photos' and public = false and file_size_limit = 204800 and allowed_mime_types = array['image/jpeg'];
+  assert n = 1, 'The player-photos bucket should be private, limited to 200 KB, and accept only image/jpeg';
 end
 $check$;
 

@@ -13,6 +13,8 @@ create table public.players (
   last_played_at timestamptz,
   deleted_at timestamptz,
   -- Set by a trigger on every write, so it is server time and a client cannot choose it.
+  -- The trigger uses clock_timestamp() (the moment of the write), not now() (the start of the transaction),
+  -- so a long transaction cannot stamp its rows with an old time that a pull by time would then skip.
   updated_at timestamptz not null default now(),
   primary key (owner_id, id)
 );
@@ -28,7 +30,7 @@ language plpgsql
 set search_path = ''
 as $$
 begin
-  new.updated_at := now();
+  new.updated_at := clock_timestamp();
   return new;
 end;
 $$;

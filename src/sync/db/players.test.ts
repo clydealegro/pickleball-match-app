@@ -99,6 +99,19 @@ describe('players table', () => {
     expect(second.getFullYear()).toBeGreaterThan(2020);
   });
 
+  it('stamps each row with the time it was written, even inside one long transaction', async () => {
+    await db.transaction(async (tx) => {
+      await tx.query('set local role authenticated');
+      await tx.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ sub: USER_A, role: 'authenticated' })]);
+      await tx.query("insert into public.players (id, name) values ($1, 'Ann')", [ANN]);
+      await tx.query('select pg_sleep(0.05)');
+      await tx.query("insert into public.players (id, name) values ($1, 'Ben')", [BEN]);
+    });
+    const { rows } = await db.query<{ name: string; updated_at: Date }>('select name, updated_at from public.players order by name');
+    const [ann, ben] = rows;
+    expect(ben.updated_at.getTime()).toBeGreaterThan(ann.updated_at.getTime());
+  });
+
   it('keeps names unique per organizer, ignoring case and spaces, among players who are not deleted', async () => {
     await insertPlayer({ user: USER_A }, ANN, 'Ann');
     await expect(insertPlayer({ user: USER_A }, BEN, '  ANN ')).rejects.toThrow(/duplicate key/i);

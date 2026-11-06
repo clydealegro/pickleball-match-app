@@ -58,14 +58,23 @@ const SUPABASE_STANDINS = `
   grant execute on all functions in schema storage to anon, authenticated, service_role;
 
   grant usage on schema public to anon, authenticated, service_role;
+`;
+
+/**
+ * Supabase has granted new tables and functions in `public` to anon, authenticated and service_role by default.
+ * The docs say new projects are moving to opt-in grants, so the tests run both ways: with these defaults (the
+ * old behaviour) and without them (the new one, where only the migrations' own explicit grants count).
+ */
+const SUPABASE_DEFAULT_GRANTS = `
   alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
   alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
 `;
 
 /** A fresh in-memory Postgres with the stand-ins, every migration applied, and two users. */
-export async function createDb(): Promise<PGlite> {
+export async function createDb(options: { defaultGrants?: boolean } = {}): Promise<PGlite> {
   const db = new PGlite();
   await db.exec(SUPABASE_STANDINS);
+  if (options.defaultGrants !== false) await db.exec(SUPABASE_DEFAULT_GRANTS);
   for (const path of Object.keys(migrationFiles).sort()) {
     await db.exec(migrationFiles[path]);
   }
