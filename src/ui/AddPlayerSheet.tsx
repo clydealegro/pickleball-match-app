@@ -37,6 +37,11 @@ export function AddPlayerSheet({ session, onClose }: Props) {
 
   async function addNew(withPhoto: boolean) {
     setError(null);
+    // Checked before anything is saved: a photo taken for someone already in the session would replace theirs.
+    if (withPhoto && presentNames.has(name.trim().toLowerCase())) {
+      setError(`${name.trim()} is already in this session.`);
+      return;
+    }
     try {
       const saved = await addToRoster(name);
       if (withPhoto) setPhotoFor({ id: saved.id, name: saved.name });
@@ -49,6 +54,9 @@ export function AddPlayerSheet({ session, onClose }: Props) {
   if (photoFor) {
     return (
       <Sheet title={`Photo for ${photoFor.name}`} onClose={onClose}>
+        <p className="muted">
+          {photoFor.name} is saved. If you close this without choosing, add them to the session later from Saved players.
+        </p>
         <PhotoPanel
           rosterId={photoFor.id}
           name={photoFor.name}

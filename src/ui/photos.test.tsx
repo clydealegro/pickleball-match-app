@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { processPhoto } from '../lib/photo';
-import { resetRosterDbForTests } from '../store/rosterDb';
+import { getRosterPhoto, resetRosterDbForTests } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
 import { useUpdateStore } from '../pwa';
@@ -137,6 +137,8 @@ describe('photos in the app', () => {
     await user.click(within(waiting).getByRole('button'));
     const dialog = await screen.findByRole('dialog', { name });
     expect(within(dialog).queryByRole('button', { name: /photo/i })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Take a break' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Leave session' })).toBeInTheDocument();
   });
 
   it('shows a player\'s photo on their court card', async () => {
@@ -154,5 +156,42 @@ describe('photos in the app', () => {
     await act(() => useRosterStore.getState().setPhoto(saved.id, processed));
 
     await waitFor(() => expect(chip().querySelector('img')).not.toBeNull());
+  });
+
+  it('refuses "Add with photo" for someone already in the session and leaves their photo alone', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
+    const ann = useRosterStore.getState().players.find((p) => p.name === 'Ann')!;
+    await act(() => useRosterStore.getState().setPhoto(ann.id, { type: 'image/jpeg', data: new Uint8Array([9]).buffer }));
+    await user.click(await screen.findByRole('button', { name: 'Start session (4 players)' }));
+
+    await user.click(screen.getByRole('button', { name: '+ Add player' }));
+    await user.type(await screen.findByLabelText('New player name'), 'ann');
+    await user.click(screen.getByRole('button', { name: 'Add with photo' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('ann is already in this session.');
+    expect(screen.queryByLabelText('Take a photo with the camera')).not.toBeInTheDocument(); // never reached the photo step
+    const stored = await getRosterPhoto(ann.id);
+    expect(Array.from(new Uint8Array(stored!.data))).toEqual([9]);
+    expect(useRosterStore.getState().players.find((p) => p.id === ann.id)!.photoVersion).toBe(1);
+  });
+
+  it('says the newcomer is saved when the photo step is closed without choosing', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
+    await user.click(await screen.findByRole('button', { name: 'Start session (4 players)' }));
+
+    await user.click(screen.getByRole('button', { name: '+ Add player' }));
+    await user.type(await screen.findByLabelText('New player name'), 'Fay');
+    await user.click(screen.getByRole('button', { name: 'Add with photo' }));
+    expect(await screen.findByText(/Fay is saved\./)).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(useRosterStore.getState().players.map((p) => p.name)).toContain('Fay');
+    expect(screen.queryByText('Fay')).not.toBeInTheDocument(); // saved to the roster, but not in the session
   });
 });
