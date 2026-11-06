@@ -18,6 +18,8 @@ export interface AuthState {
   status: AuthStatus;
   /** The signed-in email, or the address a sign-in link was sent to. */
   email: string | null;
+  /** The signed-in account's id, which names its rows and photo files online. Null unless signed in. */
+  userId: string | null;
   error: string | null;
   busy: boolean;
   init: () => Promise<void>;
@@ -76,6 +78,7 @@ export function createAuthStore(getClient: () => { auth: AuthClient } | null, se
     return {
       status: 'loading',
       email: null,
+      userId: null,
       error: null,
       busy: false,
 
@@ -94,10 +97,13 @@ export function createAuthStore(getClient: () => { auth: AuthClient } | null, se
           // stay free of other Supabase calls.
           client.auth.onAuthStateChange((event, session) => {
             const email = session?.user.email;
-            if (email) {
-              if (get().status !== 'signedIn' || get().email !== email) set({ status: 'signedIn', email, error: null });
+            if (email && session) {
+              const userId = session.user.id;
+              if (get().status !== 'signedIn' || get().email !== email || get().userId !== userId) {
+                set({ status: 'signedIn', email, userId, error: null });
+              }
             } else if (event === 'SIGNED_OUT' && (get().status === 'signedIn' || get().status === 'unknown')) {
-              set({ status: 'signedOut', email: null });
+              set({ status: 'signedOut', email: null, userId: null });
             }
           });
           const timeout = new Promise<'timeout'>((resolve) => {
@@ -108,10 +114,10 @@ export function createAuthStore(getClient: () => { auth: AuthClient } | null, se
           if (result === 'timeout') {
             set({ status: 'unknown' });
           } else if (result.data.session?.user.email) {
-            set({ status: 'signedIn', email: result.data.session.user.email });
+            set({ status: 'signedIn', email: result.data.session.user.email, userId: result.data.session.user.id });
           } else {
             // An error with no session means "could not check", not "nobody is signed in".
-            set({ status: result.error ? 'unknown' : 'signedOut', email: null });
+            set({ status: result.error ? 'unknown' : 'signedOut', email: null, userId: null });
           }
         } catch {
           if (get().status === 'loading') set({ status: 'unknown' });
@@ -160,7 +166,7 @@ export function createAuthStore(getClient: () => { auth: AuthClient } | null, se
             });
             return;
           }
-          set({ status: 'signedOut', email: null });
+          set({ status: 'signedOut', email: null, userId: null });
         });
       },
     };

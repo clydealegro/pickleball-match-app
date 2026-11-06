@@ -2,7 +2,7 @@ import type { AuthError, Session } from '@supabase/supabase-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAuthStore, type AuthClient } from './auth';
 
-const session = (email: string) => ({ user: { email } }) as unknown as Session;
+const session = (email: string, id = 'user-1') => ({ user: { email, id } }) as unknown as Session;
 const failure = (status?: number) => ({ status, message: 'boom' }) as unknown as AuthError;
 
 type Listener = (event: string, session: Session | null) => void;
@@ -43,7 +43,7 @@ describe('auth store', () => {
     const { client } = fakeClient({ getSession: vi.fn().mockResolvedValue({ data: { session: session('ann@example.com') }, error: null }) });
     const store = createAuthStore(() => client);
     await store.getState().init();
-    expect(store.getState()).toMatchObject({ status: 'signedIn', email: 'ann@example.com' });
+    expect(store.getState()).toMatchObject({ status: 'signedIn', email: 'ann@example.com', userId: 'user-1' });
   });
 
   it('only listens for session changes once, even if init is called twice', async () => {
@@ -59,7 +59,19 @@ describe('auth store', () => {
     const store = createAuthStore(() => client);
     await store.getState().init();
     emit('SIGNED_OUT', null);
-    expect(store.getState()).toMatchObject({ status: 'signedOut', email: null });
+    expect(store.getState()).toMatchObject({ status: 'signedOut', email: null, userId: null });
+  });
+
+  it('keeps the account id in step with the session, including a different account with the same email', async () => {
+    const { client, emit } = fakeClient();
+    const store = createAuthStore(() => client);
+    await store.getState().init();
+    emit('SIGNED_IN', session('ann@example.com', 'user-1'));
+    expect(store.getState()).toMatchObject({ status: 'signedIn', userId: 'user-1' });
+    emit('TOKEN_REFRESHED', session('ann@example.com', 'user-1'));
+    expect(store.getState().userId).toBe('user-1');
+    emit('SIGNED_IN', session('ann@example.com', 'user-2'));
+    expect(store.getState().userId).toBe('user-2');
   });
 
   it('says "unknown", not "signed out", when a saved session cannot be checked', async () => {
@@ -233,7 +245,7 @@ describe('auth store', () => {
       const { store, auth } = await signedIn();
       await store.getState().signOut();
       expect(auth.signOut).toHaveBeenCalledTimes(1);
-      expect(store.getState()).toMatchObject({ status: 'signedOut', email: null });
+      expect(store.getState()).toMatchObject({ status: 'signedOut', email: null, userId: null });
     });
 
     it('does not call it a failure when the session was removed on this device but the server could not be told', async () => {
