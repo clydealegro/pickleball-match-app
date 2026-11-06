@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PhotoError, processPhoto } from '../lib/photo';
@@ -18,8 +18,8 @@ async function setup(withPhoto = false) {
   const ann = await useRosterStore.getState().add('Ann');
   if (withPhoto) await useRosterStore.getState().setPhoto(ann.id, processed);
   const onDone = vi.fn();
-  render(<PhotoPanel rosterId={ann.id} name="Ann" onDone={onDone} />);
-  return { ann, onDone, user: userEvent.setup() };
+  const view = render(<PhotoPanel rosterId={ann.id} name="Ann" onDone={onDone} />);
+  return { ann, onDone, unmount: view.unmount, user: userEvent.setup() };
 }
 
 beforeEach(async () => {
@@ -90,5 +90,100 @@ describe('PhotoPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Close' }));
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(await getRosterPhoto(ann.id)).toBeUndefined();
+  });
+
+  it('shows why a save failed, keeps the preview, and clears the message on Retake', async () => {
+    vi.mocked(processPhoto).mockResolvedValue(processed);
+    const { ann, onDone, user } = await setup();
+    await user.upload(screen.getByLabelText('Take a photo with the camera'), file);
+    await screen.findByRole('button', { name: 'Use photo' });
+    await useRosterStore.getState().remove(ann.id); // the player disappears before the save
+
+    await user.click(screen.getByRole('button', { name: 'Use photo' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('That player no longer exists.');
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Use photo' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Retake' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Take photo' })).toBeInTheDocument();
+  });
+
+  it('closes only after the photo is saved', async () => {
+    vi.mocked(processPhoto).mockResolvedValue(processed);
+    const { onDone, user } = await setup();
+    await user.upload(screen.getByLabelText('Take a photo with the camera'), file);
+    await screen.findByRole('button', { name: 'Use photo' });
+    const realSetPhoto = useRosterStore.getState().setPhoto;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    act(() => {
+      useRosterStore.setState({
+        setPhoto: async (id, photo) => {
+          await gate;
+          await realSetPhoto(id, photo);
+        },
+      });
+    });
+    try {
+      await user.click(screen.getByRole('button', { name: 'Use photo' }));
+      expect(onDone).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Use photo' })).toBeDisabled();
+      await act(async () => release());
+      await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+    } finally {
+      act(() => {
+        useRosterStore.setState({ setPhoto: realSetPhoto });
+      });
+    }
+  });
+
+  it('creates no preview when the panel is closed while a picture is being prepared', async () => {
+    let finish!: (photo: typeof processed) => void;
+    vi.mocked(processPhoto).mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const create = vi.spyOn(URL, 'createObjectURL');
+    const { unmount, user } = await setup();
+    await user.upload(screen.getByLabelText('Take a photo with the camera'), file);
+    unmount();
+    await act(async () => finish(processed));
+    expect(create).not.toHaveBeenCalled();
+    create.mockRestore();
+  });
+
+  it('does not report done when the panel is closed while the photo is saving', async () => {
+    vi.mocked(processPhoto).mockResolvedValue(processed);
+    const { onDone, unmount, user } = await setup();
+    await user.upload(screen.getByLabelText('Take a photo with the camera'), file);
+    await screen.findByRole('button', { name: 'Use photo' });
+    const realSetPhoto = useRosterStore.getState().setPhoto;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    act(() => {
+      useRosterStore.setState({
+        setPhoto: async (id, photo) => {
+          await gate;
+          await realSetPhoto(id, photo);
+        },
+      });
+    });
+    try {
+      await user.click(screen.getByRole('button', { name: 'Use photo' }));
+      unmount();
+      await act(async () => release());
+      await new Promise((resolve) => setTimeout(resolve, 20)); // let the save finish
+      expect(onDone).not.toHaveBeenCalled();
+    } finally {
+      act(() => {
+        useRosterStore.setState({ setPhoto: realSetPhoto });
+      });
+    }
   });
 });

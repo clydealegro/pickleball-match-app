@@ -29,6 +29,17 @@ export function PhotoPanel({ rosterId, name, onDone, doneLabel = 'Close' }: Prop
   const [error, setError] = useState<string | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
+  // The sheet can be dismissed while a picture is being prepared or saved. Once it has, nothing
+  // here may create a URL, change state or report "done".
+  const alive = useRef(true);
+  // Only the latest chosen file may set the preview.
+  const latest = useRef(0);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   // Free the preview's object URL when it is replaced or the panel closes.
   useEffect(
@@ -42,15 +53,18 @@ export function PhotoPanel({ rosterId, name, onDone, doneLabel = 'Close' }: Prop
     const file = event.target.files?.[0];
     event.target.value = ''; // lets the same file be chosen again after "Retake"
     if (!file) return;
+    const request = ++latest.current;
+    const current = () => alive.current && request === latest.current;
     setError(null);
     setBusy(true);
     try {
       const photo = await processPhoto(file);
+      if (!current()) return;
       setPreview({ photo, url: URL.createObjectURL(new Blob([photo.data], { type: photo.type })) });
     } catch (e) {
-      setError(e instanceof PhotoError ? e.message : "Couldn't prepare that picture. Try again.");
+      if (current()) setError(e instanceof PhotoError ? e.message : "Couldn't prepare that picture. Try again.");
     } finally {
-      setBusy(false);
+      if (current()) setBusy(false);
     }
   }
 
@@ -60,11 +74,11 @@ export function PhotoPanel({ rosterId, name, onDone, doneLabel = 'Close' }: Prop
     setBusy(true);
     try {
       await setPhoto(rosterId, preview.photo);
-      onDone();
+      if (alive.current) onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't save that photo.");
+      if (alive.current) setError(e instanceof Error ? e.message : "Couldn't save that photo.");
     } finally {
-      setBusy(false);
+      if (alive.current) setBusy(false);
     }
   }
 
@@ -73,11 +87,11 @@ export function PhotoPanel({ rosterId, name, onDone, doneLabel = 'Close' }: Prop
     setBusy(true);
     try {
       await removePhoto(rosterId);
-      onDone();
+      if (alive.current) onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't remove that photo.");
+      if (alive.current) setError(e instanceof Error ? e.message : "Couldn't remove that photo.");
     } finally {
-      setBusy(false);
+      if (alive.current) setBusy(false);
     }
   }
 
@@ -116,7 +130,11 @@ export function PhotoPanel({ rosterId, name, onDone, doneLabel = 'Close' }: Prop
           <button type="button" className="btn btn-primary btn-block" disabled={busy} onClick={() => void save()}>
             Use photo
           </button>
-          <button type="button" className="btn btn-block" disabled={busy} onClick={() => setPreview(null)}>
+          <button type="button" className="btn btn-block" disabled={busy} onClick={() => {
+              setError(null);
+              setPreview(null);
+            }}
+          >
             Retake
           </button>
         </>

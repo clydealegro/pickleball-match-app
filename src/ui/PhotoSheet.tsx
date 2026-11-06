@@ -11,7 +11,7 @@ interface Props {
 export function PhotoSheet({ rosterId, name, onClose }: Props) {
   return (
     <Sheet title={`Photo for ${name}`} onClose={onClose}>
-      <PhotoPanel rosterId={rosterId} name={name} onDone={onClose} />
+      <PhotoPanel rosterId={rosterId} name={name} onDone={onClose} doneLabel="Done" />
     </Sheet>
   );
 }
