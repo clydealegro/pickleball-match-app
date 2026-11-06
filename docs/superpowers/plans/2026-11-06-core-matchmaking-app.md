@@ -248,9 +248,9 @@ git commit -m "chore: scaffold Vite + React + TypeScript + Vitest"
 ### Task 2: Engine types, errors, RNG, and test helpers
 
 **Files:**
-- Create: `src/engine/types.ts`, `src/engine/errors.ts`, `src/engine/rng.ts`, `src/engine/clone.ts`, `src/engine/testing.ts`
+- Create: `src/engine/types.ts`, `src/engine/errors.ts`, `src/engine/rng.ts`, `src/engine/clone.ts`, `src/engine/fixtures.ts`, `src/engine/testing.ts`
 
-These are shared building blocks; they are exercised by the tests in later tasks (`testing.ts` imports `session.ts`, created in Task 4, so Task 2 only verifies with the typecheck once Task 4 exists — Step 2 below creates a stub-free subset).
+These are shared building blocks; they are exercised by the tests in later tasks. `testing.ts` imports `session.ts` (created in Task 4), so Task 2 cannot be typechecked on its own — do **not** run the typecheck until Task 4 is done.
 
 - [ ] **Step 1: Create the types and small helpers**
 
@@ -381,44 +381,15 @@ export function cloneSession(s: Session): Session {
 
 - [ ] **Step 2: Create the test helpers**
 
-```ts file=src/engine/testing.ts
-import { expect } from 'vitest';
-import { EngineError, type EngineErrorCode } from './errors';
+`fixtures.ts` has no dependency on the rest of the engine, so tests for `pool.ts` and `selection.ts` (Task 3) can use it before `session.ts` exists. `testing.ts` re-exports it and adds the helpers that need `createSession`.
+
+```ts file=src/engine/fixtures.ts
 import { mulberry32 } from './rng';
-import { createSession } from './session';
-import type { Ctx, Mode, Player, Session } from './types';
+import type { Ctx, Player, Session } from './types';
 
 export function makeCtx(seed = 1, now = 1_000): Ctx {
   let n = 0;
   return { now, rng: mulberry32(seed), newId: () => `id${++n}` };
-}
-
-export function newTestSession(
-  names: string[],
-  opts: { courts?: number; mode?: Mode } = {},
-  ctx: Ctx = makeCtx(),
-): Session {
-  return createSession(
-    {
-      name: 'Test',
-      mode: opts.mode ?? 'fairness',
-      courtCount: opts.courts ?? 1,
-      players: names.map((name) => ({ name })),
-    },
-    ctx,
-  );
-}
-
-export function idOf(s: Session, name: string): string {
-  const p = s.players.find((q) => q.name === name);
-  if (!p) throw new Error(`no player named ${name}`);
-  return p.id;
-}
-
-export function nameOf(s: Session, id: string): string {
-  const p = s.players.find((q) => q.id === id);
-  if (!p) throw new Error(`no player with id ${id}`);
-  return p.name;
 }
 
 export function mkPlayer(id: string, over: Partial<Player> = {}): Player {
@@ -449,6 +420,44 @@ export function mkSession(players: Player[], over: Partial<Session> = {}): Sessi
     createdAt: 0,
     ...over,
   };
+}
+```
+
+```ts file=src/engine/testing.ts
+import { expect } from 'vitest';
+import { EngineError, type EngineErrorCode } from './errors';
+import { makeCtx } from './fixtures';
+import { createSession } from './session';
+import type { Ctx, Mode, Session } from './types';
+
+export { makeCtx, mkPlayer, mkSession } from './fixtures';
+
+export function newTestSession(
+  names: string[],
+  opts: { courts?: number; mode?: Mode } = {},
+  ctx: Ctx = makeCtx(),
+): Session {
+  return createSession(
+    {
+      name: 'Test',
+      mode: opts.mode ?? 'fairness',
+      courtCount: opts.courts ?? 1,
+      players: names.map((name) => ({ name })),
+    },
+    ctx,
+  );
+}
+
+export function idOf(s: Session, name: string): string {
+  const p = s.players.find((q) => q.name === name);
+  if (!p) throw new Error(`no player named ${name}`);
+  return p.id;
+}
+
+export function nameOf(s: Session, id: string): string {
+  const p = s.players.find((q) => q.id === id);
+  if (!p) throw new Error(`no player with id ${id}`);
+  return p.name;
 }
 
 export function expectEngineError(fn: () => unknown, code: EngineErrorCode): void {
@@ -484,8 +493,8 @@ git commit -m "feat(engine): add types, errors, rng, clone and test helpers"
 
 ```ts file=src/engine/selection.test.ts
 import { describe, expect, it } from 'vitest';
+import { mkPlayer } from './fixtures';
 import { bestSplit } from './selection';
-import { mkPlayer } from './testing';
 
 const first = () => 0;
 
@@ -552,8 +561,8 @@ describe('bestSplit', () => {
 
 ```ts file=src/engine/pool.test.ts
 import { describe, expect, it } from 'vitest';
+import { mkPlayer, mkSession } from './fixtures';
 import { availablePlayers, lateArrivalGames, onCourtIds, orderedWaiting } from './pool';
-import { mkPlayer, mkSession } from './testing';
 import type { Court } from './types';
 
 const playingCourt: Court = {
