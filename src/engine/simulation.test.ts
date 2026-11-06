@@ -41,7 +41,7 @@ describe.each<Mode>(['fairness', 'queue'])('long session (%s mode)', (mode) => {
     }
 
     expect(s.history).toHaveLength(100);
-    expect(worstSpread).toBeLessThanOrEqual(2);
+    expect(worstSpread).toBeLessThanOrEqual(1);
   });
 
   it('never repeats the exact same four players back-to-back on a court when others wait', () => {

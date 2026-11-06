@@ -231,7 +231,7 @@ Reference screens were gathered from Mobbin: Tempo (setup chips and dark pill bu
 
 ## Error handling
 
-- Invalid inputs (empty or duplicate names, fewer than 4 players to start, removing the last court) are rejected in the engine with a typed error and shown inline in the UI.
+- Invalid inputs (empty or duplicate names, an invalid court count, removing the last court) are rejected in the engine with a typed error and shown inline in the UI. Starting a session with fewer than 4 players is prevented by the Setup screen (the Start button stays disabled); the engine itself accepts fewer so that late arrivals can fill courts.
 - Engine functions never throw for valid-but-unusual states (e.g. no courts empty, empty pool); they return the state unchanged.
 - Storage failures (private mode, quota) are caught; the app keeps working in memory and shows a small "not saved" notice.
 - Camera or image failures (permission denied, unsupported file, decode error) show an inline message and leave the player without a photo; they never block adding the player.

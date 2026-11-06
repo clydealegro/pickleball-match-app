@@ -1723,7 +1723,7 @@ describe.each<Mode>(['fairness', 'queue'])('long session (%s mode)', (mode) => {
     }
 
     expect(s.history).toHaveLength(100);
-    expect(worstSpread).toBeLessThanOrEqual(2);
+    expect(worstSpread).toBeLessThanOrEqual(1);
   });
 
   it('never repeats the exact same four players back-to-back on a court when others wait', () => {
@@ -1748,7 +1748,7 @@ describe.each<Mode>(['fairness', 'queue'])('long session (%s mode)', (mode) => {
 - [ ] **Step 2: Run the simulation**
 
 Run: `npx vitest run src/engine/simulation.test.ts`
-Expected: PASS — 4 tests. If `worstSpread` is above 2 or an invariant fails, that is a real engine bug: fix `fill.ts`/`game.ts`, not the test.
+Expected: PASS — 4 tests. If `worstSpread` is above 1 or an invariant fails, that is a real engine bug: fix `fill.ts`/`game.ts`, not the test.
 
 - [ ] **Step 3: Commit**
 
