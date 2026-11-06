@@ -65,6 +65,21 @@ describe('roster photos', () => {
     await deleteRosterPlayer(ann.id);
     expect(await getRosterPhoto(ann.id)).toBeUndefined();
     expect(await listRoster()).toEqual([]);
+    // Soft-deleted rows are hidden from the list, so read the stored row directly.
+    const raw = await openDB('pickleball-roster');
+    const row = await raw.get('players', ann.id);
+    raw.close();
+    expect(row).toMatchObject({ photoVersion: 1 });
+    expect(row.deletedAt).toBeDefined();
+  });
+
+  it('saves nothing at all when the photo cannot be stored', async () => {
+    const ann = await addRosterPlayer('Ann');
+    const data = new Uint8Array([1, 2, 3]).buffer;
+    structuredClone(data, { transfer: [data] }); // detaches the buffer, so it cannot be cloned into the database
+    await expect(setRosterPhoto(ann.id, { type: 'image/jpeg', data })).rejects.toThrow();
+    expect((await listRoster())[0].photoVersion).toBe(0);
+    expect(await getRosterPhoto(ann.id)).toBeUndefined();
   });
 
   it('refuses to save a photo for a player that no longer exists', async () => {
