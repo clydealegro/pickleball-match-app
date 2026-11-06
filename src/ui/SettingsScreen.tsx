@@ -44,13 +44,13 @@ export function SettingsScreen({ onBack }: Props) {
           </p>
         )}
 
-        {/* noValidate on the email form: our own message for a bad address, instead of each browser's tooltip. */}
         {status === 'unknown' && (
           <p className="muted" role="status">
             Can't check sign-in without a connection. Your saved players are safe on this device.
           </p>
         )}
 
+        {/* noValidate on the email form: our own message for a bad address, instead of each browser's tooltip. */}
         {status === 'signedOut' && (
           <form className="stack" noValidate onSubmit={submitEmail}>
             <p className="muted">
