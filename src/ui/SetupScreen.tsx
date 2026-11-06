@@ -3,7 +3,8 @@ import type { Mode } from '../engine';
 import { lastSessionIds } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
-import { Avatar } from './Avatar';
+import { PhotoSheet } from './PhotoSheet';
+import { PlayerAvatar } from './PlayerAvatar';
 
 const MIN_PLAYERS = 4;
 const MAX_COURTS = 12;
@@ -24,6 +25,7 @@ export function SetupScreen({ onManage }: Props) {
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
+  const [photoFor, setPhotoFor] = useState<{ id: string; name: string } | null>(null);
 
   // A start error belongs to the selection it was raised for.
   useEffect(() => {
@@ -202,14 +204,22 @@ export function SetupScreen({ onManage }: Props) {
             </div>
             <ul className="list" aria-label="Saved players">
               {roster.map((p) => (
-                <li key={p.id}>
+                <li key={p.id} className="has-action">
                   <label className="check">
                     <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} />
                     <span>
-                      <Avatar name={p.name} size="sm" />
+                      <PlayerAvatar name={p.name} rosterId={p.id} size="sm" />
                       <span className="row-name">{p.name}</span>
                     </span>
                   </label>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-small"
+                    aria-label={`${p.photoVersion > 0 ? 'Change' : 'Add'} photo for ${p.name}`}
+                    onClick={() => setPhotoFor({ id: p.id, name: p.name })}
+                  >
+                    {p.photoVersion > 0 ? 'Change photo' : 'Add photo'}
+                  </button>
                 </li>
               ))}
             </ul>
@@ -233,6 +243,7 @@ export function SetupScreen({ onManage }: Props) {
         )}
         {!canStart && <p className="muted">Select at least {MIN_PLAYERS} players to start.</p>}
       </div>
+      {photoFor && <PhotoSheet rosterId={photoFor.id} name={photoFor.name} onClose={() => setPhotoFor(null)} />}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import * as engine from '../engine';
 import type { Session } from '../engine';
-import { Avatar } from './Avatar';
+import { PlayerAvatar } from './PlayerAvatar';
 
 interface Props {
   session: Session;
@@ -28,7 +28,7 @@ export function WaitingList({ session, onSelect, onAdd }: Props) {
                 <span className="row-index muted" aria-hidden="true">
                   {i + 1}
                 </span>
-                <Avatar name={p.name} size="sm" />
+                <PlayerAvatar name={p.name} rosterId={p.rosterId} size="sm" />
                 <span className="row-name">{p.name}</span>
                 <span className="badge">
                   {p.gamesPlayed}
@@ -47,7 +47,7 @@ export function WaitingList({ session, onSelect, onAdd }: Props) {
             {onBreak.map((p) => (
               <li key={p.id}>
                 <button type="button" className="row-btn" onClick={() => onSelect(p.id)}>
-                  <Avatar name={p.name} size="sm" />
+                  <PlayerAvatar name={p.name} rosterId={p.rosterId} size="sm" />
                   <span className="row-name">{p.name}</span>
                   <span className="badge">
                     {p.gamesPlayed}

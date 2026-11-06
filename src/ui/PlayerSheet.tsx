@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import * as engine from '../engine';
 import type { Session } from '../engine';
+import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
-import { Avatar } from './Avatar';
+import { PhotoPanel } from './PhotoPanel';
+import { PlayerAvatar } from './PlayerAvatar';
 import { Sheet } from './Sheet';
 
 interface Props {
@@ -14,7 +16,9 @@ interface Props {
 export function PlayerSheet({ session, playerId, onClose }: Props) {
   const apply = useSessionStore((s) => s.apply);
   const [error, setError] = useState<string | null>(null);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const player = session.players.find((p) => p.id === playerId);
+  const saved = useRosterStore((s) => s.players.find((p) => p.id === player?.rosterId));
   if (!player) return null;
 
   function setStatus(target: engine.StatusTarget) {
@@ -23,15 +27,35 @@ export function PlayerSheet({ session, playerId, onClose }: Props) {
     else setError(res.error);
   }
 
+  // Photos belong to the saved player, so a session player whose saved entry is gone has no photo to change.
+  if (photoOpen && saved) {
+    return (
+      <Sheet title={player.name} onClose={onClose}>
+        <PhotoPanel
+          rosterId={saved.id}
+          name={player.name}
+          doneLabel="Back"
+          onDone={() => setPhotoOpen(false)}
+        />
+      </Sheet>
+    );
+  }
+
   return (
     <Sheet title={player.name} onClose={onClose}>
       <div className="row-flex">
-        <Avatar name={player.name} size="lg" />
+        <PlayerAvatar name={player.name} rosterId={player.rosterId} size="lg" />
         <p className="muted">
           {player.gamesPlayed} {player.gamesPlayed === 1 ? 'game' : 'games'} played
           {player.status === 'break' && ' · on break'}
         </p>
       </div>
+
+      {saved && (
+        <button type="button" className="btn btn-block" onClick={() => setPhotoOpen(true)}>
+          {saved.photoVersion > 0 ? 'Change photo' : 'Add photo'}
+        </button>
+      )}
 
       {player.pendingStatus && (
         <p>

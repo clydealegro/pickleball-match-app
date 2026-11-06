@@ -1,5 +1,5 @@
 import type { Player } from '../engine';
-import { Avatar } from './Avatar';
+import { PlayerAvatar } from './PlayerAvatar';
 
 interface PlayerChipProps {
   player: Player;
@@ -9,7 +9,7 @@ interface PlayerChipProps {
 export function PlayerChip({ player, onClick }: PlayerChipProps) {
   const body = (
     <>
-      <Avatar name={player.name} size="sm" />
+      <PlayerAvatar name={player.name} rosterId={player.rosterId} size="sm" />
       <span className="chip-name">{player.name}</span>
       {player.pendingStatus && (
         <span className="tag">{player.pendingStatus === 'break' ? 'Break next' : 'Leaving next'}</span>

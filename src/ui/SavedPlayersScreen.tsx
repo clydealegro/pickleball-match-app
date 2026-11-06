@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useRosterStore } from '../store/rosterStore';
-import { Avatar } from './Avatar';
+import { PhotoSheet } from './PhotoSheet';
+import { PlayerAvatar } from './PlayerAvatar';
 
 interface Props {
   onBack: () => void;
@@ -14,6 +15,7 @@ export function SavedPlayersScreen({ onBack }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [photoFor, setPhotoFor] = useState<{ id: string; name: string } | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
   function startEdit(id: string, current: string) {
@@ -108,7 +110,14 @@ export function SavedPlayersScreen({ onBack }: Props) {
               ) : (
                 <>
                   <span className="row-flex">
-                    <Avatar name={p.name} size="sm" />
+                    <button
+                      type="button"
+                      className="avatar-btn"
+                      aria-label={`${p.photoVersion > 0 ? 'Change' : 'Add'} photo for ${p.name}`}
+                      onClick={() => setPhotoFor({ id: p.id, name: p.name })}
+                    >
+                      <PlayerAvatar name={p.name} rosterId={p.id} size="md" />
+                    </button>
                     <span className="row-name">{p.name}</span>
                   </span>
                   <span className="row-flex">
@@ -135,6 +144,7 @@ export function SavedPlayersScreen({ onBack }: Props) {
           ))}
         </ul>
       )}
+      {photoFor && <PhotoSheet rosterId={photoFor.id} name={photoFor.name} onClose={() => setPhotoFor(null)} />}
     </div>
   );
 }

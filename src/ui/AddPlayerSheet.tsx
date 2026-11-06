@@ -3,7 +3,8 @@ import * as engine from '../engine';
 import type { Session } from '../engine';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
-import { Avatar } from './Avatar';
+import { PhotoPanel } from './PhotoPanel';
+import { PlayerAvatar } from './PlayerAvatar';
 import { Sheet } from './Sheet';
 
 interface Props {
@@ -17,6 +18,8 @@ export function AddPlayerSheet({ session, onClose }: Props) {
   const addToRoster = useRosterStore((s) => s.add);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  /** A newcomer who is saved but not yet in the session while we take their photo. */
+  const [photoFor, setPhotoFor] = useState<{ id: string; name: string } | null>(null);
 
   const present = session.players.filter((p) => p.status !== 'left');
   const presentRosterIds = new Set(present.flatMap((p) => (p.rosterId ? [p.rosterId] : [])));
@@ -32,14 +35,33 @@ export function AddPlayerSheet({ session, onClose }: Props) {
     else setError(res.error);
   }
 
-  async function addNew() {
+  async function addNew(withPhoto: boolean) {
     setError(null);
     try {
       const saved = await addToRoster(name);
-      addToSession(saved.name, saved.id);
+      if (withPhoto) setPhotoFor({ id: saved.id, name: saved.name });
+      else addToSession(saved.name, saved.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not add that player.');
     }
+  }
+
+  if (photoFor) {
+    return (
+      <Sheet title={`Photo for ${photoFor.name}`} onClose={onClose}>
+        <PhotoPanel
+          rosterId={photoFor.id}
+          name={photoFor.name}
+          doneLabel="Add without a photo"
+          onDone={() => addToSession(photoFor.name, photoFor.id)}
+        />
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+      </Sheet>
+    );
   }
 
   return (
@@ -48,7 +70,7 @@ export function AddPlayerSheet({ session, onClose }: Props) {
         className="stack"
         onSubmit={(e) => {
           e.preventDefault();
-          void addNew();
+          void addNew(false);
         }}
       >
         <label className="label" htmlFor="new-player-name">
@@ -63,6 +85,9 @@ export function AddPlayerSheet({ session, onClose }: Props) {
         />
         <button type="submit" className="btn btn-primary" disabled={!name.trim()}>
           Add to session
+        </button>
+        <button type="button" className="btn" disabled={!name.trim()} onClick={() => void addNew(true)}>
+          Add with photo
         </button>
       </form>
 
@@ -79,7 +104,7 @@ export function AddPlayerSheet({ session, onClose }: Props) {
             {candidates.map((r) => (
               <li key={r.id}>
                 <button type="button" className="row-btn" onClick={() => addToSession(r.name, r.id)}>
-                  <Avatar name={r.name} size="sm" />
+                  <PlayerAvatar name={r.name} rosterId={r.id} size="sm" />
                   <span className="row-name">{r.name}</span>
                 </button>
               </li>
