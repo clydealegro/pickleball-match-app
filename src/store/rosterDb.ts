@@ -1,4 +1,4 @@
-import { deleteDB, openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import { deleteDB, openDB, type DBSchema, type IDBPDatabase, type OpenDBCallbacks } from 'idb';
 import { newId } from '../lib/id';
 
 export interface RosterPlayer {
@@ -55,23 +55,44 @@ function memoryBackend(): Backend {
   };
 }
 
+/** The schema version this build writes. Bump it, and branch on `oldVersion` in `upgrade`, to change the schema. */
+const DB_VERSION = 1;
+
+/** True when the database on disk is newer than the version this build asked for. */
+function isVersionError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as { name?: string }).name === 'VersionError';
+}
+
 async function openBackend(): Promise<Backend> {
+  let database: IDBPDatabase<RosterSchema> | undefined;
+  const callbacks: OpenDBCallbacks<RosterSchema> = {
+    // Each step runs only for databases older than it, so upgrades work from any earlier version.
+    upgrade(d, oldVersion) {
+      if (oldVersion < 1) d.createObjectStore('players', { keyPath: 'id' });
+    },
+    // The browser closed the connection (e.g. iOS Safari when backgrounded): reopen on next use.
+    terminated() {
+      backendPromise = null;
+    },
+    // Another tab wants to upgrade or delete the database: step aside and reopen later.
+    blocking() {
+      database?.close();
+      backendPromise = null;
+    },
+    // An older tab still holds the database open. The upgrade waits until that tab steps aside.
+    blocked() {
+      console.warn('Saved players are waiting for another tab of this app to close its connection.');
+    },
+  };
   try {
-    let database: IDBPDatabase<RosterSchema> | undefined;
-    database = await openDB<RosterSchema>(DB_NAME, 1, {
-      upgrade(d) {
-        d.createObjectStore('players', { keyPath: 'id' });
-      },
-      // The browser closed the connection (e.g. iOS Safari when backgrounded): reopen on next use.
-      terminated() {
-        backendPromise = null;
-      },
-      // Another tab wants to upgrade or delete the database: step aside and reopen later.
-      blocking() {
-        database?.close();
-        backendPromise = null;
-      },
-    });
+    try {
+      database = await openDB<RosterSchema>(DB_NAME, DB_VERSION, callbacks);
+    } catch (error) {
+      if (!isVersionError(error)) throw error;
+      // A newer build already upgraded the database (a stale tab, or a rolled-back deploy).
+      // Open it as it is; the newer schema only adds to the old one.
+      database = await openDB<RosterSchema>(DB_NAME, undefined, callbacks);
+    }
     return idbBackend(database);
   } catch {
     // Private mode or blocked storage: keep working for this visit, without saving.
