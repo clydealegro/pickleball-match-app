@@ -55,3 +55,11 @@ Source: the code-quality review of Plan 2 Task 7 (`PhotoPanel`, `PhotoSheet`). F
 - **Remove photo has no confirmation.** One tap, permanent. This follows the plan.
 - **A failed save or remove skips the roster `refresh()`**, so the list can stay stale until the next load.
 - **Not verified on a device:** the iOS and Android behaviour of `input.click()` on a hidden `capture` input, and `capture="user"` in an installed iOS PWA. Task 10 covers it.
+
+Source: the code-quality review of Plan 2 Task 8 (photos on every screen). Fixed in Task 8: "Add with photo" for a name already in the session replaced that player's photo before failing, and closing the photo step gave no sign that the newcomer was saved. Left for a later pass:
+
+- **Focus is lost when a sheet body swaps.** `PlayerSheet` and `AddPlayerSheet` swap their content inside the same `Sheet`, so the focus-on-mount effect does not run again and the button that was tapped is gone. Focus falls to the page, and nothing announces the new content. Fix: focus the first button (or a `tabIndex={-1}` heading) when the panel mounts, and give the `PlayerSheet` photo view the title `Photo for {name}`. Task 10's phone check is the place to judge whether it matters.
+- **The Saved players avatar is an icon-only button** with no visible cue that it can be tapped. Setup uses a text button, so the two screens differ. It follows the spec's "tapping an avatar".
+- **No way back to the name form** from the Add player photo step (to fix a typo). Closing and re-adding is the path.
+- **"Add with photo" has no busy state** while the roster save is pending, so a quick tap on "Add to session" in that window can put the player in the session and then show the photo step.
+- **Test gaps, all low risk:** Remove photo from the player sheet, the on-break row avatar, and Saved players inside the Add sheet showing a photo.
