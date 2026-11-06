@@ -46,3 +46,12 @@ Source: the code-quality review of Plan 2 Task 6 (`usePhotoUrl`, `PlayerAvatar`)
 
 - **One photo load and one object URL per avatar.** The same player shown in several places is read and decoded several times, and each screen mount shows initials first and then the photo. Fine for a few dozen small photos. If it ever feels slow, add a module-level cache in `usePhotoUrl` keyed by `id:version` and reference-counted, with the URL revoked at zero. The hook's signature would not change.
 - **Undecodable bytes show a broken image icon.** Photo bytes are validated and resized on the way in, so this should not happen. An `onError` on the `<img>` in `Avatar` that falls back to initials would cover it.
+
+Source: the code-quality review of Plan 2 Task 7 (`PhotoPanel`, `PhotoSheet`). Fixed in Task 7: late results after the sheet closes, the `onDone` call after unmount, the stale error after Retake, the duplicate "Close" name, and the missing save-failure tests. Left for a later pass:
+
+- **The Sheet focus trap counts hidden inputs.** `Sheet`'s focusable selector includes `input:not([disabled])`, so the `hidden` file inputs in the photo panel count. When every button is disabled (busy), Tab from the X button can leave the dialog. Fix in `Sheet`: exclude `[hidden]` and `[tabindex="-1"]` from the selector.
+- **No focus management after a state change.** When the preview appears, the focused button is gone and focus falls to the page. Focus the **Use photo** button when the preview mounts, and consider `aria-live="polite"` on the "Preparing" text.
+- **`processPhoto` has no timeout.** If it never settles, the panel stays on "Preparing" with its buttons disabled. The X, Escape and backdrop still close the sheet, so the user is not trapped. An optional race with a roughly 20 second timeout would end it sooner.
+- **Remove photo has no confirmation.** One tap, permanent. This follows the plan.
+- **A failed save or remove skips the roster `refresh()`**, so the list can stay stale until the next load.
+- **Not verified on a device:** the iOS and Android behaviour of `input.click()` on a hidden `capture` input, and `capture="user"` in an installed iOS PWA. Task 10 covers it.
