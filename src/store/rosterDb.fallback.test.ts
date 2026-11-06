@@ -6,7 +6,13 @@ vi.mock('idb', async (importOriginal) => ({
 }));
 
 import {
+  ackOutbox,
   addRosterPlayer,
+  getRosterEntry,
+  getSyncMeta,
+  listOutbox,
+  queueAllForSync,
+  setSyncMeta,
   deleteRosterPlayer,
   getRosterPhoto,
   isRosterPersistent,
@@ -68,6 +74,34 @@ describe('roster db without IndexedDB', () => {
     await expect(setRosterPhoto(ann.id, { type: 'image/jpeg', data })).rejects.toThrow();
     expect((await listRoster())[0].photoVersion).toBe(0);
     expect(await getRosterPhoto(ann.id)).toBeUndefined();
+  });
+
+  it('keeps the outbox, the photo sequence and the sync values in memory too', async () => {
+    const ann = await addRosterPlayer('Ann');
+    expect(await listOutbox()).toEqual([{ playerId: ann.id, rev: 1 }]);
+    await setRosterPhoto(ann.id, { type: 'image/jpeg', data: new Uint8Array([7]).buffer });
+    await removeRosterPhoto(ann.id);
+    expect(await getRosterEntry(ann.id)).toMatchObject({ photoVersion: 0, photoSeq: 1 });
+    const [entry] = await listOutbox();
+    expect(entry.rev).toBe(3);
+    await ackOutbox(ann.id, 1); // stale: keeps the newer mark
+    expect(await listOutbox()).toHaveLength(1);
+    await ackOutbox(ann.id, entry.rev);
+    expect(await listOutbox()).toEqual([]);
+    expect(await queueAllForSync()).toBe(1);
+    await setSyncMeta('cursor', 'c1');
+    expect(await getSyncMeta('cursor')).toBe('c1');
+  });
+
+  it('puts the outbox back too when a change fails', async () => {
+    const ann = await addRosterPlayer('Ann');
+    await ackOutbox(ann.id, 1);
+    const data = new Uint8Array([1]).buffer;
+    structuredClone(data, { transfer: [data] });
+    await expect(setRosterPhoto(ann.id, { type: 'image/jpeg', data })).rejects.toThrow();
+    expect(await listOutbox()).toEqual([]);
+    await addRosterPlayer('Ben');
+    expect((await listOutbox())[0].rev).toBe(2); // the failed change did not use up a revision
   });
 
   it('starts fresh after a reset', async () => {

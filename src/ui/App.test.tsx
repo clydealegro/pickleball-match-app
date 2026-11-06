@@ -184,6 +184,8 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'End session' }));
     expect(await screen.findByRole('heading', { name: 'Session summary' })).toBeInTheDocument();
     expect(screen.getByRole('table')).toBeInTheDocument();
+    // The roster is told who played in the background, so wait for that before asking for "Same as last session".
+    await waitFor(() => expect(useRosterStore.getState().players.filter((p) => p.lastPlayedAt !== undefined)).toHaveLength(5));
 
     await user.click(screen.getByRole('button', { name: 'Start new session' }));
     await user.click(await screen.findByRole('button', { name: 'Same as last session' }));

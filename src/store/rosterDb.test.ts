@@ -23,7 +23,7 @@ describe('roster db', () => {
 
   it('stores the fields the sync plan will rely on', async () => {
     const p = await addRosterPlayer('  Ann  ', 1_234);
-    expect(p).toMatchObject({ name: 'Ann', photoVersion: 0, updatedAt: 1_234 });
+    expect(p).toMatchObject({ name: 'Ann', photoVersion: 0, photoSeq: 0, updatedAt: 1_234 });
     expect(p.deletedAt).toBeUndefined();
     expect(typeof p.id).toBe('string');
   });
