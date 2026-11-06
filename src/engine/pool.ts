@@ -1,0 +1,54 @@
+import { EngineError } from './errors';
+import type { Player, PlayerId, Session } from './types';
+
+export function playerById(s: Session, id: PlayerId): Player {
+  const p = s.players.find((q) => q.id === id);
+  if (!p) throw new EngineError('NOT_FOUND', `Player ${id} not found`);
+  return p;
+}
+
+export function onCourtIds(s: Session): Set<PlayerId> {
+  const ids = new Set<PlayerId>();
+  for (const court of s.courts) {
+    if (court.game) {
+      for (const id of [...court.game.team1, ...court.game.team2]) ids.add(id);
+    }
+  }
+  return ids;
+}
+
+/** Active players who are not currently on a court. */
+export function availablePlayers(s: Session): Player[] {
+  const busy = onCourtIds(s);
+  return s.players.filter((p) => p.status === 'active' && !busy.has(p.id));
+}
+
+/** Fewest games first, then waited longest, then the stable random tie key. */
+export function compareByPriority(a: Player, b: Player): number {
+  return (
+    a.gamesPlayed - b.gamesPlayed ||
+    a.lastFinishedSeq - b.lastFinishedSeq ||
+    a.tieKey - b.tieKey
+  );
+}
+
+/**
+ * Available players in the order they will be picked.
+ * Fairness mode: by priority. Queue mode: FIFO by queueOrder.
+ */
+export function orderedWaiting(s: Session): Player[] {
+  const pool = availablePlayers(s);
+  if (s.mode === 'fairness') return [...pool].sort(compareByPriority);
+  const byId = new Map(pool.map((p) => [p.id, p]));
+  return s.queueOrder.flatMap((id) => {
+    const p = byId.get(id);
+    return p ? [p] : [];
+  });
+}
+
+/** Floor of the average gamesPlayed of active players (optionally excluding one). */
+export function lateArrivalGames(s: Session, excludeId?: PlayerId): number {
+  const active = s.players.filter((p) => p.status === 'active' && p.id !== excludeId);
+  if (active.length === 0) return 0;
+  return Math.floor(active.reduce((sum, p) => sum + p.gamesPlayed, 0) / active.length);
+}
