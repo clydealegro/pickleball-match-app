@@ -41,3 +41,8 @@ Source: the code-quality review of Plan 2 Task 5 (`src/lib/photo.ts`), approved 
 - **EXIF rotation is requested, not verified.** `browserIo.decode` asks the browser to apply the camera's rotation (`imageOrientation: 'from-image'`). If an engine ignores it, the crop lands on the wrong region without an error. Task 10 checks it on real phones.
 - **Diagnostics.** `PhotoError` has no `name`, and both `catch` blocks drop the underlying error, so a failure on a phone with no devtools shows only the friendly message. Passing `{ cause: error }` and setting `name` would help while testing on a phone.
 - **Small test gaps.** No test pins that an empty-type file is accepted (a deliberate choice, since some pickers give no MIME type). Failure tests use `toThrow(PhotoError)`, which the generic wrapped error also satisfies, so assert the message too.
+
+Source: the code-quality review of Plan 2 Task 6 (`usePhotoUrl`, `PlayerAvatar`). Approved after the stale-photo fix.
+
+- **One photo load and one object URL per avatar.** The same player shown in several places is read and decoded several times, and each screen mount shows initials first and then the photo. Fine for a few dozen small photos. If it ever feels slow, add a module-level cache in `usePhotoUrl` keyed by `id:version` and reference-counted, with the URL revoked at zero. The hook's signature would not change.
+- **Undecodable bytes show a broken image icon.** Photo bytes are validated and resized on the way in, so this should not happen. An `onError` on the `<img>` in `Avatar` that falls back to initials would cover it.
