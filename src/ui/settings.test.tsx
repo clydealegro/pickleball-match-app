@@ -116,6 +116,27 @@ describe('Settings screen', () => {
     expect(client.auth.signInWithOtp).not.toHaveBeenCalled();
   });
 
+  it('says it cannot check sign-in offline, and shows no forms, when a saved session cannot be checked', async () => {
+    const client = fakeClient({ getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: failure(0) }) });
+    const user = await startApp(client);
+    await openSettings(user);
+    expect(await screen.findByText(/can't check sign-in without a connection/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Email')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
+  });
+
+  it('accepts a code pasted with a space in it', async () => {
+    const client = fakeClient();
+    const user = await startApp(client);
+    await openSettings(user);
+    await user.type(await screen.findByLabelText('Email'), 'ann@example.com');
+    await user.click(screen.getByRole('button', { name: 'Send me a code' }));
+    await user.type(await screen.findByLabelText('6-digit code'), '123 456');
+    expect(screen.getByLabelText('6-digit code')).toHaveValue('123456');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(client.auth.verifyOtp).toHaveBeenCalledWith({ email: 'ann@example.com', token: '123456', type: 'email' });
+  });
+
   it('starts signed in when this device already has a session', async () => {
     const client = fakeClient({ getSession: vi.fn().mockResolvedValue({ data: { session: session('ann@example.com') }, error: null }) });
     const user = await startApp(client);

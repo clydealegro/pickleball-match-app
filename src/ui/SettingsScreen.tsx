@@ -45,6 +45,12 @@ export function SettingsScreen({ onBack }: Props) {
         )}
 
         {/* noValidate on the email form: our own message for a bad address, instead of each browser's tooltip. */}
+        {status === 'unknown' && (
+          <p className="muted" role="status">
+            Can't check sign-in without a connection. Your saved players are safe on this device.
+          </p>
+        )}
+
         {status === 'signedOut' && (
           <form className="stack" noValidate onSubmit={submitEmail}>
             <p className="muted">
@@ -72,7 +78,7 @@ export function SettingsScreen({ onBack }: Props) {
         {status === 'codeSent' && (
           <form className="stack" onSubmit={submitCode}>
             <p>
-              We sent a 6-digit code to <strong>{email}</strong>. It can take a minute to arrive.
+              We sent a 6-digit code to <strong style={{ overflowWrap: 'anywhere' }}>{email}</strong>. It can take a minute to arrive.
             </p>
             <label className="label" htmlFor="auth-code">
               6-digit code
@@ -82,10 +88,10 @@ export function SettingsScreen({ onBack }: Props) {
               className="field"
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={6}
               autoFocus
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              // Keep only the digits, so a code pasted as "123 456" or "123-456" still works.
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             />
             <button type="submit" className="btn btn-primary" disabled={busy || !code.trim()}>
               {busy ? 'Checking…' : 'Sign in'}
@@ -106,7 +112,7 @@ export function SettingsScreen({ onBack }: Props) {
         {status === 'signedIn' && (
           <>
             <p>
-              Signed in as <strong>{email}</strong>.
+              Signed in as <strong style={{ overflowWrap: 'anywhere' }}>{email}</strong>.
             </p>
             <button type="button" className="btn" disabled={busy} onClick={() => void signOut()}>
               Sign out

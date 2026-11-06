@@ -73,7 +73,11 @@ export function SavedPlayersScreen({ onBack }: Props) {
         </button>
       </div>
 
-      {authStatus === 'signedIn' && <p className="muted">Signed in as {authEmail}</p>}
+      {authStatus === 'signedIn' && (
+        <p className="muted" style={{ overflowWrap: 'anywhere' }}>
+          Signed in as {authEmail}
+        </p>
+      )}
       {(authStatus === 'signedOut' || authStatus === 'codeSent') && <p className="muted">Signed out</p>}
 
       {error && (
