@@ -170,9 +170,9 @@ If several courts are empty at once, they are filled one at a time, each removin
 
 - **Late arrival (new player):** `gamesPlayed` starts at the floor of the average `gamesPlayed` of active players (0 if none), and `lastFinishedSeq` is the current `gameSeq`. This prevents a new player from being put on every court in a row to catch up.
 - **Break:** if the player is waiting, status becomes `break` immediately and they are skipped. If they are on a court, `pendingStatus = 'break'` and it applies when their game ends.
-- **Return from break:** status becomes `active`, treated as a late arrival (same starting `gamesPlayed` and `lastFinishedSeq` rule; in queue mode they join at the back).
+- **Return from break:** status becomes `active`, treated as a late arrival: `lastFinishedSeq` is the current `gameSeq`, and `gamesPlayed` becomes the larger of their own count and the floor of the average of the other active players (a break never lowers someone's games played). In queue mode they join at the back.
 - **Leave:** same as break, with status `left`. A player who has left can be re-added only as a new entry.
-- **Names** must be non-empty and unique within the session (case-insensitive).
+- **Names** must be non-empty and unique (case-insensitive) among players who have not left the session, so a player who left can be added again by name.
 
 ### Court changes
 
