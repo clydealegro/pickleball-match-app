@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getRosterPhoto, resetRosterDbForTests } from './rosterDb';
 import { useRosterStore } from './rosterStore';
 import { useSessionStore } from './sessionStore';
@@ -10,7 +10,21 @@ beforeEach(async () => {
   useRosterStore.setState({ players: [], loaded: false, persistent: true });
 });
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe('rosterStore', () => {
+  it('asks the browser to keep the saved players once there is one, and again for a photo', async () => {
+    const persist = vi.fn().mockResolvedValue(true);
+    vi.stubGlobal('navigator', { ...navigator, storage: { persisted: vi.fn().mockResolvedValue(false), persist } });
+    expect(persist).not.toHaveBeenCalled();
+    const ann = await useRosterStore.getState().add('Ann');
+    await vi.waitFor(() => expect(persist).toHaveBeenCalledTimes(1));
+    await useRosterStore.getState().setPhoto(ann.id, { type: 'image/jpeg', data: new Uint8Array([1]).buffer });
+    await vi.waitFor(() => expect(persist).toHaveBeenCalledTimes(2));
+  });
+
   it('adds a player and does not duplicate the same name', async () => {
     const ann = await useRosterStore.getState().add('Ann');
     expect(useRosterStore.getState().players).toEqual([ann]);

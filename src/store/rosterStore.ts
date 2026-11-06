@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { requestPersistentStorage } from '../lib/persist';
 import {
   addRosterPlayer,
   deleteRosterPlayer,
@@ -38,6 +39,7 @@ export const useRosterStore = create<RosterState>()((set) => {
     load: refresh,
     async add(name) {
       const player = await addRosterPlayer(name);
+      void requestPersistentStorage(); // once there is something worth keeping
       await refresh();
       return player;
     },
@@ -55,6 +57,7 @@ export const useRosterStore = create<RosterState>()((set) => {
     },
     async setPhoto(id, photo) {
       await setRosterPhoto(id, photo);
+      void requestPersistentStorage();
       await refresh();
     },
     async removePhoto(id) {
