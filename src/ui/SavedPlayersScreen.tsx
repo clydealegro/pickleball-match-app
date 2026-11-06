@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useAuthStore } from '../sync/auth';
 import { useRosterStore } from '../store/rosterStore';
 import { PhotoSheet } from './PhotoSheet';
 import { PlayerAvatar } from './PlayerAvatar';
@@ -11,6 +12,8 @@ export function SavedPlayersScreen({ onBack }: Props) {
   const roster = useRosterStore((s) => s.players);
   const rename = useRosterStore((s) => s.rename);
   const remove = useRosterStore((s) => s.remove);
+  const authStatus = useAuthStore((s) => s.status);
+  const authEmail = useAuthStore((s) => s.email);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -69,6 +72,9 @@ export function SavedPlayersScreen({ onBack }: Props) {
           Back
         </button>
       </div>
+
+      {authStatus === 'signedIn' && <p className="muted">Signed in as {authEmail}</p>}
+      {(authStatus === 'signedOut' || authStatus === 'codeSent') && <p className="muted">Signed out</p>}
 
       {error && (
         <p className="error" role="alert">

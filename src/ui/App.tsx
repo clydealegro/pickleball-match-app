@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useRosterStore } from '../store/rosterStore';
+import { useAuthStore } from '../sync/auth';
 import { useUpdateStore } from '../pwa';
 import { useSessionStore } from '../store/sessionStore';
 import { ErrorBoundary } from './ErrorBoundary';
 import { LiveScreen } from './LiveScreen';
 import { SavedPlayersScreen } from './SavedPlayersScreen';
+import { SettingsScreen } from './SettingsScreen';
 import { SetupScreen } from './SetupScreen';
 import { SummaryScreen } from './SummaryScreen';
 import { ThemeToggle } from './ThemeToggle';
@@ -16,22 +18,28 @@ export default function App() {
   const applyUpdate = useUpdateStore((s) => s.apply);
   const rosterPersistent = useRosterStore((s) => s.persistent);
   const loadRoster = useRosterStore((s) => s.load);
-  const [managing, setManaging] = useState(false);
+  const initAuth = useAuthStore((s) => s.init);
+  const [view, setView] = useState<'setup' | 'saved' | 'settings'>('setup');
 
   useEffect(() => {
     // A failing roster load is already reflected by the store's `persistent` flag.
     loadRoster().catch(() => {});
   }, [loadRoster]);
 
+  useEffect(() => {
+    void initAuth();
+  }, [initAuth]);
+
   let screen;
   if (!session) {
-    // Setup stays mounted (just hidden) so a half-filled form survives a trip to Saved players.
+    // Setup stays mounted (just hidden) so a half-filled form survives a trip to Saved players or Settings.
     screen = (
       <>
-        <div hidden={managing}>
-          <SetupScreen onManage={() => setManaging(true)} />
+        <div hidden={view !== 'setup'}>
+          <SetupScreen onManage={() => setView('saved')} onSettings={() => setView('settings')} />
         </div>
-        {managing && <SavedPlayersScreen onBack={() => setManaging(false)} />}
+        {view === 'saved' && <SavedPlayersScreen onBack={() => setView('setup')} />}
+        {view === 'settings' && <SettingsScreen onBack={() => setView('setup')} />}
       </>
     );
   } else if (session.endedAt) {

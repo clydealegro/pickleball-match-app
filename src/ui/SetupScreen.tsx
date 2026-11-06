@@ -11,9 +11,10 @@ const MAX_COURTS = 12;
 
 interface Props {
   onManage: () => void;
+  onSettings: () => void;
 }
 
-export function SetupScreen({ onManage }: Props) {
+export function SetupScreen({ onManage, onSettings }: Props) {
   const roster = useRosterStore((s) => s.players);
   const addToRoster = useRosterStore((s) => s.add);
   const start = useSessionStore((s) => s.start);
@@ -77,7 +78,12 @@ export function SetupScreen({ onManage }: Props) {
 
   return (
     <div className="stack">
-      <h1 className="screen-title">New session</h1>
+      <div className="row-flex spread">
+        <h1 className="screen-title">New session</h1>
+        <button type="button" className="btn btn-ghost btn-small" onClick={onSettings}>
+          Settings
+        </button>
+      </div>
 
       <section className="card stack">
         <div>
