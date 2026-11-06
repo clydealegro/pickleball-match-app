@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { processPhoto } from '../lib/photo';
@@ -137,5 +137,22 @@ describe('photos in the app', () => {
     await user.click(within(waiting).getByRole('button'));
     const dialog = await screen.findByRole('dialog', { name });
     expect(within(dialog).queryByRole('button', { name: /photo/i })).not.toBeInTheDocument();
+  });
+
+  it('shows a player\'s photo on their court card', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}Eve');
+    await user.click(await screen.findByRole('button', { name: 'Start session (5 players)' }));
+
+    const court = screen.getByRole('region', { name: 'Court 1' });
+    const name = within(court).getAllByText(/^(Ann|Ben|Cy|Dee|Eve)$/)[0].textContent!;
+    const chip = () => within(court).getByText(name).closest('.chip')!;
+    expect(chip().querySelector('img')).toBeNull(); // initials until there is a photo
+
+    const saved = useRosterStore.getState().players.find((p) => p.name === name)!;
+    await act(() => useRosterStore.getState().setPhoto(saved.id, processed));
+
+    await waitFor(() => expect(chip().querySelector('img')).not.toBeNull());
   });
 });
