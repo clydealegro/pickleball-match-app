@@ -5771,7 +5771,7 @@ pkill -f "vite preview"
 ls screenshots
 ```
 
-Expected: six PNGs in `screenshots/`. Open them and check:
+Expected: five PNGs in `screenshots/` (`phone-setup`, `phone-live`, `phone-live-dark`, `desktop-setup`, `desktop-live`). Open them and check:
 - `phone-live.png` is a single column: courts, then Up next, then Waiting. `desktop-live.png` has courts on the left and Up next + Waiting in a right-hand column.
 - The lime accent appears only on live things (court bar, "Game finished", Up next when a next game exists).
 - `phone-live-dark.png` is readable (dark background, light text, lime unchanged).
