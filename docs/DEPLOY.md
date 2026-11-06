@@ -34,5 +34,5 @@ npx vercel --prod   # deploy to production
 
 ## Coming with later plans
 
-- Photos need camera access. When that lands, a `Permissions-Policy: camera=(self)` header will be added to `vercel.json`.
+- Photos: `vercel.json` sends `Permissions-Policy: camera=(self)`, which limits camera use to this site. The camera button is a file input with `capture`, which hands off to the phone's own camera app and should not need the header. Task 10 of the photos plan confirms that on a phone.
 - Supabase sync will need two environment variables (the project URL and the publishable key) added under **Settings → Environment Variables** in Vercel. The service-role key must never be added to the app.
