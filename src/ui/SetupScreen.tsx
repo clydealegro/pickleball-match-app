@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Mode } from '../engine';
 import { lastSessionIds } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
@@ -23,6 +23,12 @@ export function SetupScreen({ onManage }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [startError, setStartError] = useState<string | null>(null);
+
+  // A start error belongs to the selection it was raised for.
+  useEffect(() => {
+    setStartError(null);
+  }, [selected]);
 
   const lastIds = lastSessionIds(roster);
   const chosen = roster.filter((p) => selected.has(p.id));
@@ -64,7 +70,7 @@ export function SetupScreen({ onManage }: Props) {
       courtCount,
       players: chosen.map((p) => ({ name: p.name, rosterId: p.id })),
     });
-    if (!res.ok) setError(res.error);
+    if (!res.ok) setStartError(res.error);
   }
 
   return (
@@ -153,7 +159,6 @@ export function SetupScreen({ onManage }: Props) {
             id="add-players"
             className="field"
             rows={3}
-            aria-label="Add players"
             placeholder={'One name per line\nAnn\nBen'}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -221,6 +226,11 @@ export function SetupScreen({ onManage }: Props) {
         >
           {canStart ? `Start session (${chosen.length} players)` : 'Start session'}
         </button>
+        {startError && (
+          <p className="error" role="alert">
+            {startError}
+          </p>
+        )}
         {!canStart && <p className="muted">Select at least {MIN_PLAYERS} players to start.</p>}
       </div>
     </div>

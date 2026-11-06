@@ -13,6 +13,11 @@ describe('initials', () => {
     expect(initials('x')).toBe('X');
   });
 
+  it('does not split emoji and other astral characters', () => {
+    expect(initials('😀 Ann')).toBe('😀A');
+    expect(initials('😀')).toBe('😀');
+  });
+
   it('falls back to a question mark', () => {
     expect(initials('   ')).toBe('?');
   });

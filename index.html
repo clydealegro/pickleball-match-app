@@ -6,6 +6,15 @@
     <meta name="theme-color" content="#c8f03c" />
     <meta name="description" content="Pickleball matchmaking for open play sessions." />
     <title>Pickleball Matchmaker</title>
+    <script>
+      // Apply the saved (or system) theme before first paint to avoid a flash of the wrong theme.
+      try {
+        var saved = localStorage.getItem('pickleball.theme');
+        var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme =
+          saved === 'light' || saved === 'dark' ? saved : dark ? 'dark' : 'light';
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

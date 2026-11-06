@@ -62,7 +62,7 @@ src/
     theme.ts ThemeToggle.tsx Avatar.tsx Button? (none) Sheet.tsx Timer.tsx PlayerChip.tsx
     SetupScreen.tsx SavedPlayersScreen.tsx
     CourtCard.tsx UpNextCard.tsx WaitingList.tsx PlayerSheet.tsx AddPlayerSheet.tsx LiveScreen.tsx
-    SummaryScreen.tsx App.tsx App.test.tsx
+    SummaryScreen.tsx ErrorBoundary.tsx App.tsx App.test.tsx
 ```
 
 ---
@@ -168,6 +168,15 @@ export default defineConfig({
     <meta name="theme-color" content="#c8f03c" />
     <meta name="description" content="Pickleball matchmaking for open play sessions." />
     <title>Pickleball Matchmaker</title>
+    <script>
+      // Apply the saved (or system) theme before first paint to avoid a flash of the wrong theme.
+      try {
+        var saved = localStorage.getItem('pickleball.theme');
+        var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme =
+          saved === 'light' || saved === 'dark' ? saved : dark ? 'dark' : 'light';
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
@@ -3064,6 +3073,11 @@ describe('initials', () => {
     expect(initials('x')).toBe('X');
   });
 
+  it('does not split emoji and other astral characters', () => {
+    expect(initials('😀 Ann')).toBe('😀A');
+    expect(initials('😀')).toBe('😀');
+  });
+
   it('falls back to a question mark', () => {
     expect(initials('   ')).toBe('?');
   });
@@ -3160,9 +3174,13 @@ export function ThemeToggle() {
 
 ```tsx file=src/ui/Avatar.tsx
 export function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => Array.from(part));
   if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  if (parts.length === 1) return parts[0].slice(0, 2).join('').toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
@@ -3186,7 +3204,7 @@ export function Avatar({ name, size = 'md', photoUrl }: AvatarProps) {
 ```
 
 ```tsx file=src/ui/Sheet.tsx
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 
 interface SheetProps {
   title: string;
@@ -3194,27 +3212,90 @@ interface SheetProps {
   children: ReactNode;
 }
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 /** A modal panel: a bottom sheet on phones, a centered dialog on wide screens. */
 export function Sheet({ title, onClose, children }: SheetProps) {
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  const pressStartedOnBackdrop = useRef(false);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  // Move focus into the dialog, give it back on close, and lock page scroll.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const previous = document.activeElement as HTMLElement | null;
+    if (dialog && !dialog.contains(document.activeElement)) dialog.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      if (previous && document.contains(previous)) previous.focus();
+    };
+  }, []);
+
+  // Escape closes; Tab stays inside the dialog.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onCloseRef.current();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const items = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE));
+      if (items.length === 0) {
+        e.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (!dialog.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && (active === first || active === dialog)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
+    <div
+      className="sheet-backdrop"
+      onMouseDown={(e) => {
+        pressStartedOnBackdrop.current = e.target === e.currentTarget;
+      }}
+      onClick={(e) => {
+        if (pressStartedOnBackdrop.current && e.target === e.currentTarget) onClose();
+        pressStartedOnBackdrop.current = false;
+      }}
+    >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="sheet stack"
         role="dialog"
         aria-modal="true"
-        aria-label={title}
-        onClick={(e) => e.stopPropagation()}
+        aria-labelledby={titleId}
       >
         <div className="sheet-head">
-          <h2 className="section-title">{title}</h2>
+          <h2 id={titleId} className="section-title">
+            {title}
+          </h2>
           <button type="button" className="btn btn-ghost" aria-label="Close" onClick={onClose}>
             ✕
           </button>
@@ -3329,6 +3410,11 @@ p {
   margin: 0;
 }
 
+h1 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -3372,6 +3458,8 @@ p {
   font-size: 28px;
   font-weight: 700;
   margin-bottom: 16px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .section-title {
@@ -3484,7 +3572,7 @@ textarea.field {
   resize: vertical;
 }
 
-label.label {
+.label {
   display: block;
   font-size: 14px;
   font-weight: 600;
@@ -3493,8 +3581,12 @@ label.label {
 
 button:focus-visible,
 .field:focus-visible,
-.option input:focus-visible + span,
-.check input:focus-visible + span {
+.option input:focus-visible + span {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.check input:focus-visible {
   outline: 3px solid var(--ink);
   outline-offset: 2px;
 }
@@ -3599,6 +3691,7 @@ fieldset {
   background: transparent;
   color: inherit;
   text-align: left;
+  max-width: 100%;
 }
 
 button.chip {
@@ -3607,6 +3700,8 @@ button.chip {
 
 .chip-name {
   font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .tag {
@@ -3670,6 +3765,12 @@ button.chip {
 
 .row-name {
   font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.list > li > form {
+  flex: 1;
 }
 
 .check input {
@@ -3818,8 +3919,9 @@ legend {
   width: 100%;
   max-width: 520px;
   max-height: 85vh;
+  max-height: 85dvh;
   overflow-y: auto;
-  padding: 16px;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
   border-radius: 24px 24px 0 0;
   background: var(--surface);
   color: var(--ink);
@@ -3872,7 +3974,7 @@ caption {
 .sticky-bar {
   position: sticky;
   bottom: 0;
-  padding: 12px 0;
+  padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
   background: var(--bg);
   display: flex;
   flex-direction: column;
@@ -3883,7 +3985,7 @@ caption {
 - [ ] **Step 5: Run tests and typecheck**
 
 Run: `npx vitest run src/lib src/ui/Avatar.test.tsx && npm run typecheck`
-Expected: PASS — 8 tests; typecheck clean.
+Expected: PASS — 9 tests; typecheck clean.
 
 - [ ] **Step 6: Commit**
 
@@ -3904,7 +4006,7 @@ These screens are covered by the integration test in Task 15.
 - [ ] **Step 1: Create the Setup screen**
 
 ```tsx file=src/ui/SetupScreen.tsx
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Mode } from '../engine';
 import { lastSessionIds } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
@@ -3929,6 +4031,12 @@ export function SetupScreen({ onManage }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [startError, setStartError] = useState<string | null>(null);
+
+  // A start error belongs to the selection it was raised for.
+  useEffect(() => {
+    setStartError(null);
+  }, [selected]);
 
   const lastIds = lastSessionIds(roster);
   const chosen = roster.filter((p) => selected.has(p.id));
@@ -3970,7 +4078,7 @@ export function SetupScreen({ onManage }: Props) {
       courtCount,
       players: chosen.map((p) => ({ name: p.name, rosterId: p.id })),
     });
-    if (!res.ok) setError(res.error);
+    if (!res.ok) setStartError(res.error);
   }
 
   return (
@@ -4059,7 +4167,6 @@ export function SetupScreen({ onManage }: Props) {
             id="add-players"
             className="field"
             rows={3}
-            aria-label="Add players"
             placeholder={'One name per line\nAnn\nBen'}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -4127,6 +4234,11 @@ export function SetupScreen({ onManage }: Props) {
         >
           {canStart ? `Start session (${chosen.length} players)` : 'Start session'}
         </button>
+        {startError && (
+          <p className="error" role="alert">
+            {startError}
+          </p>
+        )}
         {!canStart && <p className="muted">Select at least {MIN_PLAYERS} players to start.</p>}
       </div>
     </div>
@@ -4137,7 +4249,7 @@ export function SetupScreen({ onManage }: Props) {
 - [ ] **Step 2: Create the Saved players screen**
 
 ```tsx file=src/ui/SavedPlayersScreen.tsx
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRosterStore } from '../store/rosterStore';
 import { Avatar } from './Avatar';
 
@@ -4153,6 +4265,7 @@ export function SavedPlayersScreen({ onBack }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   function startEdit(id: string, current: string) {
     setEditingId(id);
@@ -4160,18 +4273,41 @@ export function SavedPlayersScreen({ onBack }: Props) {
     setError(null);
   }
 
+  /** Puts keyboard focus back on a row's Rename button once the edit form is gone. */
+  function focusRename(name: string) {
+    setTimeout(() => {
+      const label = `Rename ${name}`;
+      Array.from(listRef.current?.querySelectorAll<HTMLElement>('button[aria-label]') ?? [])
+        .find((b) => b.getAttribute('aria-label') === label)
+        ?.focus();
+    }, 0);
+  }
+
+  function cancelEdit(name: string) {
+    setEditingId(null);
+    setError(null);
+    focusRename(name);
+  }
+
   async function saveEdit(id: string) {
     try {
       await rename(id, editName);
       setEditingId(null);
       setError(null);
+      focusRename(editName.trim());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not rename that player.');
     }
   }
 
   async function confirmRemove(id: string, name: string) {
-    if (window.confirm(`Remove ${name} from saved players?`)) await remove(id);
+    if (!window.confirm(`Remove ${name} from saved players?`)) return;
+    try {
+      await remove(id);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not remove that player.');
+    }
   }
 
   return (
@@ -4192,24 +4328,34 @@ export function SavedPlayersScreen({ onBack }: Props) {
       {roster.length === 0 ? (
         <p className="muted">No saved players yet. Players you add to a session are saved here.</p>
       ) : (
-        <ul className="list card" aria-label="Saved players">
+        <ul ref={listRef} className="list card" aria-label="Saved players">
           {roster.map((p) => (
             <li key={p.id} className="row-flex spread">
               {editingId === p.id ? (
-                <>
+                <form
+                  className="row-flex"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void saveEdit(p.id);
+                  }}
+                >
                   <input
                     className="field"
                     aria-label={`New name for ${p.name}`}
                     value={editName}
+                    autoFocus
                     onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') cancelEdit(p.name);
+                    }}
                   />
-                  <button type="button" className="btn btn-primary btn-small" onClick={() => void saveEdit(p.id)}>
+                  <button type="submit" className="btn btn-primary btn-small">
                     Save
                   </button>
-                  <button type="button" className="btn btn-small" onClick={() => setEditingId(null)}>
+                  <button type="button" className="btn btn-small" onClick={() => cancelEdit(p.name)}>
                     Cancel
                   </button>
-                </>
+                </form>
               ) : (
                 <>
                   <span className="row-flex">
@@ -4267,6 +4413,7 @@ git commit -m "feat(ui): setup and saved players screens"
 - [ ] **Step 1: Create the court card, up-next card, and waiting list**
 
 ```tsx file=src/ui/CourtCard.tsx
+import { useId } from 'react';
 import type { Court, Player } from '../engine';
 import { PlayerChip } from './PlayerChip';
 import { Timer } from './Timer';
@@ -4281,6 +4428,7 @@ interface Props {
 
 export function CourtCard({ court, playersById, onFinish, onToggleClosing, onSelectPlayer }: Props) {
   const game = court.game;
+  const titleId = useId();
 
   function team(ids: [string, string]) {
     return (
@@ -4296,10 +4444,12 @@ export function CourtCard({ court, playersById, onFinish, onToggleClosing, onSel
   return (
     <section
       className={`card court ${game ? 'court-live' : ''}`}
-      aria-label={`Court ${court.number}`}
+      aria-labelledby={titleId}
     >
       <div className="row-flex spread">
-        <h2 className="court-title">Court {court.number}</h2>
+        <h2 id={titleId} className="court-title">
+          Court {court.number}
+        </h2>
         {game && <Timer startedAt={game.startedAt} />}
       </div>
 
@@ -4318,13 +4468,14 @@ export function CourtCard({ court, playersById, onFinish, onToggleClosing, onSel
       <div className="row-flex spread">
         {game ? (
           <button type="button" className="btn btn-live" onClick={onFinish}>
-            Game finished
+            Game finished<span className="sr-only"> on court {court.number}</span>
           </button>
         ) : (
           <span />
         )}
         <button type="button" className="btn btn-ghost btn-small" onClick={onToggleClosing}>
           {court.closing ? 'Keep court open' : 'Remove court'}
+          <span className="sr-only"> {court.number}</span>
         </button>
       </div>
     </section>
@@ -4399,7 +4550,9 @@ export function WaitingList({ session, onSelect, onAdd }: Props) {
           {waiting.map((p, i) => (
             <li key={p.id}>
               <button type="button" className="row-btn" onClick={() => onSelect(p.id)}>
-                <span className="row-index muted">{i + 1}</span>
+                <span className="row-index muted" aria-hidden="true">
+                  {i + 1}
+                </span>
                 <Avatar name={p.name} size="sm" />
                 <span className="row-name">{p.name}</span>
                 <span className="badge">
@@ -4443,6 +4596,7 @@ export function WaitingList({ session, onSelect, onAdd }: Props) {
 - [ ] **Step 2: Create the player and add-player sheets**
 
 ```tsx file=src/ui/PlayerSheet.tsx
+import { useState } from 'react';
 import * as engine from '../engine';
 import type { Session } from '../engine';
 import { useSessionStore } from '../store/sessionStore';
@@ -4457,12 +4611,14 @@ interface Props {
 
 export function PlayerSheet({ session, playerId, onClose }: Props) {
   const apply = useSessionStore((s) => s.apply);
+  const [error, setError] = useState<string | null>(null);
   const player = session.players.find((p) => p.id === playerId);
   if (!player) return null;
 
   function setStatus(target: engine.StatusTarget) {
-    apply((s, ctx) => engine.setPlayerStatus(s, playerId, target, ctx));
-    onClose();
+    const res = apply((s, ctx) => engine.setPlayerStatus(s, playerId, target, ctx));
+    if (res.ok) onClose();
+    else setError(res.error);
   }
 
   return (
@@ -4481,9 +4637,15 @@ export function PlayerSheet({ session, playerId, onClose }: Props) {
         </p>
       )}
 
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+
       {player.pendingStatus ? (
         <button type="button" className="btn btn-block" onClick={() => setStatus('active')}>
-          Cancel
+          {player.pendingStatus === 'break' ? 'Cancel break' : 'Cancel leaving'}
         </button>
       ) : player.status === 'break' ? (
         <button type="button" className="btn btn-primary btn-block" onClick={() => setStatus('active')}>
@@ -4526,18 +4688,22 @@ export function AddPlayerSheet({ session, onClose }: Props) {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const inSession = new Set(
-    session.players.filter((p) => p.status !== 'left').map((p) => p.name.trim().toLowerCase()),
+  const present = session.players.filter((p) => p.status !== 'left');
+  const presentRosterIds = new Set(present.flatMap((p) => (p.rosterId ? [p.rosterId] : [])));
+  const presentNames = new Set(present.map((p) => p.name.trim().toLowerCase()));
+  const candidates = roster.filter(
+    (r) => !presentRosterIds.has(r.id) && !presentNames.has(r.name.trim().toLowerCase()),
   );
-  const candidates = roster.filter((r) => !inSession.has(r.name.trim().toLowerCase()));
 
   function addToSession(playerName: string, rosterId: string) {
+    setError(null);
     const res = apply((s, ctx) => engine.addPlayer(s, { name: playerName, rosterId }, ctx));
     if (res.ok) onClose();
     else setError(res.error);
   }
 
   async function addNew() {
+    setError(null);
     try {
       const saved = await addToRoster(name);
       addToSession(saved.name, saved.id);
@@ -4562,6 +4728,7 @@ export function AddPlayerSheet({ session, onClose }: Props) {
           id="new-player-name"
           className="field"
           value={name}
+          maxLength={40}
           onChange={(e) => setName(e.target.value)}
         />
         <button type="submit" className="btn btn-primary" disabled={!name.trim()}>
@@ -4602,7 +4769,7 @@ import { useMemo, useState } from 'react';
 import * as engine from '../engine';
 import type { Session } from '../engine';
 import { useRosterStore } from '../store/rosterStore';
-import { useSessionStore } from '../store/sessionStore';
+import { useSessionStore, type SessionAction } from '../store/sessionStore';
 import { AddPlayerSheet } from './AddPlayerSheet';
 import { CourtCard } from './CourtCard';
 import { PlayerSheet } from './PlayerSheet';
@@ -4634,7 +4801,7 @@ export function LiveScreen({ session }: { session: Session }) {
     setAdding(true);
   }
 
-  function run(action: Parameters<typeof apply>[0]) {
+  function run(action: SessionAction) {
     const res = apply(action);
     setError(res.ok ? null : res.error);
   }
@@ -4642,8 +4809,9 @@ export function LiveScreen({ session }: { session: Session }) {
   function endSession() {
     if (!window.confirm('End this session? You can start a new one afterwards.')) return;
     const rosterIds = session.players.flatMap((p) => (p.rosterId ? [p.rosterId] : []));
-    void markPlayed(rosterIds, Date.now());
     run((s, ctx) => engine.endSession(s, ctx));
+    // Roster bookkeeping must never block ending the session.
+    markPlayed(rosterIds, Date.now()).catch(() => {});
   }
 
   const sorted = [...session.courts].sort((a, b) => a.number - b.number);
@@ -4721,7 +4889,7 @@ git commit -m "feat(ui): live session screen with courts, up next and waiting li
 ### Task 15: Summary screen, app wiring, and integration test
 
 **Files:**
-- Create: `src/ui/SummaryScreen.tsx`
+- Create: `src/ui/SummaryScreen.tsx`, `src/ui/ErrorBoundary.tsx`
 - Replace: `src/ui/App.tsx`, `src/main.tsx`
 - Test: `src/ui/App.test.tsx`
 
@@ -4730,24 +4898,44 @@ git commit -m "feat(ui): live session screen with courts, up next and waiting li
 ```tsx file=src/ui/App.test.tsx
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetRosterDbForTests } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
 import App from './App';
+import { ErrorBoundary } from './ErrorBoundary';
+
+type User = ReturnType<typeof userEvent.setup>;
+
+const NAMES = /^(Ann|Ben|Cy|Dee|Eve)$/;
 
 beforeEach(async () => {
   localStorage.clear();
+  delete document.documentElement.dataset.theme;
   useSessionStore.setState({ session: null, undoStack: [], saveFailed: false });
   await resetRosterDbForTests();
   useRosterStore.setState({ players: [], loaded: false });
 });
 
-async function startFivePlayerSession(user: ReturnType<typeof userEvent.setup>) {
-  render(<App />);
-  await user.type(screen.getByLabelText('Add players'), 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}Eve');
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+async function addPlayers(user: User, text: string) {
+  await user.type(screen.getByLabelText('Add players'), text);
   await user.click(screen.getByRole('button', { name: 'Add' }));
+}
+
+async function startFivePlayerSession(user: User) {
+  render(<App />);
+  await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}Eve');
   await user.click(await screen.findByRole('button', { name: 'Start session (5 players)' }));
+}
+
+/** The name of the single player waiting after startFivePlayerSession. */
+function waitingName(): string {
+  const item = within(screen.getByRole('list', { name: 'Waiting' })).getAllByRole('listitem')[0];
+  return within(item).getByText(NAMES).textContent!;
 }
 
 describe('App', () => {
@@ -4755,8 +4943,7 @@ describe('App', () => {
     const user = userEvent.setup();
     render(<App />);
     expect(screen.getByRole('button', { name: 'Start session' })).toBeDisabled();
-    await user.type(screen.getByLabelText('Add players'), 'Ann{enter}Ben{enter}Cy');
-    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await addPlayers(user, 'Ann{enter}Ben{enter}Cy');
     await screen.findByText('Players (3 selected)');
     expect(screen.getByRole('button', { name: 'Start session' })).toBeDisabled();
   });
@@ -4766,14 +4953,12 @@ describe('App', () => {
     await startFivePlayerSession(user);
 
     const court = screen.getByRole('region', { name: 'Court 1' });
-    expect(within(court).getAllByText(/^(Ann|Ben|Cy|Dee|Eve)$/)).toHaveLength(4);
+    expect(within(court).getAllByText(NAMES)).toHaveLength(4);
 
-    const waitingList = screen.getByRole('list', { name: 'Waiting' });
-    const waiting = within(waitingList).getAllByRole('listitem');
-    expect(waiting).toHaveLength(1);
-    const waiterName = waiting[0].querySelector('.row-name')!.textContent!;
+    expect(within(screen.getByRole('list', { name: 'Waiting' })).getAllByRole('listitem')).toHaveLength(1);
+    const waiterName = waitingName();
 
-    await user.click(within(court).getByRole('button', { name: 'Game finished' }));
+    await user.click(within(court).getByRole('button', { name: /game finished/i }));
 
     const courtAfter = screen.getByRole('region', { name: 'Court 1' });
     expect(within(courtAfter).getByText(waiterName)).toBeInTheDocument();
@@ -4784,11 +4969,9 @@ describe('App', () => {
     const user = userEvent.setup();
     await startFivePlayerSession(user);
 
-    const waitingList = screen.getByRole('list', { name: 'Waiting' });
-    const waiterName = within(waitingList).getAllByRole('listitem')[0].querySelector('.row-name')!
-      .textContent!;
+    const waiterName = waitingName();
 
-    await user.click(within(waitingList).getByRole('button'));
+    await user.click(within(screen.getByRole('list', { name: 'Waiting' })).getByRole('button'));
     await user.click(await screen.findByRole('button', { name: 'Take a break' }));
 
     const breakList = await screen.findByRole('list', { name: 'On break' });
@@ -4796,6 +4979,36 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Undo' }));
     expect(screen.queryByRole('list', { name: 'On break' })).not.toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Waiting' })).getByText(waiterName)).toBeInTheDocument();
+  });
+
+  it('shows "Break next" for a player on court, then moves them to On break when the game ends', async () => {
+    const user = userEvent.setup();
+    await startFivePlayerSession(user);
+
+    const court = screen.getByRole('region', { name: 'Court 1' });
+    const playerName = within(court).getAllByText(NAMES)[0].textContent!;
+    await user.click(within(court).getByRole('button', { name: new RegExp(playerName) }));
+    await user.click(await screen.findByRole('button', { name: 'Take a break' }));
+
+    expect(within(screen.getByRole('region', { name: 'Court 1' })).getByText('Break next')).toBeInTheDocument();
+
+    await user.click(within(screen.getByRole('region', { name: 'Court 1' })).getByRole('button', { name: /game finished/i }));
+
+    const breakList = await screen.findByRole('list', { name: 'On break' });
+    expect(within(breakList).getByText(playerName)).toBeInTheDocument();
+  });
+
+  it('marks a live court as closing and lets you keep it open again', async () => {
+    const user = userEvent.setup();
+    await startFivePlayerSession(user);
+
+    const court = () => screen.getByRole('region', { name: 'Court 1' });
+    await user.click(within(court()).getByRole('button', { name: /remove court/i }));
+    expect(within(court()).getByText('Closing after this game')).toBeInTheDocument();
+
+    await user.click(within(court()).getByRole('button', { name: /keep court open/i }));
+    expect(within(court()).queryByText('Closing after this game')).not.toBeInTheDocument();
   });
 
   it('adds a late player from the Add player sheet', async () => {
@@ -4826,14 +5039,37 @@ describe('App', () => {
     await startFivePlayerSession(user);
 
     // The setup default is two courts: remove the idle one, then try to remove the last one.
-    await user.click(screen.getAllByRole('button', { name: 'Remove court' })[1]);
-    await user.click(screen.getByRole('button', { name: 'Remove court' }));
+    await user.click(screen.getAllByRole('button', { name: /remove court/i })[1]);
+    await user.click(screen.getByRole('button', { name: /remove court/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent('At least one court must stay open.');
 
     const waitingList = screen.getByRole('list', { name: 'Waiting' });
     await user.click(within(waitingList).getByRole('button'));
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('offers saved players that are not already in the session when adding mid-session', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await startFivePlayerSession(user);
+    await user.click(screen.getByRole('button', { name: 'End session' }));
+    await user.click(await screen.findByRole('button', { name: 'Start new session' }));
+
+    for (const name of ['Ann', 'Ben', 'Cy', 'Dee']) {
+      await user.click(await screen.findByRole('checkbox', { name }));
+    }
+    await user.click(screen.getByRole('button', { name: 'Start session (4 players)' }));
+
+    await user.click(screen.getByRole('button', { name: '+ Add player' }));
+    const offered = await screen.findByRole('list', { name: 'Saved players not in this session' });
+    expect(within(offered).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(offered).queryByText('Ann')).not.toBeInTheDocument();
+
+    await user.click(within(offered).getByRole('button', { name: 'Eve' }));
+    await waitFor(() =>
+      expect(within(screen.getByRole('list', { name: 'Waiting' })).getByText('Eve')).toBeInTheDocument(),
+    );
   });
 
   it('ends the session, shows the summary, and remembers the players for next time', async () => {
@@ -4848,7 +5084,178 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Start new session' }));
     await user.click(await screen.findByRole('button', { name: 'Same as last session' }));
     expect(await screen.findByRole('button', { name: 'Start session (5 players)' })).toBeEnabled();
-    vi.restoreAllMocks();
+  });
+
+  it('keeps the half-filled setup form when visiting Saved players and coming back', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByLabelText('Session name'), 'Friday night');
+    await user.click(screen.getByRole('button', { name: 'Manage saved players' }));
+    expect(await screen.findByRole('heading', { name: 'Saved players' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByLabelText('Session name')).toHaveValue('Friday night');
+  });
+
+  it('flips the theme and remembers the choice', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: 'Switch to dark theme' }));
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(localStorage.getItem('pickleball.theme')).toBe('dark');
+
+    await user.click(screen.getByRole('button', { name: 'Switch to light theme' }));
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(localStorage.getItem('pickleball.theme')).toBe('light');
+  });
+
+  it('Select all and Clear change the selection, and Simple queue starts a queue session', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
+    await screen.findByText('Players (4 selected)');
+
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(screen.getByText('Players (0 selected)')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Select all' }));
+    expect(screen.getByText('Players (4 selected)')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: /simple queue/i }));
+    await user.click(screen.getByRole('button', { name: 'Start session (4 players)' }));
+    expect(useSessionStore.getState().session?.mode).toBe('queue');
+  });
+
+  it('adds one saved player when the same name is pasted twice in different case', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addPlayers(user, 'Ann{enter}ann');
+    await screen.findByText('Players (1 selected)');
+    const list = screen.getByRole('list', { name: 'Saved players' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+  });
+
+  describe('Saved players screen', () => {
+    async function openSavedPlayers(user: User) {
+      render(<App />);
+      await addPlayers(user, 'Ann{enter}Ben');
+      await screen.findByText('Players (2 selected)');
+      await user.click(screen.getByRole('button', { name: 'Manage saved players' }));
+      await screen.findByRole('heading', { name: 'Saved players' });
+    }
+
+    // Setup stays mounted (hidden) behind this screen, so scope queries to the visible list.
+    const savedList = () => within(screen.getByRole('list', { name: 'Saved players' }));
+
+    it('renames a player', async () => {
+      const user = userEvent.setup();
+      await openSavedPlayers(user);
+
+      await user.click(screen.getByRole('button', { name: 'Rename Ann' }));
+      const input = screen.getByLabelText('New name for Ann');
+      expect(input).toHaveFocus();
+      await user.clear(input);
+      await user.type(input, 'Annie{enter}');
+
+      expect(await savedList().findByText('Annie')).toBeInTheDocument();
+      expect(savedList().queryByText('Ann')).not.toBeInTheDocument();
+    });
+
+    it('cancels a rename with Escape', async () => {
+      const user = userEvent.setup();
+      await openSavedPlayers(user);
+
+      await user.click(screen.getByRole('button', { name: 'Rename Ann' }));
+      await user.type(screen.getByLabelText('New name for Ann'), 'x{Escape}');
+
+      expect(screen.queryByLabelText('New name for Ann')).not.toBeInTheDocument();
+      expect(savedList().getByText('Ann')).toBeInTheDocument();
+    });
+
+    it('rejects renaming to a duplicate name', async () => {
+      const user = userEvent.setup();
+      await openSavedPlayers(user);
+
+      await user.click(screen.getByRole('button', { name: 'Rename Ben' }));
+      const input = screen.getByLabelText('New name for Ben');
+      await user.clear(input);
+      await user.type(input, 'ann{enter}');
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/already/i);
+    });
+
+    it('removes a player after confirming', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      await openSavedPlayers(user);
+
+      await user.click(screen.getByRole('button', { name: 'Remove Ben' }));
+      await waitFor(() => expect(savedList().queryByText('Ben')).not.toBeInTheDocument());
+      expect(savedList().getByText('Ann')).toBeInTheDocument();
+    });
+  });
+
+  describe('sheets', () => {
+    it('closes on Escape and gives focus back to the button that opened it', async () => {
+      const user = userEvent.setup();
+      await startFivePlayerSession(user);
+
+      const trigger = within(screen.getByRole('list', { name: 'Waiting' })).getByRole('button');
+      await user.click(trigger);
+      expect(await screen.findByRole('dialog')).toHaveFocus();
+
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    });
+
+    it('closes on a backdrop click and gives focus back, and keeps Tab inside', async () => {
+      const user = userEvent.setup();
+      await startFivePlayerSession(user);
+
+      const trigger = screen.getByRole('button', { name: '+ Add player' });
+      await user.click(trigger);
+      const dialog = await screen.findByRole('dialog', { name: 'Add player' });
+
+      for (let i = 0; i < 6; i++) {
+        await user.tab();
+        expect(dialog).toContainElement(document.activeElement as HTMLElement);
+      }
+
+      await user.click(dialog.parentElement!);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    });
+  });
+});
+
+describe('ErrorBoundary', () => {
+  it('shows a fallback for a render error and "Start over" resets the session', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    useSessionStore.getState().start({
+      name: 'Test',
+      mode: 'fairness',
+      courtCount: 1,
+      players: ['A', 'B', 'C', 'D'].map((name) => ({ name })),
+    });
+    expect(useSessionStore.getState().session).not.toBeNull();
+
+    let shouldThrow = true;
+    function Maybe() {
+      if (shouldThrow) throw new Error('boom');
+      return <p>All good</p>;
+    }
+    render(
+      <ErrorBoundary>
+        <Maybe />
+      </ErrorBoundary>,
+    );
+    expect(screen.getByRole('heading', { name: 'Something went wrong' })).toBeInTheDocument();
+
+    shouldThrow = false;
+    await user.click(screen.getByRole('button', { name: 'Start over' }));
+    expect(screen.queryByRole('heading', { name: 'Something went wrong' })).not.toBeInTheDocument();
+    expect(screen.getByText('All good')).toBeInTheDocument();
+    expect(useSessionStore.getState().session).toBeNull();
   });
 });
 ```
@@ -4856,9 +5263,9 @@ describe('App', () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/ui/App.test.tsx`
-Expected: FAIL — the stub `App` renders only a heading, so queries like `getByLabelText('Add players')` find nothing.
+Expected: FAIL — `Failed to resolve import "./ErrorBoundary"` (the file does not exist yet); even without it, the stub `App` renders only a heading, so queries like `getByLabelText('Add players')` find nothing.
 
-- [ ] **Step 3: Implement the summary screen and app wiring**
+- [ ] **Step 3: Implement the summary screen, error boundary, and app wiring**
 
 ```tsx file=src/ui/SummaryScreen.tsx
 import { useState } from 'react';
@@ -4944,6 +5351,7 @@ export function SummaryScreen({ session }: { session: Session }) {
 import { useEffect, useState } from 'react';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
+import { ErrorBoundary } from './ErrorBoundary';
 import { LiveScreen } from './LiveScreen';
 import { SavedPlayersScreen } from './SavedPlayersScreen';
 import { SetupScreen } from './SetupScreen';
@@ -4958,15 +5366,20 @@ export default function App() {
   const [managing, setManaging] = useState(false);
 
   useEffect(() => {
-    void loadRoster();
+    // A failing roster load is already reflected by the store's `persistent` flag.
+    loadRoster().catch(() => {});
   }, [loadRoster]);
 
   let screen;
   if (!session) {
-    screen = managing ? (
-      <SavedPlayersScreen onBack={() => setManaging(false)} />
-    ) : (
-      <SetupScreen onManage={() => setManaging(true)} />
+    // Setup stays mounted (just hidden) so a half-filled form survives a trip to Saved players.
+    screen = (
+      <>
+        <div hidden={managing}>
+          <SetupScreen onManage={() => setManaging(true)} />
+        </div>
+        {managing && <SavedPlayersScreen onBack={() => setManaging(false)} />}
+      </>
     );
   } else if (session.endedAt) {
     screen = <SummaryScreen session={session} />;
@@ -4981,7 +5394,7 @@ export default function App() {
         <ThemeToggle />
       </header>
       {saveFailed && (
-        <p className="notice" role="status">
+        <p className="notice" role="alert">
           Not saved — this browser is blocking storage. The session still works, but a refresh will lose it.
         </p>
       )}
@@ -4990,7 +5403,9 @@ export default function App() {
           Saved players can't be stored in this browser, so names will be forgotten when the app closes.
         </p>
       )}
-      <main>{screen}</main>
+      <main>
+        <ErrorBoundary>{screen}</ErrorBoundary>
+      </main>
     </div>
   );
 }
@@ -5010,6 +5425,48 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </React.StrictMode>,
 );
+```
+
+```tsx file=src/ui/ErrorBoundary.tsx
+import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { useSessionStore } from '../store/sessionStore';
+
+interface State {
+  failed: boolean;
+}
+
+/** Catches render errors so a bad screen (or bad saved data) can't brick the app on reload. */
+export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
+  state: State = { failed: false };
+
+  static getDerivedStateFromError(): State {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error(error, info.componentStack);
+  }
+
+  startOver = () => {
+    useSessionStore.getState().reset();
+    this.setState({ failed: false });
+  };
+
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div className="stack" role="alert">
+        <h1 className="screen-title">Something went wrong</h1>
+        <p className="muted">
+          The app hit an unexpected problem. Starting over clears the current session; your saved players are kept.
+        </p>
+        <button type="button" className="btn btn-primary" onClick={this.startOver}>
+          Start over
+        </button>
+      </div>
+    );
+  }
+}
 ```
 
 - [ ] **Step 4: Run the whole suite and typecheck**
@@ -5199,6 +5656,15 @@ createRoot(document.getElementById('root')!).render(
     <link rel="icon" type="image/png" href="./icons/icon-192.png" />
     <link rel="apple-touch-icon" href="./icons/icon-192.png" />
     <title>Pickleball Matchmaker</title>
+    <script>
+      // Apply the saved (or system) theme before first paint to avoid a flash of the wrong theme.
+      try {
+        var saved = localStorage.getItem('pickleball.theme');
+        var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme =
+          saved === 'light' || saved === 'dark' ? saved : dark ? 'dark' : 'light';
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

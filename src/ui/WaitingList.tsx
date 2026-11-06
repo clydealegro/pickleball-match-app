@@ -25,7 +25,9 @@ export function WaitingList({ session, onSelect, onAdd }: Props) {
           {waiting.map((p, i) => (
             <li key={p.id}>
               <button type="button" className="row-btn" onClick={() => onSelect(p.id)}>
-                <span className="row-index muted">{i + 1}</span>
+                <span className="row-index muted" aria-hidden="true">
+                  {i + 1}
+                </span>
                 <Avatar name={p.name} size="sm" />
                 <span className="row-name">{p.name}</span>
                 <span className="badge">

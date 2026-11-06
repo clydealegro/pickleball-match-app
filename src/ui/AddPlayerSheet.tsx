@@ -18,18 +18,22 @@ export function AddPlayerSheet({ session, onClose }: Props) {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const inSession = new Set(
-    session.players.filter((p) => p.status !== 'left').map((p) => p.name.trim().toLowerCase()),
+  const present = session.players.filter((p) => p.status !== 'left');
+  const presentRosterIds = new Set(present.flatMap((p) => (p.rosterId ? [p.rosterId] : [])));
+  const presentNames = new Set(present.map((p) => p.name.trim().toLowerCase()));
+  const candidates = roster.filter(
+    (r) => !presentRosterIds.has(r.id) && !presentNames.has(r.name.trim().toLowerCase()),
   );
-  const candidates = roster.filter((r) => !inSession.has(r.name.trim().toLowerCase()));
 
   function addToSession(playerName: string, rosterId: string) {
+    setError(null);
     const res = apply((s, ctx) => engine.addPlayer(s, { name: playerName, rosterId }, ctx));
     if (res.ok) onClose();
     else setError(res.error);
   }
 
   async function addNew() {
+    setError(null);
     try {
       const saved = await addToRoster(name);
       addToSession(saved.name, saved.id);
@@ -54,6 +58,7 @@ export function AddPlayerSheet({ session, onClose }: Props) {
           id="new-player-name"
           className="field"
           value={name}
+          maxLength={40}
           onChange={(e) => setName(e.target.value)}
         />
         <button type="submit" className="btn btn-primary" disabled={!name.trim()}>

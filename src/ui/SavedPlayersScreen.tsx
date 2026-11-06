@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRosterStore } from '../store/rosterStore';
 import { Avatar } from './Avatar';
 
@@ -14,6 +14,7 @@ export function SavedPlayersScreen({ onBack }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   function startEdit(id: string, current: string) {
     setEditingId(id);
@@ -21,18 +22,41 @@ export function SavedPlayersScreen({ onBack }: Props) {
     setError(null);
   }
 
+  /** Puts keyboard focus back on a row's Rename button once the edit form is gone. */
+  function focusRename(name: string) {
+    setTimeout(() => {
+      const label = `Rename ${name}`;
+      Array.from(listRef.current?.querySelectorAll<HTMLElement>('button[aria-label]') ?? [])
+        .find((b) => b.getAttribute('aria-label') === label)
+        ?.focus();
+    }, 0);
+  }
+
+  function cancelEdit(name: string) {
+    setEditingId(null);
+    setError(null);
+    focusRename(name);
+  }
+
   async function saveEdit(id: string) {
     try {
       await rename(id, editName);
       setEditingId(null);
       setError(null);
+      focusRename(editName.trim());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not rename that player.');
     }
   }
 
   async function confirmRemove(id: string, name: string) {
-    if (window.confirm(`Remove ${name} from saved players?`)) await remove(id);
+    if (!window.confirm(`Remove ${name} from saved players?`)) return;
+    try {
+      await remove(id);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not remove that player.');
+    }
   }
 
   return (
@@ -53,24 +77,34 @@ export function SavedPlayersScreen({ onBack }: Props) {
       {roster.length === 0 ? (
         <p className="muted">No saved players yet. Players you add to a session are saved here.</p>
       ) : (
-        <ul className="list card" aria-label="Saved players">
+        <ul ref={listRef} className="list card" aria-label="Saved players">
           {roster.map((p) => (
             <li key={p.id} className="row-flex spread">
               {editingId === p.id ? (
-                <>
+                <form
+                  className="row-flex"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void saveEdit(p.id);
+                  }}
+                >
                   <input
                     className="field"
                     aria-label={`New name for ${p.name}`}
                     value={editName}
+                    autoFocus
                     onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') cancelEdit(p.name);
+                    }}
                   />
-                  <button type="button" className="btn btn-primary btn-small" onClick={() => void saveEdit(p.id)}>
+                  <button type="submit" className="btn btn-primary btn-small">
                     Save
                   </button>
-                  <button type="button" className="btn btn-small" onClick={() => setEditingId(null)}>
+                  <button type="button" className="btn btn-small" onClick={() => cancelEdit(p.name)}>
                     Cancel
                   </button>
-                </>
+                </form>
               ) : (
                 <>
                   <span className="row-flex">

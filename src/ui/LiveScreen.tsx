@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import * as engine from '../engine';
 import type { Session } from '../engine';
 import { useRosterStore } from '../store/rosterStore';
-import { useSessionStore } from '../store/sessionStore';
+import { useSessionStore, type SessionAction } from '../store/sessionStore';
 import { AddPlayerSheet } from './AddPlayerSheet';
 import { CourtCard } from './CourtCard';
 import { PlayerSheet } from './PlayerSheet';
@@ -34,7 +34,7 @@ export function LiveScreen({ session }: { session: Session }) {
     setAdding(true);
   }
 
-  function run(action: Parameters<typeof apply>[0]) {
+  function run(action: SessionAction) {
     const res = apply(action);
     setError(res.ok ? null : res.error);
   }
@@ -42,8 +42,9 @@ export function LiveScreen({ session }: { session: Session }) {
   function endSession() {
     if (!window.confirm('End this session? You can start a new one afterwards.')) return;
     const rosterIds = session.players.flatMap((p) => (p.rosterId ? [p.rosterId] : []));
-    void markPlayed(rosterIds, Date.now());
     run((s, ctx) => engine.endSession(s, ctx));
+    // Roster bookkeeping must never block ending the session.
+    markPlayed(rosterIds, Date.now()).catch(() => {});
   }
 
   const sorted = [...session.courts].sort((a, b) => a.number - b.number);

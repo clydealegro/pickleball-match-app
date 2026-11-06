@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import * as engine from '../engine';
 import type { Session } from '../engine';
 import { useSessionStore } from '../store/sessionStore';
@@ -12,12 +13,14 @@ interface Props {
 
 export function PlayerSheet({ session, playerId, onClose }: Props) {
   const apply = useSessionStore((s) => s.apply);
+  const [error, setError] = useState<string | null>(null);
   const player = session.players.find((p) => p.id === playerId);
   if (!player) return null;
 
   function setStatus(target: engine.StatusTarget) {
-    apply((s, ctx) => engine.setPlayerStatus(s, playerId, target, ctx));
-    onClose();
+    const res = apply((s, ctx) => engine.setPlayerStatus(s, playerId, target, ctx));
+    if (res.ok) onClose();
+    else setError(res.error);
   }
 
   return (
@@ -36,9 +39,15 @@ export function PlayerSheet({ session, playerId, onClose }: Props) {
         </p>
       )}
 
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+
       {player.pendingStatus ? (
         <button type="button" className="btn btn-block" onClick={() => setStatus('active')}>
-          Cancel
+          {player.pendingStatus === 'break' ? 'Cancel break' : 'Cancel leaving'}
         </button>
       ) : player.status === 'break' ? (
         <button type="button" className="btn btn-primary btn-block" onClick={() => setStatus('active')}>

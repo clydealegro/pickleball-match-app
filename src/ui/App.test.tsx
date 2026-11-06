@@ -1,23 +1,43 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetRosterDbForTests } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
 import App from './App';
+import { ErrorBoundary } from './ErrorBoundary';
+
+type User = ReturnType<typeof userEvent.setup>;
+
+const NAMES = /^(Ann|Ben|Cy|Dee|Eve)$/;
 
 beforeEach(async () => {
   localStorage.clear();
+  delete document.documentElement.dataset.theme;
   useSessionStore.setState({ session: null, undoStack: [], saveFailed: false });
   await resetRosterDbForTests();
   useRosterStore.setState({ players: [], loaded: false });
 });
 
-async function startFivePlayerSession(user: ReturnType<typeof userEvent.setup>) {
-  render(<App />);
-  await user.type(screen.getByLabelText('Add players'), 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}Eve');
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+async function addPlayers(user: User, text: string) {
+  await user.type(screen.getByLabelText('Add players'), text);
   await user.click(screen.getByRole('button', { name: 'Add' }));
+}
+
+async function startFivePlayerSession(user: User) {
+  render(<App />);
+  await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}Eve');
   await user.click(await screen.findByRole('button', { name: 'Start session (5 players)' }));
+}
+
+/** The name of the single player waiting after startFivePlayerSession. */
+function waitingName(): string {
+  const item = within(screen.getByRole('list', { name: 'Waiting' })).getAllByRole('listitem')[0];
+  return within(item).getByText(NAMES).textContent!;
 }
 
 describe('App', () => {
@@ -25,8 +45,7 @@ describe('App', () => {
     const user = userEvent.setup();
     render(<App />);
     expect(screen.getByRole('button', { name: 'Start session' })).toBeDisabled();
-    await user.type(screen.getByLabelText('Add players'), 'Ann{enter}Ben{enter}Cy');
-    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await addPlayers(user, 'Ann{enter}Ben{enter}Cy');
     await screen.findByText('Players (3 selected)');
     expect(screen.getByRole('button', { name: 'Start session' })).toBeDisabled();
   });
@@ -36,14 +55,12 @@ describe('App', () => {
     await startFivePlayerSession(user);
 
     const court = screen.getByRole('region', { name: 'Court 1' });
-    expect(within(court).getAllByText(/^(Ann|Ben|Cy|Dee|Eve)$/)).toHaveLength(4);
+    expect(within(court).getAllByText(NAMES)).toHaveLength(4);
 
-    const waitingList = screen.getByRole('list', { name: 'Waiting' });
-    const waiting = within(waitingList).getAllByRole('listitem');
-    expect(waiting).toHaveLength(1);
-    const waiterName = waiting[0].querySelector('.row-name')!.textContent!;
+    expect(within(screen.getByRole('list', { name: 'Waiting' })).getAllByRole('listitem')).toHaveLength(1);
+    const waiterName = waitingName();
 
-    await user.click(within(court).getByRole('button', { name: 'Game finished' }));
+    await user.click(within(court).getByRole('button', { name: /game finished/i }));
 
     const courtAfter = screen.getByRole('region', { name: 'Court 1' });
     expect(within(courtAfter).getByText(waiterName)).toBeInTheDocument();
@@ -54,11 +71,9 @@ describe('App', () => {
     const user = userEvent.setup();
     await startFivePlayerSession(user);
 
-    const waitingList = screen.getByRole('list', { name: 'Waiting' });
-    const waiterName = within(waitingList).getAllByRole('listitem')[0].querySelector('.row-name')!
-      .textContent!;
+    const waiterName = waitingName();
 
-    await user.click(within(waitingList).getByRole('button'));
+    await user.click(within(screen.getByRole('list', { name: 'Waiting' })).getByRole('button'));
     await user.click(await screen.findByRole('button', { name: 'Take a break' }));
 
     const breakList = await screen.findByRole('list', { name: 'On break' });
@@ -66,6 +81,36 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Undo' }));
     expect(screen.queryByRole('list', { name: 'On break' })).not.toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Waiting' })).getByText(waiterName)).toBeInTheDocument();
+  });
+
+  it('shows "Break next" for a player on court, then moves them to On break when the game ends', async () => {
+    const user = userEvent.setup();
+    await startFivePlayerSession(user);
+
+    const court = screen.getByRole('region', { name: 'Court 1' });
+    const playerName = within(court).getAllByText(NAMES)[0].textContent!;
+    await user.click(within(court).getByRole('button', { name: new RegExp(playerName) }));
+    await user.click(await screen.findByRole('button', { name: 'Take a break' }));
+
+    expect(within(screen.getByRole('region', { name: 'Court 1' })).getByText('Break next')).toBeInTheDocument();
+
+    await user.click(within(screen.getByRole('region', { name: 'Court 1' })).getByRole('button', { name: /game finished/i }));
+
+    const breakList = await screen.findByRole('list', { name: 'On break' });
+    expect(within(breakList).getByText(playerName)).toBeInTheDocument();
+  });
+
+  it('marks a live court as closing and lets you keep it open again', async () => {
+    const user = userEvent.setup();
+    await startFivePlayerSession(user);
+
+    const court = () => screen.getByRole('region', { name: 'Court 1' });
+    await user.click(within(court()).getByRole('button', { name: /remove court/i }));
+    expect(within(court()).getByText('Closing after this game')).toBeInTheDocument();
+
+    await user.click(within(court()).getByRole('button', { name: /keep court open/i }));
+    expect(within(court()).queryByText('Closing after this game')).not.toBeInTheDocument();
   });
 
   it('adds a late player from the Add player sheet', async () => {
@@ -96,14 +141,37 @@ describe('App', () => {
     await startFivePlayerSession(user);
 
     // The setup default is two courts: remove the idle one, then try to remove the last one.
-    await user.click(screen.getAllByRole('button', { name: 'Remove court' })[1]);
-    await user.click(screen.getByRole('button', { name: 'Remove court' }));
+    await user.click(screen.getAllByRole('button', { name: /remove court/i })[1]);
+    await user.click(screen.getByRole('button', { name: /remove court/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent('At least one court must stay open.');
 
     const waitingList = screen.getByRole('list', { name: 'Waiting' });
     await user.click(within(waitingList).getByRole('button'));
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('offers saved players that are not already in the session when adding mid-session', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await startFivePlayerSession(user);
+    await user.click(screen.getByRole('button', { name: 'End session' }));
+    await user.click(await screen.findByRole('button', { name: 'Start new session' }));
+
+    for (const name of ['Ann', 'Ben', 'Cy', 'Dee']) {
+      await user.click(await screen.findByRole('checkbox', { name }));
+    }
+    await user.click(screen.getByRole('button', { name: 'Start session (4 players)' }));
+
+    await user.click(screen.getByRole('button', { name: '+ Add player' }));
+    const offered = await screen.findByRole('list', { name: 'Saved players not in this session' });
+    expect(within(offered).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(offered).queryByText('Ann')).not.toBeInTheDocument();
+
+    await user.click(within(offered).getByRole('button', { name: 'Eve' }));
+    await waitFor(() =>
+      expect(within(screen.getByRole('list', { name: 'Waiting' })).getByText('Eve')).toBeInTheDocument(),
+    );
   });
 
   it('ends the session, shows the summary, and remembers the players for next time', async () => {
@@ -118,6 +186,177 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Start new session' }));
     await user.click(await screen.findByRole('button', { name: 'Same as last session' }));
     expect(await screen.findByRole('button', { name: 'Start session (5 players)' })).toBeEnabled();
-    vi.restoreAllMocks();
+  });
+
+  it('keeps the half-filled setup form when visiting Saved players and coming back', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByLabelText('Session name'), 'Friday night');
+    await user.click(screen.getByRole('button', { name: 'Manage saved players' }));
+    expect(await screen.findByRole('heading', { name: 'Saved players' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByLabelText('Session name')).toHaveValue('Friday night');
+  });
+
+  it('flips the theme and remembers the choice', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: 'Switch to dark theme' }));
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(localStorage.getItem('pickleball.theme')).toBe('dark');
+
+    await user.click(screen.getByRole('button', { name: 'Switch to light theme' }));
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(localStorage.getItem('pickleball.theme')).toBe('light');
+  });
+
+  it('Select all and Clear change the selection, and Simple queue starts a queue session', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
+    await screen.findByText('Players (4 selected)');
+
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(screen.getByText('Players (0 selected)')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Select all' }));
+    expect(screen.getByText('Players (4 selected)')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: /simple queue/i }));
+    await user.click(screen.getByRole('button', { name: 'Start session (4 players)' }));
+    expect(useSessionStore.getState().session?.mode).toBe('queue');
+  });
+
+  it('adds one saved player when the same name is pasted twice in different case', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await addPlayers(user, 'Ann{enter}ann');
+    await screen.findByText('Players (1 selected)');
+    const list = screen.getByRole('list', { name: 'Saved players' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+  });
+
+  describe('Saved players screen', () => {
+    async function openSavedPlayers(user: User) {
+      render(<App />);
+      await addPlayers(user, 'Ann{enter}Ben');
+      await screen.findByText('Players (2 selected)');
+      await user.click(screen.getByRole('button', { name: 'Manage saved players' }));
+      await screen.findByRole('heading', { name: 'Saved players' });
+    }
+
+    // Setup stays mounted (hidden) behind this screen, so scope queries to the visible list.
+    const savedList = () => within(screen.getByRole('list', { name: 'Saved players' }));
+
+    it('renames a player', async () => {
+      const user = userEvent.setup();
+      await openSavedPlayers(user);
+
+      await user.click(screen.getByRole('button', { name: 'Rename Ann' }));
+      const input = screen.getByLabelText('New name for Ann');
+      expect(input).toHaveFocus();
+      await user.clear(input);
+      await user.type(input, 'Annie{enter}');
+
+      expect(await savedList().findByText('Annie')).toBeInTheDocument();
+      expect(savedList().queryByText('Ann')).not.toBeInTheDocument();
+    });
+
+    it('cancels a rename with Escape', async () => {
+      const user = userEvent.setup();
+      await openSavedPlayers(user);
+
+      await user.click(screen.getByRole('button', { name: 'Rename Ann' }));
+      await user.type(screen.getByLabelText('New name for Ann'), 'x{Escape}');
+
+      expect(screen.queryByLabelText('New name for Ann')).not.toBeInTheDocument();
+      expect(savedList().getByText('Ann')).toBeInTheDocument();
+    });
+
+    it('rejects renaming to a duplicate name', async () => {
+      const user = userEvent.setup();
+      await openSavedPlayers(user);
+
+      await user.click(screen.getByRole('button', { name: 'Rename Ben' }));
+      const input = screen.getByLabelText('New name for Ben');
+      await user.clear(input);
+      await user.type(input, 'ann{enter}');
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/already/i);
+    });
+
+    it('removes a player after confirming', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      await openSavedPlayers(user);
+
+      await user.click(screen.getByRole('button', { name: 'Remove Ben' }));
+      await waitFor(() => expect(savedList().queryByText('Ben')).not.toBeInTheDocument());
+      expect(savedList().getByText('Ann')).toBeInTheDocument();
+    });
+  });
+
+  describe('sheets', () => {
+    it('closes on Escape and gives focus back to the button that opened it', async () => {
+      const user = userEvent.setup();
+      await startFivePlayerSession(user);
+
+      const trigger = within(screen.getByRole('list', { name: 'Waiting' })).getByRole('button');
+      await user.click(trigger);
+      expect(await screen.findByRole('dialog')).toHaveFocus();
+
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    });
+
+    it('closes on a backdrop click and gives focus back, and keeps Tab inside', async () => {
+      const user = userEvent.setup();
+      await startFivePlayerSession(user);
+
+      const trigger = screen.getByRole('button', { name: '+ Add player' });
+      await user.click(trigger);
+      const dialog = await screen.findByRole('dialog', { name: 'Add player' });
+
+      for (let i = 0; i < 6; i++) {
+        await user.tab();
+        expect(dialog).toContainElement(document.activeElement as HTMLElement);
+      }
+
+      await user.click(dialog.parentElement!);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    });
+  });
+});
+
+describe('ErrorBoundary', () => {
+  it('shows a fallback for a render error and "Start over" resets the session', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    useSessionStore.getState().start({
+      name: 'Test',
+      mode: 'fairness',
+      courtCount: 1,
+      players: ['A', 'B', 'C', 'D'].map((name) => ({ name })),
+    });
+    expect(useSessionStore.getState().session).not.toBeNull();
+
+    let shouldThrow = true;
+    function Maybe() {
+      if (shouldThrow) throw new Error('boom');
+      return <p>All good</p>;
+    }
+    render(
+      <ErrorBoundary>
+        <Maybe />
+      </ErrorBoundary>,
+    );
+    expect(screen.getByRole('heading', { name: 'Something went wrong' })).toBeInTheDocument();
+
+    shouldThrow = false;
+    await user.click(screen.getByRole('button', { name: 'Start over' }));
+    expect(screen.queryByRole('heading', { name: 'Something went wrong' })).not.toBeInTheDocument();
+    expect(screen.getByText('All good')).toBeInTheDocument();
+    expect(useSessionStore.getState().session).toBeNull();
   });
 });

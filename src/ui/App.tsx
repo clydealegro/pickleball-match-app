@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
+import { ErrorBoundary } from './ErrorBoundary';
 import { LiveScreen } from './LiveScreen';
 import { SavedPlayersScreen } from './SavedPlayersScreen';
 import { SetupScreen } from './SetupScreen';
@@ -15,15 +16,20 @@ export default function App() {
   const [managing, setManaging] = useState(false);
 
   useEffect(() => {
-    void loadRoster();
+    // A failing roster load is already reflected by the store's `persistent` flag.
+    loadRoster().catch(() => {});
   }, [loadRoster]);
 
   let screen;
   if (!session) {
-    screen = managing ? (
-      <SavedPlayersScreen onBack={() => setManaging(false)} />
-    ) : (
-      <SetupScreen onManage={() => setManaging(true)} />
+    // Setup stays mounted (just hidden) so a half-filled form survives a trip to Saved players.
+    screen = (
+      <>
+        <div hidden={managing}>
+          <SetupScreen onManage={() => setManaging(true)} />
+        </div>
+        {managing && <SavedPlayersScreen onBack={() => setManaging(false)} />}
+      </>
     );
   } else if (session.endedAt) {
     screen = <SummaryScreen session={session} />;
@@ -38,7 +44,7 @@ export default function App() {
         <ThemeToggle />
       </header>
       {saveFailed && (
-        <p className="notice" role="status">
+        <p className="notice" role="alert">
           Not saved — this browser is blocking storage. The session still works, but a refresh will lose it.
         </p>
       )}
@@ -47,7 +53,9 @@ export default function App() {
           Saved players can't be stored in this browser, so names will be forgotten when the app closes.
         </p>
       )}
-      <main>{screen}</main>
+      <main>
+        <ErrorBoundary>{screen}</ErrorBoundary>
+      </main>
     </div>
   );
 }

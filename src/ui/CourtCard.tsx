@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { Court, Player } from '../engine';
 import { PlayerChip } from './PlayerChip';
 import { Timer } from './Timer';
@@ -12,6 +13,7 @@ interface Props {
 
 export function CourtCard({ court, playersById, onFinish, onToggleClosing, onSelectPlayer }: Props) {
   const game = court.game;
+  const titleId = useId();
 
   function team(ids: [string, string]) {
     return (
@@ -27,10 +29,12 @@ export function CourtCard({ court, playersById, onFinish, onToggleClosing, onSel
   return (
     <section
       className={`card court ${game ? 'court-live' : ''}`}
-      aria-label={`Court ${court.number}`}
+      aria-labelledby={titleId}
     >
       <div className="row-flex spread">
-        <h2 className="court-title">Court {court.number}</h2>
+        <h2 id={titleId} className="court-title">
+          Court {court.number}
+        </h2>
         {game && <Timer startedAt={game.startedAt} />}
       </div>
 
@@ -49,13 +53,14 @@ export function CourtCard({ court, playersById, onFinish, onToggleClosing, onSel
       <div className="row-flex spread">
         {game ? (
           <button type="button" className="btn btn-live" onClick={onFinish}>
-            Game finished
+            Game finished<span className="sr-only"> on court {court.number}</span>
           </button>
         ) : (
           <span />
         )}
         <button type="button" className="btn btn-ghost btn-small" onClick={onToggleClosing}>
           {court.closing ? 'Keep court open' : 'Remove court'}
+          <span className="sr-only"> {court.number}</span>
         </button>
       </div>
     </section>
