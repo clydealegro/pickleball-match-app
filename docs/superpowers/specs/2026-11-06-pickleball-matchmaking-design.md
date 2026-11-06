@@ -83,7 +83,7 @@ RosterPlayer {
   photoVersion: number,  // 0 = no photo; increments each time the photo changes, back to 0 on removal
   photoSeq: number,      // only ever goes up, even on removal; names the photo's file online
   lastPlayedAt?,
-  updatedAt,             // server time once synced; local edit time until then
+  updatedAt,             // local edit time; the server's time once a change pulled from the server is saved
   deletedAt?             // soft delete, so deletions can sync to other devices
 }
 ```
@@ -119,10 +119,10 @@ IndexedDB stores: `players`, `photos` (player id → JPEG blob), `outbox` (one m
 
 **Sync algorithm.**
 1. Every local roster change (add, rename, photo change, delete, `lastPlayedAt`) is written to IndexedDB, and the player is marked in the `outbox`, in one transaction. A mark says only that the player has changes not yet pushed; the push reads the player's current state.
-2. When signed in and online (and again on reconnect, app focus, and every few minutes while open), sync **pushes** the outbox in order: upsert the `players` row, then upload the new photo file if `photoVersion` changed, then delete the superseded photo file. A failed step stays in the outbox and is retried with backoff.
-3. Sync then **pulls** rows with `updated_at` greater than the stored cursor, merges them into IndexedDB, and downloads any photo whose `photo_version` is newer than the local copy (via authenticated download, stored as a local blob so display never needs the network).
-4. **Conflicts:** last write wins per player, using the server `updated_at`. A local change still waiting in the outbox is never overwritten by a pulled row; it is pushed afterward. If another device created a player with the same name (unique-index violation), the two are merged: the existing server entry is kept, and the local entry's photo is adopted if the server entry has none.
-5. **First sign-in on a device:** the local roster and the account's roster are merged by case-insensitive name (union), then both sides converge via the steps above.
+2. When signed in and online (and again on reconnect, app focus, every few minutes while open, and a couple of seconds after a change), sync **pushes** each player marked in the `outbox`, one request per player, deleted players first. For each: upload the photo file if the player has one the server does not (the file goes up before the row that points at it), upsert the `players` row, then delete the photo files that no longer belong to the player. The mark is cleared only if the player has not changed meanwhile. A failed player stays marked and is retried with backoff; one refused player does not hold up the others.
+3. Sync then **pulls** the rows written at or after the stored cursor minus two minutes (the overlap covers a write that committed late), oldest first. Each row is checked before it is used, and rows this app would not have written are skipped. A row is merged into IndexedDB, and its photo is downloaded when this device does not have the right one (via authenticated download, stored as a local blob so display never needs the network); a row whose photo file is gone is shown without a photo. The cursor moves only after every row is saved.
+4. **Conflicts:** last write wins per player, using the server `updated_at`. A local change still waiting in the outbox is never overwritten by a pulled row; it is pushed afterward. If another device created a player with the same name (unique-index violation), the two are merged: the existing server entry is kept, the other entry stays on this device as a deleted entry that is never pushed, and the kept entry adopts its photo if it has none and its later `lastPlayedAt`. If the name is held by a player whose own rename or deletion is still waiting to be pushed, the push waits for that one first, and two players swapping names are pushed through a temporary name.
+5. **First sign-in on a device:** every saved player is marked for a push, so the local roster and the account's roster are merged by case-insensitive name (union) through the name rule above, then both sides converge via the steps above. A device that already holds one account's players does not sync another account; it reports that and leaves the data untouched.
 
 **Sync status** is always visible in the roster screen header as one of: *Signed out*, *Synced*, *Syncing…*, *Offline — N changes waiting*, or *Can't reach server — will retry*.
 
