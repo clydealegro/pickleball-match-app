@@ -8,7 +8,7 @@ A pickleball open-play matchmaking web app. An organizer creates a session, sets
 ## Status
 - **Plan 1 (core app) is complete, reviewed, and pushed.** 153 tests pass, the typecheck is clean, `npm run build` works, and the built app was checked offline in a real browser.
 - **Deployed to Vercel at https://piklmatch.vercel.app** (the Plan 1 build; the owner imported the repo on 6 Nov 2026, and the `pikl` name was not used). Checked live: the page, manifest, icons, hashed assets and service worker all load, and a session can be started and a game finished. `docs/DEPLOY.md` still says `pikl.vercel.app`; that was the planned name.
-- **Plan 2 (photos) is planned but not built:** `docs/superpowers/plans/2026-11-06-photos.md`.
+- **Plan 2 (photos) is in progress:** `docs/superpowers/plans/2026-11-06-photos.md`. Tasks 1 and 2 (test runner on Node 26, IndexedDB `VersionError` fix) are done, reviewed, and live on production (6 Nov 2026, commit `d6064f1`). Checked live: after **Reload now**, a database stored at a newer version opens with its saved player and no "can't be stored" banner. Tasks 3 to 10 are not started. Work continues on the `photos` branch; the production branch is `claude/pickleball-matchmaking-app-i4baca`.
 - **Plan 3 (Supabase auth + sync) is designed (in the spec) but not planned or built.**
 
 ## Where things are
