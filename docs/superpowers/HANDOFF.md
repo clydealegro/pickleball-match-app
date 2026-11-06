@@ -7,14 +7,16 @@ A pickleball open-play matchmaking web app. An organizer creates a session, sets
 
 ## Status
 - **Plan 1 (core app) is complete, reviewed, and pushed.** 153 tests pass, the typecheck is clean, `npm run build` works, and the built app was checked offline in a real browser.
-- **Vercel deployment is prepared but not done.** `vercel.json` and `docs/DEPLOY.md` are in the repo. The owner has to import the repo in Vercel (target URL `pikl.vercel.app`, availability unchecked).
-- **Plan 2 (photos) and Plan 3 (Supabase auth + sync) are designed (in the spec) but not planned or built.**
+- **Deployed to Vercel at https://piklmatch.vercel.app** (the Plan 1 build; the owner imported the repo on 6 Nov 2026, and the `pikl` name was not used). Checked live: the page, manifest, icons, hashed assets and service worker all load, and a session can be started and a game finished. `docs/DEPLOY.md` still says `pikl.vercel.app`; that was the planned name.
+- **Plan 2 (photos) is planned but not built:** `docs/superpowers/plans/2026-11-06-photos.md`.
+- **Plan 3 (Supabase auth + sync) is designed (in the spec) but not planned or built.**
 
 ## Where things are
 | What | Where |
 |---|---|
 | Design spec (the source of truth for behaviour) | `docs/superpowers/specs/2026-11-06-pickleball-matchmaking-design.md` |
 | Plan 1 (executed; its code blocks equal the repo for `src/`, `vite.config.ts`, `index.html`, `package.json`) | `docs/superpowers/plans/2026-11-06-core-matchmaking-app.md` |
+| Plan 2 (photos): 10 tasks, tasks 1 to 9 replayed step by step on a fresh clone | `docs/superpowers/plans/2026-11-06-photos.md` |
 | Review follow-ups and prerequisites for Plans 2 and 3 | `docs/superpowers/notes/2026-11-06-follow-ups-and-plan-2-3-prerequisites.md` |
 | Deployment guide | `docs/DEPLOY.md` |
 | Engine (pure logic, no React) | `src/engine/` |
@@ -41,11 +43,10 @@ npm run build      # also generates the service worker
 - Updates never reload the page by themselves (an in-app "Reload now" notice instead).
 
 ## Suggested next steps (in order)
-1. **Deploy** to Vercel following `docs/DEPLOY.md`, then try a real session at the courts.
-2. **Fix the IndexedDB upgrade path** before adding anything to the database (see the notes file: `upgrade()` must branch on `oldVersion`, and a `VersionError` must not look like "storage unavailable").
-3. **Plan 2: photos.** Write a plan from the spec sections "Saved roster (local-first)" and "Photos": camera capture via `<input capture>`, square crop + 256 px JPEG, a `photos` store, a `usePhotoUrl(rosterId)` hook feeding `Avatar`'s existing `photoUrl` prop, and a camera `Permissions-Policy` header in `vercel.json`.
-4. **Plan 3: Supabase.** Write a plan from "Sync and backend (Supabase)": a Supabase project, migrations with row-level security and a private `player-photos` bucket, email-code sign-in, an outbox with push/pull sync, the sync status line, and "Delete all my data".
-5. Smaller leftovers are listed in the notes file.
+1. **Try a real session at the courts** on the deployed app (it is already live).
+2. **Execute Plan 2 (photos)**, `docs/superpowers/plans/2026-11-06-photos.md`. Tasks 1 and 2 (test runner on Node 26, IndexedDB `VersionError` and upgrade path) change no visible behaviour and can be deployed first.
+3. **Plan 3: Supabase.** Write a plan from "Sync and backend (Supabase)": a Supabase project, migrations with row-level security and a private `player-photos` bucket, email-code sign-in, an outbox with push/pull sync, the sync status line, and "Delete all my data".
+4. Smaller leftovers are listed in the notes file.
 
 ## How the work was done (so you can follow the same rhythm)
 Brainstorm → spec → plan with complete code blocks → execute task by task with tests first → spec-compliance review, then code-quality review per layer → fix → final review. The plan was replayed task by task in a scratch directory to prove the order works (tests red then green, typecheck, build). That replay tooling lived outside the repo; recreate something similar if you write another plan.
