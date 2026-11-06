@@ -8,7 +8,7 @@ A pickleball open-play matchmaking web app. An organizer creates a session, sets
 ## Status
 - **Plan 1 (core app) is complete, reviewed, and pushed.** 153 tests pass, the typecheck is clean, `npm run build` works, and the built app was checked offline in a real browser.
 - **Deployed to Vercel at https://piklmatch.vercel.app** (the Plan 1 build; the owner imported the repo on 6 Nov 2026, and the `pikl` name was not used). Checked live: the page, manifest, icons, hashed assets and service worker all load, and a session can be started and a game finished. `docs/DEPLOY.md` still says `pikl.vercel.app`; that was the planned name.
-- **Plan 2 (photos) is in progress:** `docs/superpowers/plans/2026-11-06-photos.md`. Tasks 1 and 2 (test runner on Node 26, IndexedDB `VersionError` fix) are done, reviewed, and live on production (6 Nov 2026, commit `d6064f1`). Checked live: after **Reload now**, a database stored at a newer version opens with its saved player and no "can't be stored" banner. Tasks 3 to 9 are done, reviewed (spec, quality, and a final whole-branch review) and pushed on the `photos` branch, with 203 tests passing; they are NOT on production. Task 10, the check on a real phone, is the gate before merging `photos` into the production branch `claude/pickleball-matchmaking-app-i4baca`. Open review items are in the notes file.
+- **Plan 2 (photos) is complete and live on production** (6 Nov 2026, commit `6036d75`, https://piklmatch.vercel.app): 203 tests pass, the typecheck is clean, `npm run build` works. Each task was spec-reviewed and quality-reviewed, review fixes were applied, and a final whole-branch review found nothing blocking. Checked live in desktop Chrome: the old build's version 1 database upgrades to version 2 through **Reload now** with all saved players intact, a portrait photo is cropped to a 256 px square and saved, it survives a reload and shows on the court card, and the `Permissions-Policy: camera=(self)` header is served. **Not yet checked on a real phone (Task 10 of the plan):** camera rotation of a real portrait photo on iOS and Android, `capture` from an installed iOS PWA, HEIC from the iOS library, and the update keeping saved players on a phone. Plan: `docs/superpowers/plans/2026-11-06-photos.md`. Open review items are in the notes file.
 - **Plan 3 (Supabase auth + sync) is designed (in the spec) but not planned or built.**
 
 ## Where things are
@@ -44,7 +44,7 @@ npm run build      # also generates the service worker
 
 ## Suggested next steps (in order)
 1. **Try a real session at the courts** on the deployed app (it is already live).
-2. **Execute Plan 2 (photos)**, `docs/superpowers/plans/2026-11-06-photos.md`. Tasks 1 and 2 (test runner on Node 26, IndexedDB `VersionError` and upgrade path) change no visible behaviour and can be deployed first.
+2. **Check photos on a real phone** (Task 10 of `docs/superpowers/plans/2026-11-06-photos.md`): take a portrait photo and confirm it is upright, try the library picker and a HEIC photo, then Reload now on the installed app and confirm the saved players are still there.
 3. **Plan 3: Supabase.** Write a plan from "Sync and backend (Supabase)": a Supabase project, migrations with row-level security and a private `player-photos` bucket, email-code sign-in, an outbox with push/pull sync, the sync status line, and "Delete all my data".
 4. Smaller leftovers are listed in the notes file.
 
