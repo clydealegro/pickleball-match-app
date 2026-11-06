@@ -94,13 +94,14 @@ Nothing in this task touches code, and nothing in it can be tested without the r
   <p>It works once and expires soon. If you did not ask for it, ignore this email.</p>
   ```
   
-  Leave **Email OTP Expiration** at its default (**Authentication, Providers, Email**). The docs cap it at 86400 seconds (one day) because a longer life gives an attacker more time to guess.
+  Leave **Email OTP Expiration** at its default (**Authentication, Providers, Email**), and do not change the code length: the app expects six digits. The docs cap it at 86400 seconds (one day) because a longer life gives an attacker more time to guess.
 
 - [ ] **Step 3: Set the site address and check the email limits**
 
   - **Authentication, URL Configuration**: set **Site URL** to `https://piklmatch.vercel.app`. The app signs in with a typed code and never follows a link, but the default points at `localhost`.
   - **Organization, Team**: confirm the email address you will sign in with is a member of the `RobotBeard` organization. The built-in email service sends only to team members, and fails for every other address with `email_address_not_authorized`.
   - **Authentication, Rate Limits**: read the numbers for emails per hour and OTPs per hour. The built-in service shares one hourly cap across the whole project. To send codes to any other address, or to raise the limit, set up custom SMTP (the guide is at https://supabase.com/docs/guides/auth/auth-smtp).
+  - Leave **anonymous sign-ins** switched off. Anonymous users count as signed-in users for every rule in this plan, so enabling them would let anyone read and write their own rows.
   - Optional, after your own account exists (Task 11): switch off new sign-ups in the project's Authentication settings (look for the "allow new users to sign up" switch; its exact place may differ), so nobody else can create accounts on your project.
 
 - [ ] **Step 4: Write down the two public values**
@@ -188,7 +189,7 @@ git commit -m "chore: add supabase-js and an in-memory Postgres for database tes
 
 
 ### Task 3: The players table, with its security rules
-One row per player per organizer. The rules are in the database, not the app: a signed-in organizer can read, add and change only their own rows, nobody can hard-delete, and `updated_at` is set by the server so a client cannot choose it. `photo_version` is the existing "changes on this device" count and can return to 0. The new `photo_seq` only ever goes up and names the storage file, so a removed and re-added photo never reuses a path (the final review of Plan 2 flagged the reuse problem; this is the fix, and Plan 3B adds the matching local field). The test harness gives an in-memory Postgres the parts of Supabase the migration leans on: the `anon`, `authenticated` and `service_role` roles, `auth.uid()`, the `storage` tables, and Supabase's broad default privileges, so the migration's own `revoke` is really tested. These are stand-ins, not Supabase itself, which is why Task 7 runs the same rules on the real project. Each rule was checked by breaking the migration on purpose: all 14 deliberate breakages across Tasks 3 to 5 were caught.
+One row per player per organizer. The rules are in the database, not the app: a signed-in organizer can read, add and change only their own rows, nobody can hard-delete, and `updated_at` is set by the server so a client cannot choose it. `updated_at` uses `clock_timestamp()` (the moment of the write), not `now()` (the start of the transaction): with `now()`, a long transaction stamps its rows with an old time and a sync that pulls by time can miss them (an independent review of this task found it). `photo_version` is the existing "changes on this device" count and can return to 0. The new `photo_seq` only ever goes up and names the storage file, so a removed and re-added photo never reuses a path (the final review of Plan 2 flagged the reuse problem; this is the fix, and Plan 3B adds the matching local field). The test harness gives an in-memory Postgres the parts of Supabase the migration leans on: the `anon`, `authenticated` and `service_role` roles, `auth.uid()`, the `storage` tables, and Supabase's broad default privileges, so the migration's own `revoke` is really tested. These are stand-ins, not Supabase itself, which is why Task 7 runs the same rules on the real project. Each rule was checked by breaking the migration on purpose: all 14 deliberate breakages across Tasks 3 to 5 were caught.
 **Files:**
 - Create: `src/sync/db/harness.ts`
 - Create: `src/sync/db/players.test.ts`
@@ -259,14 +260,23 @@ const SUPABASE_STANDINS = `
   grant execute on all functions in schema storage to anon, authenticated, service_role;
 
   grant usage on schema public to anon, authenticated, service_role;
+`;
+
+/**
+ * Supabase has granted new tables and functions in `public` to anon, authenticated and service_role by default.
+ * The docs say new projects are moving to opt-in grants, so the tests run both ways: with these defaults (the
+ * old behaviour) and without them (the new one, where only the migrations' own explicit grants count).
+ */
+const SUPABASE_DEFAULT_GRANTS = `
   alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
   alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
 `;
 
 /** A fresh in-memory Postgres with the stand-ins, every migration applied, and two users. */
-export async function createDb(): Promise<PGlite> {
+export async function createDb(options: { defaultGrants?: boolean } = {}): Promise<PGlite> {
   const db = new PGlite();
   await db.exec(SUPABASE_STANDINS);
+  if (options.defaultGrants !== false) await db.exec(SUPABASE_DEFAULT_GRANTS);
   for (const path of Object.keys(migrationFiles).sort()) {
     await db.exec(migrationFiles[path]);
   }
@@ -398,6 +408,19 @@ describe('players table', () => {
     expect(second.getFullYear()).toBeGreaterThan(2020);
   });
 
+  it('stamps each row with the time it was written, even inside one long transaction', async () => {
+    await db.transaction(async (tx) => {
+      await tx.query('set local role authenticated');
+      await tx.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ sub: USER_A, role: 'authenticated' })]);
+      await tx.query("insert into public.players (id, name) values ($1, 'Ann')", [ANN]);
+      await tx.query('select pg_sleep(0.05)');
+      await tx.query("insert into public.players (id, name) values ($1, 'Ben')", [BEN]);
+    });
+    const { rows } = await db.query<{ name: string; updated_at: Date }>('select name, updated_at from public.players order by name');
+    const [ann, ben] = rows;
+    expect(ben.updated_at.getTime()).toBeGreaterThan(ann.updated_at.getTime());
+  });
+
   it('keeps names unique per organizer, ignoring case and spaces, among players who are not deleted', async () => {
     await insertPlayer({ user: USER_A }, ANN, 'Ann');
     await expect(insertPlayer({ user: USER_A }, BEN, '  ANN ')).rejects.toThrow(/duplicate key/i);
@@ -433,7 +456,7 @@ describe('players table', () => {
 npx vitest run src/sync/db/players.test.ts
 ```
 
-  Expected: `Tests  12 failed (12)`, with `relation "public.players" does not exist`.
+  Expected: `Tests  13 failed (13)`, with `relation "public.players" does not exist`.
 
 - [ ] **Step 4: Write the migration**
 
@@ -455,6 +478,8 @@ create table public.players (
   last_played_at timestamptz,
   deleted_at timestamptz,
   -- Set by a trigger on every write, so it is server time and a client cannot choose it.
+  -- The trigger uses clock_timestamp() (the moment of the write), not now() (the start of the transaction),
+  -- so a long transaction cannot stamp its rows with an old time that a pull by time would then skip.
   updated_at timestamptz not null default now(),
   primary key (owner_id, id)
 );
@@ -470,7 +495,7 @@ language plpgsql
 set search_path = ''
 as $$
 begin
-  new.updated_at := now();
+  new.updated_at := clock_timestamp();
   return new;
 end;
 $$;
@@ -512,7 +537,7 @@ grant select, insert, update on public.players to authenticated;
 npx vitest run src/sync/db/players.test.ts && npm run typecheck
 ```
 
-  Expected: `Tests  12 passed (12)`.
+  Expected: `Tests  13 passed (13)`.
 
 - [ ] **Step 6: Commit**
 
@@ -672,9 +697,10 @@ git commit -m "feat: private player-photos bucket with per-organizer storage pol
 
 
 ### Task 5: The purge function for "Delete all my data"
-Organizers have no delete policy on `players`, so a real delete needs a function. `delete_my_players()` deletes only the caller's rows, including soft-deleted ones, and returns how many. It runs with its owner's rights, so it is locked down the way the Supabase docs advise: an empty `search_path`, `EXECUTE` revoked from `public` and `anon`, and granted only to `authenticated`. Supabase's own security advisor has a lint for any `SECURITY DEFINER` function that signed-in users can run (lint 0029, named in the docs' notes on lint 0028); expect it to mention this function. That is intended here, and is why the function only ever touches the caller's rows. The function does not touch photo files: the docs say storage files must be removed through the Storage API, never with SQL, or they are orphaned and still billed. The app does that in Plan 3B, in batches (the API removes up to 1000 files at a time).
+Organizers have no delete policy on `players`, so a real delete needs a function. `delete_my_players()` deletes only the caller's rows, including soft-deleted ones, and returns how many. It runs with its owner's rights, so it is locked down the way the Supabase docs advise: an empty `search_path`, `EXECUTE` revoked from `public` and `anon`, and granted only to `authenticated`. Supabase's own security advisor has a lint for any `SECURITY DEFINER` function that signed-in users can run (lint 0029, named in the docs' notes on lint 0028); expect it to mention this function. That is intended here, and is why the function only ever touches the caller's rows. `grants.test.ts` exists because the Supabase docs say new projects are moving to opt-in grants: the other database tests run with the old "everything is granted by default" behaviour, which would hide a forgotten `grant`, so this file runs the same rules with those defaults switched off. The function does not touch photo files: the docs say storage files must be removed through the Storage API, never with SQL, or they are orphaned and still billed. The app does that in Plan 3B, in batches (the API removes up to 1000 files at a time).
 **Files:**
 - Create: `src/sync/db/purge.test.ts`
+- Create: `src/sync/db/grants.test.ts`
 - Create: `supabase/migrations/20261106120200_delete_my_players.sql`
 
 - [ ] **Step 1: Write the failing tests**
@@ -732,6 +758,15 @@ describe('delete_my_players()', () => {
     await expect(run(db, 'anon', 'select public.delete_my_players()')).rejects.toThrow(/permission denied/i);
   });
 
+  it('pins an empty search path on both functions, so no one can hijack a name they look up', async () => {
+    const { rows } = await db.query<{ proname: string; proconfig: string[] | null }>(
+      `select proname, proconfig from pg_proc
+       where pronamespace = 'public'::regnamespace and proname in ('delete_my_players', 'set_updated_at') order by proname`,
+    );
+    expect(rows.map((r) => r.proname)).toEqual(['delete_my_players', 'set_updated_at']);
+    for (const row of rows) expect(row.proconfig).toContain('search_path=""');
+  });
+
   it('is not callable by default: only signed-in users hold execute', async () => {
     const { rows } = await db.query<{ grantee: string }>(
       `select distinct grantee from information_schema.routine_privileges
@@ -754,7 +789,7 @@ describe('delete_my_players()', () => {
 npx vitest run src/sync/db/purge.test.ts
 ```
 
-  Expected: `Tests  5 failed (5)`.
+  Expected: `Tests  6 failed (6)`.
 
 - [ ] **Step 3: Write the migration**
 
@@ -792,18 +827,73 @@ grant execute on function public.delete_my_players() to authenticated;
 npx vitest run src/sync/db/purge.test.ts
 ```
 
-  Expected: `Tests  5 passed (5)`.
+  Expected: `Tests  6 passed (6)`.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Pin the explicit grants: this test file builds the database without Supabase's default grants**
+
+  Create `src/sync/db/grants.test.ts`:
+
+```ts
+// @vitest-environment node
+import type { PGlite } from '@electric-sql/pglite';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { USER_A, createDb, run } from './harness';
+
+// New Supabase projects are moving to opt-in grants: nothing is granted to the API roles unless a migration says so.
+// The other database tests run with the old broad defaults. These run without them, so only the migrations' own
+// explicit grants count, and a forgotten `grant` shows up here.
+let db: PGlite;
+beforeAll(async () => {
+  db = await createDb({ defaultGrants: false });
+});
+afterAll(async () => {
+  await db.close();
+});
+
+describe('explicit grants (no default grants)', () => {
+  it('lets a signed-in organizer read, add and change their own players', async () => {
+    await run(db, { user: USER_A }, "insert into public.players (id, name) values ('11111111-1111-4111-8111-111111111111', 'Ann')");
+    await run(db, { user: USER_A }, "update public.players set name = 'Annie'");
+    const rows = (await run(db, { user: USER_A }, 'select name from public.players')).rows;
+    expect(rows).toEqual([{ name: 'Annie' }]);
+  });
+
+  it('lets a signed-in organizer run the purge', async () => {
+    const result = await run(db, { user: USER_A }, 'select public.delete_my_players() as removed');
+    expect(result.rows).toEqual([{ removed: 1 }]);
+  });
+
+  it('still gives a signed-out visitor nothing', async () => {
+    await expect(run(db, 'anon', 'select * from public.players')).rejects.toThrow(/permission denied/i);
+    await expect(run(db, 'anon', 'select public.delete_my_players()')).rejects.toThrow(/permission denied/i);
+  });
+
+  it('gives no one the right to hard-delete', async () => {
+    await expect(run(db, { user: USER_A }, 'delete from public.players')).rejects.toThrow(/permission denied/i);
+  });
+});
+```
+
+- [ ] **Step 6: Run it (it passes at once: it pins what the migrations already do, and was checked by deleting each grant)**
+
+  Run:
 
 ```bash
-git add src/sync/db/purge.test.ts supabase/migrations/20261106120200_delete_my_players.sql
+npx vitest run src/sync/db/grants.test.ts
+```
+
+  Expected: `Tests  4 passed (4)`.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/sync/db/purge.test.ts src/sync/db/grants.test.ts supabase/migrations/20261106120200_delete_my_players.sql
 git commit -m "feat: delete_my_players() so an organizer can purge their own rows"
 ```
 
 
 ### Task 6: A check script you can run on the real project
-The in-memory tests prove the rules against stand-ins. This script runs the same kind of checks on the real project (two test users, two organizers, one signed-out visitor, the purge, the private bucket). It runs inside one transaction that ends in `ROLLBACK`, so it leaves nothing behind. It is tested here too: it must pass on the migrations, leave no rows, and stop with a message when a rule is broken.
+The in-memory tests prove the rules against stand-ins. This script runs the same kind of checks on the real project (two test users, two organizers, one signed-out visitor, the purge, the private bucket). It runs inside one transaction that ends in `ROLLBACK`, so it leaves nothing behind (if it ever stops with an error, run `rollback;` before using that connection again). It also asserts the bucket is private, limited to 200 KB and accepts only `image/jpeg`. It is tested here too: it must pass on the migrations, leave no rows, and stop with a message when a rule is broken.
 **Files:**
 - Create: `supabase/tests/real-project-check.sql`
 - Create: `src/sync/db/realProjectCheck.test.ts`
@@ -852,7 +942,7 @@ describe('supabase/tests/real-project-check.sql', () => {
 npx vitest run src/sync/db/realProjectCheck.test.ts
 ```
 
-  Expected: the run fails and no tests run, with `Failed to resolve import "../../../supabase/tests/real-project-check.sql?raw"`.
+  Expected: the run fails and no tests run, with `Error: Denied ID ../../../supabase/tests/real-project-check.sql?raw` (that is how this Vite version reports a missing file).
 
 - [ ] **Step 3: Write the script**
 
@@ -940,8 +1030,9 @@ begin
   -- Alice's data survived Bob's purge, and the photo bucket is private and small.
   select count(*) into n from public.players where owner_id = alice;
   assert n = 1, 'Bob''s purge touched Alice''s players';
-  select count(*) into n from storage.buckets where id = 'player-photos' and public = false and file_size_limit = 204800;
-  assert n = 1, 'The player-photos bucket should be private with a 200 KB limit';
+  select count(*) into n from storage.buckets
+    where id = 'player-photos' and public = false and file_size_limit = 204800 and allowed_mime_types = array['image/jpeg'];
+  assert n = 1, 'The player-photos bucket should be private, limited to 200 KB, and accept only image/jpeg';
 end
 $check$;
 
@@ -956,7 +1047,7 @@ rollback;
 npx vitest run src/sync/db/realProjectCheck.test.ts && npm test && npm run typecheck
 ```
 
-  Expected: the new test passes (2 passed), then `Tests  229 passed (229)`.
+  Expected: the new test passes (2 passed), then `Tests  235 passed (235)`.
 
 - [ ] **Step 5: Commit**
 
@@ -999,7 +1090,7 @@ This is the first time the rules meet the real Supabase. It needs the project fr
 
 
 ### Task 8: The Supabase client, with a guard against secret keys
-`getSupabase()` returns the client, or `null` when no backend is configured, so everything else can treat "no backend" as a normal state. Everything in a `VITE_*` variable is shipped to every visitor, so a secret or service-role key put there by mistake would be public. The client therefore refuses a new-style `sb_secret_` key and an old-style JWT whose role is `service_role`, logs why, and behaves as if nothing were configured. It keeps the session on the device and does not look for one in the page address, because sign-in uses a typed code.
+`getSupabase()` returns the client, or `null` when no backend is configured, so everything else can treat "no backend" as a normal state. Everything in a `VITE_*` variable is shipped to every visitor, so a secret or service-role key put there by mistake would be public. The client therefore refuses a new-style `sb_secret_` key and an old-style JWT whose role is `service_role`, logs why, and behaves as if nothing were configured. It keeps the session on the device and does not look for one in the page address, because sign-in uses a typed code. It never throws: a malformed URL setting (a typo such as `x.supabase.co`) is caught, logged by setting name only (never the value), and treated as "no backend". Spaces around either setting are ignored, including around a secret key. An independent review probed this with the real client and found the throw.
 **Files:**
 - Create: `src/sync/client.ts`
 - Create: `src/sync/client.test.ts`
@@ -1033,6 +1124,12 @@ describe('isSecretKey', () => {
     const { isSecretKey } = await load({});
     expect(isSecretKey('sb_secret_abc123')).toBe(true);
     expect(isSecretKey(jwt('service_role'))).toBe(true);
+  });
+
+  it('is not fooled by spaces around the key', async () => {
+    const { isSecretKey } = await load({});
+    expect(isSecretKey('  sb_secret_abc123 ')).toBe(true);
+    expect(isSecretKey(` ${jwt('service_role')} `)).toBe(true);
   });
 
   it('accepts publishable keys and old-style anon keys', async () => {
@@ -1080,6 +1177,28 @@ describe('getSupabase', () => {
     });
   });
 
+  it('does not throw on a URL the client cannot use, and never prints the settings', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { getSupabase } = await load({ VITE_SUPABASE_URL: 'not a url', VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_abc123' });
+    expect(getSupabase()).toBeNull();
+    expect(error).toHaveBeenCalledTimes(1);
+    const printed = String(error.mock.calls[0][0]);
+    expect(printed).toMatch(/VITE_SUPABASE_URL/);
+    expect(printed).not.toContain('not a url');
+    expect(printed).not.toContain('sb_publishable_abc123');
+  });
+
+  it('ignores spaces around the two settings', async () => {
+    const createClient = vi.fn(() => ({ auth: {} }));
+    vi.resetModules();
+    vi.doMock('@supabase/supabase-js', () => ({ createClient }));
+    vi.stubEnv('VITE_SUPABASE_URL', ' https://abc.supabase.co ');
+    vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', ' sb_publishable_abc123 ');
+    const { getSupabase } = await import('./client');
+    getSupabase();
+    expect(createClient).toHaveBeenCalledWith('https://abc.supabase.co', 'sb_publishable_abc123', expect.anything());
+  });
+
   it('builds one client from a publishable key and reuses it', async () => {
     const { getSupabase } = await load({ VITE_SUPABASE_URL: 'https://abc.supabase.co', VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_abc123' });
     const first = getSupabase();
@@ -1111,7 +1230,8 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
  * True for a key that must never reach a browser: a new-style secret key, or an old-style JWT whose role is
  * `service_role`. Everything in `VITE_*` is shipped to every visitor, so a secret key there would be public.
  */
-export function isSecretKey(key: string): boolean {
+export function isSecretKey(rawKey: string): boolean {
+  const key = rawKey.trim();
   if (key.startsWith('sb_secret_')) return true;
   const payload = key.split('.')[1];
   if (!payload) return false;
@@ -1126,21 +1246,27 @@ export function isSecretKey(key: string): boolean {
 let client: SupabaseClient | null | undefined;
 
 /**
- * The Supabase client, or null when this build has no backend (no URL or key set, or a secret key was set by
- * mistake). The app works fully without one, signed out.
+ * The Supabase client, or null when this build has no backend (no URL or key set, a secret key set by mistake,
+ * or a URL the client cannot use). The app works fully without one, signed out. Never throws.
  */
 export function getSupabase(): SupabaseClient | null {
   if (client !== undefined) return client;
-  const url = import.meta.env.VITE_SUPABASE_URL;
-  const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const url = import.meta.env.VITE_SUPABASE_URL?.trim();
+  const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
   if (!url || !key) {
     client = null;
   } else if (isSecretKey(key)) {
     console.error('VITE_SUPABASE_PUBLISHABLE_KEY holds a secret key. Ignoring it: use the publishable key.');
     client = null;
   } else {
-    // Sign-in uses a code typed into the app, not a link, so there is nothing to pick up from the page address.
-    client = createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+    try {
+      // Sign-in uses a code typed into the app, not a link, so there is nothing to pick up from the page address.
+      client = createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+    } catch {
+      // The message names the setting, never its value.
+      console.error('Could not create the Supabase client. Check that VITE_SUPABASE_URL is the project address, like https://abc.supabase.co.');
+      client = null;
+    }
   }
   return client;
 }
@@ -1154,7 +1280,7 @@ export function getSupabase(): SupabaseClient | null {
 npx vitest run src/sync/client.test.ts && npm run typecheck
 ```
 
-  Expected: `Tests  8 passed (8)`.
+  Expected: `Tests  11 passed (11)`.
 
 - [ ] **Step 5: Commit**
 
@@ -1165,7 +1291,7 @@ git commit -m "feat: supabase client that refuses secret keys and works without 
 
 
 ### Task 9: The sign-in store
-A small state machine: `unconfigured`, `loading`, `signedOut`, `codeSent`, `signedIn`. It sends the code (`signInWithOtp`), checks the six digits (`verifyOtp` with type `email`), signs out, and follows the session when it ends elsewhere. It checks the email and the six digits itself, so a typo never costs a request against the rate limit. Messages are plain words: a 429 becomes "Too many sign-in emails right now", and any other failure is a short sentence that does not repeat Supabase's wording. `createAuthStore(getClient)` takes the client as a parameter so tests use a fake; the app uses `useAuthStore`, built on `getSupabase`. `init()` is safe to call twice (React runs effects twice in development).
+A small state machine: `unconfigured`, `loading`, `signedOut`, `codeSent`, `signedIn`. It sends the code (`signInWithOtp`), checks the six digits (`verifyOtp` with type `email`), signs out, and follows the session when it ends elsewhere. It checks the email and the six digits itself, so a typo never costs a request against the rate limit. Messages are plain words: a 429 becomes "Too many sign-in emails right now", and any other failure is a short sentence that does not repeat Supabase's wording. `createAuthStore(getClient)` takes the client as a parameter so tests use a fake; the app uses `useAuthStore`, built on `getSupabase`. `init()` is safe to call twice (React runs effects twice in development). An independent review ran the store against the real supabase-js with the network down and found the cases a fake hides, all fixed here and tested: (1) a saved session that needs refreshing while offline took about 25 seconds and then wrongly reported "signed out", so the store now waits at most 3 seconds and uses a sixth status, `unknown`, for "could not check" (neither signed in nor signed out; Plan 3B must neither sync nor clear in that state); (2) offline errors blamed the email address, so a failed request now says "No connection"; (3) with no connection the real client removes the session on the device and still returns an error, so sign-out no longer shows "Couldn't sign out" after it has signed out; (4) a rejected check, a throwing client or a double tap could leave the store stuck or spend a one-time code twice, so every action ignores a second call while one runs and always clears its busy flag. A background token refresh no longer wipes an unrelated message.
 **Files:**
 - Create: `src/sync/auth.ts`
 - Create: `src/sync/auth.test.ts`
@@ -1240,6 +1366,52 @@ describe('auth store', () => {
     expect(store.getState()).toMatchObject({ status: 'signedOut', email: null });
   });
 
+  it('says "unknown", not "signed out", when a saved session cannot be checked', async () => {
+    const { client } = fakeClient({ getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: failure(0) }) });
+    const store = createAuthStore(() => client);
+    await store.getState().init();
+    expect(store.getState().status).toBe('unknown');
+  });
+
+  it('does not wait for a session check that never finishes', async () => {
+    const { client } = fakeClient({ getSession: vi.fn(() => new Promise(() => undefined)) });
+    const store = createAuthStore(() => client, 10);
+    await store.getState().init();
+    expect(store.getState().status).toBe('unknown');
+  });
+
+  it('survives a session check that throws', async () => {
+    const { client } = fakeClient({ getSession: vi.fn().mockRejectedValue(new Error('boom')) });
+    const store = createAuthStore(() => client);
+    await store.getState().init();
+    expect(store.getState().status).toBe('unknown');
+  });
+
+  it('moves on from "unknown" when the session turns out to be valid, or to be gone', async () => {
+    const unchecked = () => fakeClient({ getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: failure(0) }) });
+
+    const valid = unchecked();
+    const validStore = createAuthStore(() => valid.client);
+    await validStore.getState().init();
+    valid.emit('TOKEN_REFRESHED', session('ann@example.com'));
+    expect(validStore.getState()).toMatchObject({ status: 'signedIn', email: 'ann@example.com' });
+
+    const gone = unchecked();
+    const goneStore = createAuthStore(() => gone.client);
+    await goneStore.getState().init();
+    gone.emit('SIGNED_OUT', null);
+    expect(goneStore.getState().status).toBe('signedOut');
+  });
+
+  it('keeps an unrelated message when the session is refreshed in the background', async () => {
+    const { client, emit } = fakeClient({ getSession: vi.fn().mockResolvedValue({ data: { session: session('ann@example.com') }, error: null }) });
+    const store = createAuthStore(() => client);
+    await store.getState().init();
+    store.setState({ error: 'Some message' });
+    emit('TOKEN_REFRESHED', session('ann@example.com'));
+    expect(store.getState().error).toBe('Some message');
+  });
+
   describe('sending a code', () => {
     it('asks for the code and remembers the address', async () => {
       const { client, auth } = fakeClient();
@@ -1267,6 +1439,32 @@ describe('auth store', () => {
       expect(store.getState().status).toBe('signedOut');
       expect(store.getState().error).toMatch(/too many sign-in emails/i);
       expect(store.getState().busy).toBe(false);
+    });
+
+    it('says there is no connection, instead of blaming the address', async () => {
+      const { client } = fakeClient({ signInWithOtp: vi.fn().mockResolvedValue({ data: {}, error: failure(0) }) });
+      const store = createAuthStore(() => client);
+      await store.getState().init();
+      await store.getState().sendCode('ann@example.com');
+      expect(store.getState().error).toBe('No connection. Try again when you are online.');
+    });
+
+    it('says there is no connection when the browser is offline and the request throws', async () => {
+      const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      const { client } = fakeClient({ signInWithOtp: vi.fn().mockRejectedValue(new TypeError('fetch failed')) });
+      const store = createAuthStore(() => client);
+      await store.getState().init();
+      await store.getState().sendCode('ann@example.com');
+      online.mockRestore();
+      expect(store.getState()).toMatchObject({ busy: false, error: 'No connection. Try again when you are online.' });
+    });
+
+    it('ignores a second request while one is running', async () => {
+      const { client, auth } = fakeClient();
+      const store = createAuthStore(() => client);
+      await store.getState().init();
+      await Promise.all([store.getState().sendCode('ann@example.com'), store.getState().sendCode('ann@example.com')]);
+      expect(auth.signInWithOtp).toHaveBeenCalledTimes(1);
     });
 
     it('shows a gentle message for any other failure, without Supabase\'s wording', async () => {
@@ -1315,6 +1513,27 @@ describe('auth store', () => {
       expect(store.getState().error).toMatch(/too many/i);
     });
 
+    it('says there is no connection when checking the code', async () => {
+      const { store } = await codeSent({ verifyOtp: vi.fn().mockResolvedValue({ data: { session: null }, error: failure(0) }) });
+      await store.getState().verifyCode('123456');
+      expect(store.getState().status).toBe('codeSent');
+      expect(store.getState().error).toBe('No connection. Try again when you are online.');
+    });
+
+    it('ignores a second submit while the first is running, so one good code is not spent twice', async () => {
+      const { store, auth } = await codeSent();
+      await Promise.all([store.getState().verifyCode('123456'), store.getState().verifyCode('123456')]);
+      expect(auth.verifyOtp).toHaveBeenCalledTimes(1);
+      expect(store.getState()).toMatchObject({ status: 'signedIn', error: null });
+    });
+
+    it('is ready again after the client throws', async () => {
+      const { store } = await codeSent({ verifyOtp: vi.fn().mockRejectedValue(new Error('boom')) });
+      await store.getState().verifyCode('123456');
+      expect(store.getState()).toMatchObject({ status: 'codeSent', busy: false });
+      expect(store.getState().error).toMatch(/did not work/i);
+    });
+
     it('lets the user go back and use a different email', async () => {
       const { store } = await codeSent();
       store.getState().changeEmail();
@@ -1330,11 +1549,37 @@ describe('auth store', () => {
       return { store, ...fake };
     }
 
+    it('ignores a second sign-out while one is running', async () => {
+      const { store, auth } = await signedIn();
+      await Promise.all([store.getState().signOut(), store.getState().signOut()]);
+      expect(auth.signOut).toHaveBeenCalledTimes(1);
+    });
+
     it('signs out', async () => {
       const { store, auth } = await signedIn();
       await store.getState().signOut();
       expect(auth.signOut).toHaveBeenCalledTimes(1);
       expect(store.getState()).toMatchObject({ status: 'signedOut', email: null });
+    });
+
+    it('does not call it a failure when the session was removed on this device but the server could not be told', async () => {
+      const listener: { emit?: (event: string, session: Session | null) => void } = {};
+      const { store, emit } = await signedIn({
+        signOut: vi.fn(async () => {
+          listener.emit?.('SIGNED_OUT', null); // what supabase-js does as it removes the session on this device
+          return { error: failure(0) };
+        }),
+      });
+      listener.emit = emit;
+      await store.getState().signOut();
+      expect(store.getState()).toMatchObject({ status: 'signedOut', error: null, busy: false });
+    });
+
+    it('says so when it cannot sign out without a connection and nothing was removed', async () => {
+      const { store } = await signedIn({ signOut: vi.fn().mockResolvedValue({ error: failure(0) }) });
+      await store.getState().signOut();
+      expect(store.getState().status).toBe('signedIn');
+      expect(store.getState().error).toMatch(/without a connection/i);
     });
 
     it('stays signed in and says so when sign-out fails', async () => {
@@ -1372,7 +1617,11 @@ export type AuthClient = Pick<
   'getSession' | 'onAuthStateChange' | 'signInWithOtp' | 'verifyOtp' | 'signOut'
 >;
 
-export type AuthStatus = 'unconfigured' | 'loading' | 'signedOut' | 'codeSent' | 'signedIn';
+/**
+ * `unknown`: there may be a saved session, but it could not be checked (no connection). The app then says neither
+ * "signed in" nor "signed out", and anything that syncs must neither sync nor clear.
+ */
+export type AuthStatus = 'unconfigured' | 'loading' | 'unknown' | 'signedOut' | 'codeSent' | 'signedIn';
 
 export interface AuthState {
   status: AuthStatus;
@@ -1389,93 +1638,148 @@ export interface AuthState {
 }
 
 const TOO_MANY = 'Too many sign-in emails right now. Wait a few minutes and try again.';
+const OFFLINE = 'No connection. Try again when you are online.';
+
+/** Checking a saved session that needs a refresh can take about 25 seconds with no connection; do not wait for it. */
+const SESSION_CHECK_MS = 3000;
 
 function isRateLimited(error: { status?: number }): boolean {
   return error.status === 429;
 }
 
-/** A sign-in store over the given client. Pass a fake client in tests. */
-export function createAuthStore(getClient: () => { auth: AuthClient } | null) {
+/** Status 0 is how supabase-js reports a request that never reached the server. */
+function isOffline(error: { status?: number }): boolean {
+  return error.status === 0 || (typeof navigator !== 'undefined' && navigator.onLine === false);
+}
+
+/** A sign-in store over the given client. Pass a fake client (and a short check time) in tests. */
+export function createAuthStore(getClient: () => { auth: AuthClient } | null, sessionCheckMs = SESSION_CHECK_MS) {
   let initialised = false;
 
-  return create<AuthState>()((set, get) => ({
-    status: 'loading',
-    email: null,
-    error: null,
-    busy: false,
-
-    async init() {
-      if (initialised) return;
-      initialised = true;
-      const client = getClient();
-      if (!client) {
-        set({ status: 'unconfigured' });
-        return;
-      }
-      // Keep the status in step with the session: sign-in, sign-out and a session that expired.
-      client.auth.onAuthStateChange((_event, session) => {
-        if (session?.user.email) set({ status: 'signedIn', email: session.user.email, error: null });
-        else if (get().status === 'signedIn') set({ status: 'signedOut', email: null });
-      });
-      const { data } = await client.auth.getSession();
-      const email = data.session?.user.email ?? null;
-      set(email ? { status: 'signedIn', email } : { status: 'signedOut', email: null });
-    },
-
-    async sendCode(rawEmail) {
-      const client = getClient();
-      if (!client) return;
-      const email = rawEmail.trim();
-      if (!/^\S+@\S+\.\S+$/.test(email)) {
-        set({ error: 'Enter a valid email address.' });
-        return;
-      }
+  return create<AuthState>()((set, get) => {
+    /** Runs one action: ignores a second call while one is running, and always clears `busy`, even if the client throws. */
+    async function guarded(failure: string, work: () => Promise<void>) {
+      if (get().busy) return;
       set({ busy: true, error: null });
-      const { error } = await client.auth.signInWithOtp({ email });
-      if (error) {
-        set({ busy: false, error: isRateLimited(error) ? TOO_MANY : "Couldn't send the code. Check the address and try again." });
-        return;
+      try {
+        await work();
+      } catch {
+        set({ error: isOffline({}) ? OFFLINE : failure });
+      } finally {
+        set({ busy: false });
       }
-      set({ busy: false, status: 'codeSent', email });
-    },
+    }
 
-    async verifyCode(rawCode) {
-      const client = getClient();
-      const email = get().email;
-      if (!client || !email) return;
-      const token = rawCode.trim();
-      if (!/^\d{6}$/.test(token)) {
-        set({ error: 'Enter the 6-digit code from the email.' });
-        return;
-      }
-      set({ busy: true, error: null });
-      const { data, error } = await client.auth.verifyOtp({ email, token, type: 'email' });
-      if (error || !data.session) {
-        set({
-          busy: false,
-          error: error && isRateLimited(error) ? TOO_MANY : 'That code did not work. Check it, or go back and ask for a new one.',
+    return {
+      status: 'loading',
+      email: null,
+      error: null,
+      busy: false,
+
+      async init() {
+        if (initialised) return;
+        initialised = true;
+        const client = getClient();
+        if (!client) {
+          set({ status: 'unconfigured' });
+          return;
+        }
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          // Keep the status in step with the session: sign-in, sign-out and a session that ended. The callback must
+          // stay free of other Supabase calls.
+          client.auth.onAuthStateChange((event, session) => {
+            const email = session?.user.email;
+            if (email) {
+              if (get().status !== 'signedIn' || get().email !== email) set({ status: 'signedIn', email, error: null });
+            } else if (event === 'SIGNED_OUT' && (get().status === 'signedIn' || get().status === 'unknown')) {
+              set({ status: 'signedOut', email: null });
+            }
+          });
+          const timeout = new Promise<'timeout'>((resolve) => {
+            timer = setTimeout(() => resolve('timeout'), sessionCheckMs);
+          });
+          const result = await Promise.race([client.auth.getSession(), timeout]);
+          if (get().status !== 'loading') return; // the listener got there first
+          if (result === 'timeout') {
+            set({ status: 'unknown' });
+          } else if (result.data.session?.user.email) {
+            set({ status: 'signedIn', email: result.data.session.user.email });
+          } else {
+            // An error with no session means "could not check", not "nobody is signed in".
+            set({ status: result.error ? 'unknown' : 'signedOut', email: null });
+          }
+        } catch {
+          if (get().status === 'loading') set({ status: 'unknown' });
+        } finally {
+          clearTimeout(timer);
+        }
+      },
+
+      async sendCode(rawEmail) {
+        const client = getClient();
+        if (!client || get().busy) return;
+        const email = rawEmail.trim();
+        if (!/^\S+@\S+\.\S+$/.test(email)) {
+          set({ error: 'Enter a valid email address.' });
+          return;
+        }
+        const failure = "Couldn't send the code. Check the address and try again.";
+        await guarded(failure, async () => {
+          const { error } = await client.auth.signInWithOtp({ email });
+          if (error) {
+            set({ error: isRateLimited(error) ? TOO_MANY : isOffline(error) ? OFFLINE : failure });
+            return;
+          }
+          set({ status: 'codeSent', email });
         });
-        return;
-      }
-      set({ busy: false, status: 'signedIn', email: data.session.user.email ?? email, error: null });
-    },
+      },
 
-    changeEmail() {
-      set({ status: 'signedOut', error: null });
-    },
+      async verifyCode(rawCode) {
+        const client = getClient();
+        const email = get().email;
+        if (!client || !email || get().busy) return;
+        const token = rawCode.trim();
+        if (!/^\d{6}$/.test(token)) {
+          set({ error: 'Enter the 6-digit code from the email.' });
+          return;
+        }
+        const failure = 'That code did not work. Check it, or go back and ask for a new one.';
+        await guarded(failure, async () => {
+          const { data, error } = await client.auth.verifyOtp({ email, token, type: 'email' });
+          if (error || !data.session) {
+            set({ error: error && isRateLimited(error) ? TOO_MANY : error && isOffline(error) ? OFFLINE : failure });
+            return;
+          }
+          set({ status: 'signedIn', email: data.session.user.email ?? email, error: null });
+        });
+      },
 
-    async signOut() {
-      const client = getClient();
-      if (!client) return;
-      set({ busy: true, error: null });
-      const { error } = await client.auth.signOut();
-      if (error) {
-        set({ busy: false, error: "Couldn't sign out. Try again." });
-        return;
-      }
-      set({ busy: false, status: 'signedOut', email: null });
-    },
-  }));
+      changeEmail() {
+        set({ status: 'signedOut', error: null });
+      },
+
+      async signOut() {
+        const client = getClient();
+        if (!client) return;
+        await guarded("Couldn't sign out. Try again.", async () => {
+          const { error } = await client.auth.signOut();
+          // With no connection the client still removes the session on this device and tells the listener, which has
+          // already moved us to signed out. Do not contradict that with an error.
+          if (get().status === 'signedOut') return;
+          if (error) {
+            set({
+              error: isOffline(error)
+                ? "Can't sign out without a connection. Try again when you are online."
+                : "Couldn't sign out. Try again.",
+            });
+            return;
+          }
+          set({ status: 'signedOut', email: null });
+        });
+      },
+    };
+  });
 }
 
 /** The app's sign-in store. */
@@ -1490,7 +1794,7 @@ export const useAuthStore = createAuthStore(getSupabase);
 npx vitest run src/sync/auth.test.ts && npm run typecheck
 ```
 
-  Expected: `Tests  16 passed (16)`.
+  Expected: `Tests  30 passed (30)`.
 
 - [ ] **Step 5: Commit**
 
@@ -1501,7 +1805,7 @@ git commit -m "feat: email-code sign-in store"
 
 
 ### Task 10: The Settings screen
-Settings is reachable from Setup (a **Settings** button beside the title) and holds the account: the email form, the code form, who is signed in, and **Sign out**. When the build has no backend it says so in one sentence instead of showing a form that cannot work. The email form has `noValidate`, so a bad address gets this app's message instead of each browser's own tooltip (the jsdom test caught that the browser would otherwise swallow it). The Saved players header now shows "Signed in as ..." or "Signed out" (the spec puts sign-in state there; the sync status line joins it in Plan 3B). Setup stays mounted while Settings or Saved players is open, so a half-filled form survives the trip. The tests go through the real `App` with a fake Supabase client, and each starts from fresh modules so the sign-in store is clean.
+Settings is reachable from Setup (a **Settings** button beside the title) and holds the account: the email form, the code form, who is signed in, and **Sign out**. When the build has no backend it says so in one sentence instead of showing a form that cannot work. The email form has `noValidate`, so a bad address gets this app's message instead of each browser's own tooltip (the jsdom test caught that the browser would otherwise swallow it). The Saved players header now shows "Signed in as ..." or "Signed out" (the spec puts sign-in state there; the sync status line joins it in Plan 3B). Setup stays mounted while Settings or Saved players is open, so a half-filled form survives the trip. The `unknown` state shows "Can't check sign-in without a connection. Your saved players are safe on this device." and no forms. The code field keeps only digits, so a code pasted as "123 456" works, and long emails wrap instead of overflowing a phone-width card. The tests go through the real `App` with a fake Supabase client, and each starts from fresh modules so the sign-in store is clean.
 **Files:**
 - Create: `src/ui/SettingsScreen.tsx`
 - Create: `src/ui/settings.test.tsx`
@@ -1632,6 +1936,27 @@ describe('Settings screen', () => {
     expect(client.auth.signInWithOtp).not.toHaveBeenCalled();
   });
 
+  it('says it cannot check sign-in offline, and shows no forms, when a saved session cannot be checked', async () => {
+    const client = fakeClient({ getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: failure(0) }) });
+    const user = await startApp(client);
+    await openSettings(user);
+    expect(await screen.findByText(/can't check sign-in without a connection/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Email')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
+  });
+
+  it('accepts a code pasted with a space in it', async () => {
+    const client = fakeClient();
+    const user = await startApp(client);
+    await openSettings(user);
+    await user.type(await screen.findByLabelText('Email'), 'ann@example.com');
+    await user.click(screen.getByRole('button', { name: 'Send me a code' }));
+    await user.type(await screen.findByLabelText('6-digit code'), '123 456');
+    expect(screen.getByLabelText('6-digit code')).toHaveValue('123456');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(client.auth.verifyOtp).toHaveBeenCalledWith({ email: 'ann@example.com', token: '123456', type: 'email' });
+  });
+
   it('starts signed in when this device already has a session', async () => {
     const client = fakeClient({ getSession: vi.fn().mockResolvedValue({ data: { session: session('ann@example.com') }, error: null }) });
     const user = await startApp(client);
@@ -1671,7 +1996,7 @@ describe('sign-in state on Saved players', () => {
 npx vitest run src/ui/settings.test.tsx
 ```
 
-  Expected: `Tests  8 failed | 1 passed (9)`, with `Unable to find an accessible element with the role "button" and name "Settings"`.
+  Expected: `Tests  10 failed | 1 passed (11)`, with `Unable to find an accessible element with the role "button" and name "Settings"`.
 
 - [ ] **Step 3: Write the screen**
 
@@ -1724,6 +2049,12 @@ export function SettingsScreen({ onBack }: Props) {
           </p>
         )}
 
+        {status === 'unknown' && (
+          <p className="muted" role="status">
+            Can't check sign-in without a connection. Your saved players are safe on this device.
+          </p>
+        )}
+
         {/* noValidate on the email form: our own message for a bad address, instead of each browser's tooltip. */}
         {status === 'signedOut' && (
           <form className="stack" noValidate onSubmit={submitEmail}>
@@ -1752,7 +2083,7 @@ export function SettingsScreen({ onBack }: Props) {
         {status === 'codeSent' && (
           <form className="stack" onSubmit={submitCode}>
             <p>
-              We sent a 6-digit code to <strong>{email}</strong>. It can take a minute to arrive.
+              We sent a 6-digit code to <strong style={{ overflowWrap: 'anywhere' }}>{email}</strong>. It can take a minute to arrive.
             </p>
             <label className="label" htmlFor="auth-code">
               6-digit code
@@ -1762,10 +2093,10 @@ export function SettingsScreen({ onBack }: Props) {
               className="field"
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={6}
               autoFocus
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              // Keep only the digits, so a code pasted as "123 456" or "123-456" still works.
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             />
             <button type="submit" className="btn btn-primary" disabled={busy || !code.trim()}>
               {busy ? 'Checking…' : 'Sign in'}
@@ -1786,7 +2117,7 @@ export function SettingsScreen({ onBack }: Props) {
         {status === 'signedIn' && (
           <>
             <p>
-              Signed in as <strong>{email}</strong>.
+              Signed in as <strong style={{ overflowWrap: 'anywhere' }}>{email}</strong>.
             </p>
             <button type="button" className="btn" disabled={busy} onClick={() => void signOut()}>
               Sign out
@@ -1907,7 +2238,11 @@ import { useRosterStore } from '../store/rosterStore';
         </button>
       </div>
 
-      {authStatus === 'signedIn' && <p className="muted">Signed in as {authEmail}</p>}
+      {authStatus === 'signedIn' && (
+        <p className="muted" style={{ overflowWrap: 'anywhere' }}>
+          Signed in as {authEmail}
+        </p>
+      )}
       {(authStatus === 'signedOut' || authStatus === 'codeSent') && <p className="muted">Signed out</p>}
 
       {error && (
@@ -2019,7 +2354,7 @@ import { SetupScreen } from './SetupScreen';
 npx vitest run src/ui/settings.test.tsx && npm test && npm run typecheck && npm run build
 ```
 
-  Expected: 9 settings tests pass, then `Tests  262 passed (262)`, no type errors, and a successful build.
+  Expected: 11 settings tests pass, then `Tests  287 passed (287)`, no type errors, and a successful build.
 
 - [ ] **Step 16: Commit**
 
@@ -2070,7 +2405,7 @@ git commit -m "docs: describe the two Supabase settings in the deploy guide"
   curl -s "https://piklmatch.vercel.app/$B" | grep -c "rest/v1"
   ```
   
-  Expected: a count above 0 (the Supabase client is now in the bundle). The bundle should be about 424 KB raw, up from about 196 KB.
+  Expected: a count above 0 (the Supabase client is now in the bundle). The bundle should be about 425 KB raw, up from about 197 KB.
 
 - [ ] **Step 5: Sign in on the live site with your own address**
 
@@ -2124,6 +2459,8 @@ git commit -m "docs: describe the two Supabase settings in the deploy guide"
 Written after 3A ships. The decisions below carry over from the Plan 2 review notes so nothing is lost:
 
 - **Local data:** IndexedDB version 3 with the `outbox` and `syncMeta` stores, an atomic `update(id, fn)` so a read-modify-write is one transaction (this also closes the cross-tab race), and a local `photoSeq` that matches `photo_seq`. Validate every pulled row before it reaches the screen.
+- **Sync, from the independent review of the database tasks:** push **one row per request**, in outbox order. A unique-name clash (`23505`) fails a whole batch and cannot say which row clashed, so a batch with a rename swap, or a re-add before the matching soft delete, would never go through. On a clash, look up the clashing row by trimmed, lower-cased name, merge, then retry that one row. Pull with an **overlap**: ask for rows with `updated_at >= cursor - 2 minutes`, ordered by `(updated_at, id)`, and make the merge safe to repeat, because a transaction that started earlier can commit after the cursor moved past it. Normalise names the same way as the database before pushing: Postgres `btrim` strips only ordinary spaces while JavaScript `trim()` also strips tabs and no-break spaces. Upload photos with `contentType: 'image/jpeg'` and `upsert: false` (a path is never reused), and keep the owner id in the path in lower case.
 - **Sync:** push the outbox in order (row, then photo, then the superseded file), pull rows newer than a cursor using the server `updated_at`, last write wins per player with a pending local change never overwritten, a same-name merge that keeps the server entry and adopts a missing photo, and the first-sign-in union by name.
+- **Sign-in state:** treat `unknown` (a saved session that could not be checked offline) as "do not sync, do not clear". Start sync outside the sign-in listener, which must stay free of other Supabase calls.
 - **UI:** the sync status line (Signed out, Synced, Syncing, Offline with N changes waiting, Can't reach server), the sign-in banner, and **Delete all my data** (remove the files through the Storage API in batches, call `delete_my_players()`, then clear the device).
 - **Small follow-ups:** `navigator.storage.persist()`, a timeout and message for a blocked database upgrade, and loading the Supabase client on demand or from the smaller sub-packages to win back the size.

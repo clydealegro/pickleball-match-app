@@ -73,3 +73,26 @@ Source: the final whole-branch review of Plan 2 (Tasks 3 to 9, `d6064f1..82e0275
 - **Plan 3: `photoVersion` resets to 0 on remove.** Remove then add gives version 1 again, so another device that cached version 1 would think its copy is current and keep the old picture. Before sync, add a monotonic field (for example `photoSeq`) or stop using 0 as the only "no photo" signal. This is a spec change.
 - **Storage eviction.** Safari browser tabs can evict IndexedDB after about 7 days of disuse, and photos add more to lose. The app does not call `navigator.storage.persist()`. Worth a small follow-up, and Plan 3's sync is the real fix.
 - **Style nits.** The Retake button's `onClick` in `PhotoPanel.tsx` is oddly indented. `SummaryScreen` still uses a plain `Avatar` (initials only), which the spec's display list does not cover.
+
+## Found while executing Plan 3A (Supabase backend and sign-in)
+
+Source: the independent review of the database tasks (3 to 6). The review judged the migrations safe to apply to a real project as written. What it changed in 3A is listed in the commit "fix: stamp updated_at with the write time, test explicit grants, and tighten the database checks". What it left for Plan 3B, and for later:
+
+- **Push one row per request.** The unique-name index fails a whole batch with `23505` and cannot say which row clashed. A rename swap, or a re-add before the matching soft delete, inside one batch would never go through. On a clash, look up the clashing row by trimmed, lower-cased name, merge, retry that one row.
+- **Pull with an overlap.** Even with `clock_timestamp()`, a transaction that started earlier can commit after the cursor moved past its time. Ask for `updated_at >= cursor - 2 minutes`, order by `(updated_at, id)`, and make the merge safe to repeat.
+- **Normalise names the same way as the database.** `btrim` strips only ordinary spaces; JavaScript `trim()` also strips tabs and no-break spaces. A name that is only a tab, or `Ann` and `Ann` plus a no-break space, behaves differently on the two sides.
+- **Photo uploads:** `contentType: 'image/jpeg'`, `upsert: false` (a path is never reused), owner id in lower case in the path.
+- **Not tested, low risk:** `on delete cascade` from `auth.users`; the Storage API's upsert path (the stand-in has no `unique (bucket_id, name)`); the trigger function's `revoke` is only exercised indirectly.
+- **Not enforced by the database:** that `photo_seq` only goes up, and any limit on name length. Both live in the client.
+- **`service_role` has no grant on `public.players` on a project with opt-in grants.** Harmless for the app, which never uses that key. Add `grant all on public.players to service_role;` if an admin script ever needs it.
+- **Keep anonymous sign-ins off** in the project: anonymous users count as signed-in users for every rule.
+- **If the real-project check script stops with an error**, run `rollback;` before using that connection again.
+
+Source: the independent review of the sign-in tasks (8 to 10) of Plan 3A, which ran the real supabase-js client with the network down. Its four important findings (offline refresh, offline messages, sign-out, bad settings) are fixed in the commit "fix: handle offline, unchecked sessions and bad settings in sign-in". Left for later:
+
+- **Focus after a step changes.** After "Use a different email", after signing in and after Sign out, the button that had focus is gone and focus falls to the page. Move focus to the new step's first field, and announce success ("Signed in as ...", "Code sent") in a `role="status"` region.
+- **Field-level accessibility.** Tie the explanatory paragraph to the input with `aria-describedby`, and mark the field `aria-invalid` when the error is about it. Keep the `role="alert"` container mounted so it is announced reliably. `autoFocus` on the code field may not raise the keyboard on iOS, because it runs after an await.
+- **`email_address_not_authorized`** (the built-in email service, an address that is not a team member) shows the generic "Check the address" message. A specific message would help until custom SMTP is set up.
+- **Content-Security-Policy.** `vercel.json` sets only `nosniff` and `Permissions-Policy`. With the session in `localStorage`, a policy such as `connect-src 'self' https://*.supabase.co` is cheap defence in depth. The page has an inline script (the theme), so it needs a hash or a nonce first.
+- **Not measured in a browser:** whether a very long email wraps correctly at 375 px (the Settings and Saved players lines use `overflow-wrap: anywhere`).
+- **Sign-out with an expired session and no connection** cannot work in supabase-js 2.118: it needs the network even for a local sign-out. The message says so.

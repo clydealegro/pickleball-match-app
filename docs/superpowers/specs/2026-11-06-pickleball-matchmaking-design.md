@@ -110,8 +110,8 @@ IndexedDB stores: `players`, `photos` (player id → JPEG blob), `outbox` (chang
 **Auth.** Supabase Auth email one-time code (6 digits, no password). The session persists on the device. Signing out stops sync but keeps the local roster. The app works fully while signed out; a small banner offers "Sign in to back up and sync your players".
 
 **Schema.**
-- Table `players`: `owner_id uuid default auth.uid()`, `id uuid`, `name text`, `photo_version int default 0`, `last_played_at timestamptz`, `deleted_at timestamptz`, `updated_at timestamptz` (set by a database trigger on every write). Primary key `(owner_id, id)`. Unique index on `(owner_id, lower(name))` where `deleted_at is null`.
-- Storage: one **private** bucket `player-photos`; object path `{owner_id}/{player_id}/{photo_version}.jpg`.
+- Table `players`: `owner_id uuid default auth.uid()`, `id uuid`, `name text`, `photo_version int default 0` (a count of the photo's changes on a device; it can return to 0), `photo_seq int default 0` (only ever goes up, and names the storage file), `last_played_at timestamptz`, `deleted_at timestamptz`, `updated_at timestamptz` (set by a database trigger on every write, using the time of the write). Primary key `(owner_id, id)`. Unique index on `(owner_id, lower(btrim(name)))` where `deleted_at is null`.
+- Storage: one **private** bucket `player-photos`; object path `{owner_id}/{player_id}/{photo_seq}.jpg`. The bucket accepts only `image/jpeg` and is limited to 200 KB.
 - **Row Level Security** on `players` allows select/insert/update only where `owner_id = auth.uid()`; storage policies allow access only to objects whose first path segment equals `auth.uid()`. No delete policy on `players` (deletes are soft; hard purge happens through "Delete all my data").
 - The client uses only the project URL and the publishable (anon) key. The service-role key is never in the app or the repository.
 - Schema, policies, and bucket are defined in versioned SQL migrations in `supabase/migrations/`.
