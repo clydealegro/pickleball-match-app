@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetRosterDbForTests } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
+import { useUpdateStore } from '../pwa';
 import { useSessionStore } from '../store/sessionStore';
 import App from './App';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -15,6 +16,7 @@ beforeEach(async () => {
   localStorage.clear();
   delete document.documentElement.dataset.theme;
   useSessionStore.setState({ session: null, undoStack: [], saveFailed: false });
+  useUpdateStore.setState({ ready: false, apply: null });
   await resetRosterDbForTests();
   useRosterStore.setState({ players: [], loaded: false });
 });
@@ -196,6 +198,23 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Saved players' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByLabelText('Session name')).toHaveValue('Friday night');
+  });
+
+  it('offers a new version only when ready, and reloads only after a click', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<App />);
+    expect(screen.queryByText(/A new version is ready/)).not.toBeInTheDocument();
+    unmount();
+
+    const apply = vi.fn();
+    useUpdateStore.setState({ ready: true, apply });
+    render(<App />);
+    const notice = screen.getByText(/A new version is ready\./);
+    expect(notice).toBeVisible();
+    expect(notice).toHaveAttribute('role', 'status');
+    expect(apply).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Reload now' }));
+    expect(apply).toHaveBeenCalledTimes(1);
   });
 
   it('flips the theme and remembers the choice', async () => {

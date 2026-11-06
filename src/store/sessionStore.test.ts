@@ -86,6 +86,24 @@ describe('sessionStore', () => {
     }
   });
 
+  it('turns an unexpected (non-engine) error into a generic failure, logs it, and leaves state unchanged', () => {
+    start();
+    const { session, undoStack } = useSessionStore.getState();
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const res = useSessionStore.getState().apply(() => {
+        throw new TypeError('boom');
+      });
+      expect(res).toEqual({ ok: false, error: 'Something went wrong. Try again, or undo the last action.' });
+      expect(useSessionStore.getState().session).toBe(session);
+      expect(useSessionStore.getState().undoStack).toBe(undoStack);
+      expect(logged).toHaveBeenCalledTimes(1);
+      expect(logged.mock.calls[0][0]).toBeInstanceOf(TypeError);
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
   it('restores the session and undo stack from storage when the app reloads', async () => {
     start();
     const prev = useSessionStore.getState().session!;

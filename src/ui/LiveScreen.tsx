@@ -34,17 +34,18 @@ export function LiveScreen({ session }: { session: Session }) {
     setAdding(true);
   }
 
-  function run(action: SessionAction) {
+  function run(action: SessionAction): boolean {
     const res = apply(action);
     setError(res.ok ? null : res.error);
+    return res.ok;
   }
 
   function endSession() {
     if (!window.confirm('End this session? You can start a new one afterwards.')) return;
     const rosterIds = session.players.flatMap((p) => (p.rosterId ? [p.rosterId] : []));
-    run((s, ctx) => engine.endSession(s, ctx));
-    // Roster bookkeeping must never block ending the session.
-    markPlayed(rosterIds, Date.now()).catch(() => {});
+    const ended = run((s, ctx) => engine.endSession(s, ctx));
+    // Only record "last played" if the session really ended; roster bookkeeping must never block ending it.
+    if (ended) markPlayed(rosterIds, Date.now()).catch(() => {});
   }
 
   const sorted = [...session.courts].sort((a, b) => a.number - b.number);

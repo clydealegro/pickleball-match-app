@@ -20,10 +20,14 @@ interface SessionState {
   reset: () => void;
 }
 
-/** Engine errors are expected user-facing rejections; anything else is a bug and rethrown. */
+/**
+ * Engine errors are expected user-facing rejections. Anything else is a bug: log it and
+ * report a generic failure (a rethrow in a click handler would be invisible to the user).
+ */
 function toResult(e: unknown): ApplyResult {
   if (e instanceof engine.EngineError) return { ok: false, error: e.message };
-  throw e;
+  console.error(e);
+  return { ok: false, error: 'Something went wrong. Try again, or undo the last action.' };
 }
 
 const initial = loadPersisted();

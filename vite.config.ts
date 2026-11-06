@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => ({
     // The service worker is only generated for real builds, never under Vitest.
     mode !== 'test' &&
       VitePWA({
-        registerType: 'autoUpdate',
+        registerType: 'prompt',
         includeAssets: ['icons/*.png'],
         manifest: {
           name: 'Pickleball Matchmaker',
@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => ({
           background_color: '#fafaf7',
           display: 'standalone',
           orientation: 'any',
+          id: './',
           start_url: './',
           scope: './',
           icons: [

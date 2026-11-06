@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRosterStore } from '../store/rosterStore';
+import { useUpdateStore } from '../pwa';
 import { useSessionStore } from '../store/sessionStore';
 import { ErrorBoundary } from './ErrorBoundary';
 import { LiveScreen } from './LiveScreen';
@@ -11,6 +12,8 @@ import { ThemeToggle } from './ThemeToggle';
 export default function App() {
   const session = useSessionStore((s) => s.session);
   const saveFailed = useSessionStore((s) => s.saveFailed);
+  const updateReady = useUpdateStore((s) => s.ready);
+  const applyUpdate = useUpdateStore((s) => s.apply);
   const rosterPersistent = useRosterStore((s) => s.persistent);
   const loadRoster = useRosterStore((s) => s.load);
   const [managing, setManaging] = useState(false);
@@ -43,6 +46,14 @@ export default function App() {
         <span className="app-title">Pickleball Matchmaker</span>
         <ThemeToggle />
       </header>
+      {updateReady && (
+        <p className="notice" role="status">
+          A new version is ready.{' '}
+          <button type="button" className="btn btn-small" onClick={() => applyUpdate?.()}>
+            Reload now
+          </button>
+        </p>
+      )}
       {saveFailed && (
         <p className="notice" role="alert">
           Not saved — this browser is blocking storage. The session still works, but a refresh will lose it.
