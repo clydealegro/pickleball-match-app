@@ -34,3 +34,10 @@ Source: the code-quality review of Plan 2 Task 3, with the failures reproduced i
 - **A database with no `photos` store makes photo calls throw.** If the database was upgraded by a build that dropped or renamed `photos` (the `VersionError` fallback opens it as it is), `getRosterPhoto`, `setRosterPhoto` and `deleteRosterPlayer` throw `NotFoundError`, and `rosterStore.remove` does not catch it. Today this cannot happen, because newer schemas are meant to only add to older ones. Keep that rule, or guard with `database.objectStoreNames.contains('photos')` in the IndexedDB backend.
 - **A stale pre-photos tab that deletes a player leaves their photo behind.** It soft-deletes the row without removing the photo. Harmless, never cleaned up. A "delete all my data" purge in Plan 3 would catch it.
 - **`getRosterPhoto` is not serialized.** A UI can briefly show the old photo next to the new `photoVersion`. Cosmetic.
+
+Source: the code-quality review of Plan 2 Task 5 (`src/lib/photo.ts`), approved with no change required.
+
+- **Browser floor for photos.** Saving a photo calls `Blob.arrayBuffer()`, which iOS before 14 and other very old engines lack. There the save fails with the generic "Couldn't prepare that picture. Try again.", which cannot succeed on retry. Either state the floor (iOS 14 or newer) or swap in `new Response(blob).arrayBuffer()`, a one-line change.
+- **EXIF rotation is requested, not verified.** `browserIo.decode` asks the browser to apply the camera's rotation (`imageOrientation: 'from-image'`). If an engine ignores it, the crop lands on the wrong region without an error. Task 10 checks it on real phones.
+- **Diagnostics.** `PhotoError` has no `name`, and both `catch` blocks drop the underlying error, so a failure on a phone with no devtools shows only the friendly message. Passing `{ cause: error }` and setting `name` would help while testing on a phone.
+- **Small test gaps.** No test pins that an empty-type file is accepted (a deliberate choice, since some pickers give no MIME type). Failure tests use `toThrow(PhotoError)`, which the generic wrapped error also satisfies, so assert the message too.
