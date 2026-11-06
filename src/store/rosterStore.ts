@@ -5,7 +5,10 @@ import {
   isRosterPersistent,
   listRoster,
   markRosterPlayed,
+  removeRosterPhoto,
   renameRosterPlayer,
+  setRosterPhoto,
+  type PhotoData,
   type RosterPlayer,
 } from './rosterDb';
 
@@ -19,6 +22,8 @@ interface RosterState {
   rename: (id: string, name: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
   markPlayed: (ids: string[], at: number) => Promise<void>;
+  setPhoto: (id: string, photo: PhotoData) => Promise<void>;
+  removePhoto: (id: string) => Promise<void>;
 }
 
 export const useRosterStore = create<RosterState>()((set) => {
@@ -46,6 +51,14 @@ export const useRosterStore = create<RosterState>()((set) => {
     },
     async markPlayed(ids, at) {
       await markRosterPlayed(ids, at);
+      await refresh();
+    },
+    async setPhoto(id, photo) {
+      await setRosterPhoto(id, photo);
+      await refresh();
+    },
+    async removePhoto(id) {
+      await removeRosterPhoto(id);
       await refresh();
     },
   };

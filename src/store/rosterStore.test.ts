@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { resetRosterDbForTests } from './rosterDb';
+import { getRosterPhoto, resetRosterDbForTests } from './rosterDb';
 import { useRosterStore } from './rosterStore';
 import { useSessionStore } from './sessionStore';
 
@@ -67,5 +67,16 @@ describe('rosterStore', () => {
     expect(JSON.parse(JSON.stringify(useSessionStore.getState().session))).toEqual(
       JSON.parse(JSON.stringify(snapshot)),
     );
+  });
+
+  it('sets and removes a photo, and the list shows the new photo version', async () => {
+    const { add, setPhoto, removePhoto } = useRosterStore.getState();
+    const ann = await add('Ann');
+    await setPhoto(ann.id, { type: 'image/jpeg', data: new Uint8Array([1, 2]).buffer });
+    expect(useRosterStore.getState().players[0].photoVersion).toBe(1);
+    expect(await getRosterPhoto(ann.id)).toBeDefined();
+    await removePhoto(ann.id);
+    expect(useRosterStore.getState().players[0].photoVersion).toBe(0);
+    expect(await getRosterPhoto(ann.id)).toBeUndefined();
   });
 });
