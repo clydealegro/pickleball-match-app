@@ -30,7 +30,7 @@ async function startSession(user: User, count: number) {
 const panel = (n = 1) => screen.getByRole('tabpanel', { name: `Court ${n}` });
 const startButton = () => within(screen.getByRole('tabpanel')).getByRole('button', { name: /^Start game/ });
 const tabs = () => screen.getAllByRole('tab');
-const toastEl = () => document.querySelector<HTMLElement>('.toast');
+const undoBar = () => document.querySelector<HTMLElement>('.undo-bar');
 const court = (n: number) => useSessionStore.getState().session!.courts[n - 1];
 
 describe('a new session', () => {
@@ -84,16 +84,16 @@ describe('pressing Start', () => {
 });
 
 describe('finishing a game', () => {
-  it('makes the court Ready with the next four and says so, with an Undo that restores the game', async () => {
+  it('makes the court Ready with the next four, says what happened with an Undo, and Undo restores the game', async () => {
     const user = userEvent.setup();
     await startSession(user, 5);
     await user.click(startButton());
     const startedAt = court(1).game!.startedAt;
     await user.click(within(panel()).getByRole('button', { name: /^Game finished/ }));
     expect(court(1).status).toBe('ready');
-    expect(toastEl()!.textContent).toMatch(/^Court 1 is ready: P\w and P\w vs P\w and P\wUndo$/);
+    expect(undoBar()!.textContent).toBe('Game finished on Court 1Undo');
     expect(startButton()).toBeInTheDocument();
-    await user.click(within(toastEl()!).getByRole('button', { name: 'Undo' }));
+    await user.click(within(undoBar()!).getByRole('button', { name: 'Undo' }));
     expect(court(1).status).toBe('playing');
     expect(court(1).game!.startedAt).toBe(startedAt);
   });

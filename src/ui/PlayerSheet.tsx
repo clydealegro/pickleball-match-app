@@ -30,7 +30,8 @@ export function PlayerSheet({ session, playerId, onClose }: Props) {
   const why = engine.explainWaiting(session, playerId);
 
   function setStatus(target: engine.StatusTarget) {
-    const res = apply((s, ctx) => engine.setPlayerStatus(s, playerId, target, ctx));
+    const verb = target === 'break' ? 'on a break' : target === 'left' ? 'left the session' : 'back in';
+    const res = apply((s, ctx) => engine.setPlayerStatus(s, playerId, target, ctx), `${player?.name ?? 'Player'} ${verb}`);
     if (res.ok) onClose();
     else setError(res.error);
   }

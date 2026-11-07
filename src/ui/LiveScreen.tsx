@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import * as engine from '../engine';
 import type { Session } from '../engine';
 import { useRosterStore } from '../store/rosterStore';
@@ -7,11 +7,10 @@ import { AccountButton } from './AccountButton';
 import { AddPlayerSheet } from './AddPlayerSheet';
 import { CourtCard } from './CourtCard';
 import { CourtTabs } from './CourtTabs';
-import { finishMessage } from './finishMessage';
 import { LiveMenu } from './LiveMenu';
 import { PlayerSheet } from './PlayerSheet';
 import { getBoolPref, VIBRATE_KEY } from './prefs';
-import { Toast } from './Toast';
+import { UndoBar } from './UndoBar';
 import { useSwipe } from './useSwipe';
 import { WaitingSheet } from './WaitingSheet';
 
@@ -19,6 +18,7 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
   const apply = useSessionStore((s) => s.apply);
   const undo = useSessionStore((s) => s.undo);
   const undoCount = useSessionStore((s) => s.undoStack.length);
+  const lastAction = useSessionStore((s) => s.lastAction);
   const markPlayed = useRosterStore((s) => s.markPlayed);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -27,8 +27,6 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
   const [slide, setSlide] = useState<'from-right' | 'from-left' | null>(null);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
-  const dismissToast = useCallback(() => setToast(null), []);
 
   const playersById = useMemo(
     () => new Map(session.players.map((p) => [p.id, p])),
@@ -45,34 +43,27 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
     setAdding(true);
   }
 
-  function run(action: SessionAction): boolean {
-    const res = apply(action);
+  function run(action: SessionAction, label?: string): boolean {
+    const res = apply(action, label);
     setError(res.ok ? null : res.error);
     return res.ok;
   }
 
-  /** Finishes a game and says what the court is doing now, with a way back. */
+  /** Finishes a game, with a way back, and buzzes where the device allows. */
   function finishCourt(courtId: string, courtNumber: number) {
-    if (!run((s, ctx) => engine.finishGame(s, courtId, ctx))) return;
-    const after = useSessionStore.getState().session;
-    if (after) setToast({ id: Date.now(), text: finishMessage(after, courtNumber) });
+    if (!run((s, ctx) => engine.finishGame(s, courtId, ctx), `Game finished on Court ${courtNumber}`)) return;
     // A short buzz where the device can, so a glance away from the screen still knows it registered.
     if (getBoolPref(VIBRATE_KEY, true)) {
       try {
         navigator.vibrate?.(25);
       } catch {
-        // Not allowed here: the toast is enough.
+        // Not allowed here: the bar under the court is enough.
       }
     }
   }
 
-  function startCourt(courtId: string) {
-    run((s, ctx) => engine.startCourt(s, courtId, ctx));
-  }
-
-  function undoLast() {
-    undo();
-    setToast(null);
+  function startCourt(courtId: string, courtNumber: number) {
+    run((s, ctx) => engine.startCourt(s, courtId, ctx), `Started Court ${courtNumber}`);
   }
 
   function endSession() {
@@ -115,22 +106,25 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
           </span>
         </div>
         <div className="live-actions">
-          <button type="button" className="btn btn-ghost icon-btn" aria-label="Undo" disabled={undoCount === 0} onClick={undoLast}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M9 14 4 9l5-5" />
-              <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
-            </svg>
-          </button>
           <LiveMenu
             items={[
+              ...(undoCount > 0 ? [{ label: lastAction ? `Undo: ${lastAction.label}` : 'Undo last action', onSelect: undo }] : []),
               { label: 'Add player', onSelect: openAdd },
-              ...(readyCount >= 2 ? [{ label: 'Start all ready courts', onSelect: () => run((s, ctx) => engine.startAllReady(s, ctx)) }] : []),
-              { label: 'Add court', onSelect: () => run((s, ctx) => engine.addCourt(s, ctx)) },
+              ...(readyCount >= 2 ? [{ label: 'Start all ready courts', onSelect: () => run((s, ctx) => engine.startAllReady(s, ctx), 'Started all ready courts') }] : []),
+              { label: 'Add court', onSelect: () => run((s, ctx) => engine.addCourt(s, ctx), 'Court added') },
               ...(selected
                 ? [
                     {
                       label: selected.closing ? `Keep court ${selected.number} open` : `Remove court ${selected.number}`,
-                      onSelect: () => run((s, ctx) => engine.removeCourt(s, selected.id, ctx)),
+                      onSelect: () =>
+                        run(
+                          (s, ctx) => engine.removeCourt(s, selected.id, ctx),
+                          selected.closing
+                            ? `Court ${selected.number} will stay open`
+                            : selected.status === 'playing'
+                              ? `Court ${selected.number} will close after its game`
+                              : `Court ${selected.number} removed`,
+                        ),
                     },
                   ]
                 : []),
@@ -156,11 +150,11 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
                   court={selected}
                   playersById={playersById}
                   onFinish={() => finishCourt(selected.id, selected.number)}
-                  onStart={() => startCourt(selected.id)}
+                  onStart={() => startCourt(selected.id, selected.number)}
                   onSelectPlayer={selectPlayer}
                 />
               </div>
-              {toast && <Toast id={toast.id} text={toast.text} onUndo={undoLast} onDismiss={dismissToast} />}
+              <UndoBar />
             </>
           )}
         </div>

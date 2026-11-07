@@ -1429,28 +1429,6 @@ caption {
   accent-color: var(--ink);
 }
 
-.toast {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px 10px 16px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--surface);
-}
-
-.toast-text {
-  min-width: 0;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.toast-undo {
-  flex: none;
-}
-
-
 .waiting-sheet .sheet-head {
   display: flex;
   align-items: center;
@@ -1486,5 +1464,33 @@ caption {
 
 .court-tab.is-ready:not(.is-selected) .court-tab-state {
   color: var(--ink);
+  font-weight: 800;
+}
+
+/* ---------- One Undo ---------- */
+.undo-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 2px 4px 2px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.undo-text {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.undo-btn {
+  flex: none;
+  border-color: transparent;
+  background: transparent;
   font-weight: 800;
 }

@@ -30,7 +30,7 @@ export function AddPlayerSheet({ session, onClose }: Props) {
 
   function addToSession(playerName: string, rosterId: string) {
     setError(null);
-    const res = apply((s, ctx) => engine.addPlayer(s, { name: playerName, rosterId }, ctx));
+    const res = apply((s, ctx) => engine.addPlayer(s, { name: playerName, rosterId }, ctx), `Added ${playerName}`);
     if (res.ok) onClose();
     else setError(res.error);
   }

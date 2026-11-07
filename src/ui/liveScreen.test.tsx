@@ -179,14 +179,14 @@ describe('the menu', () => {
 });
 
 describe('the top bar', () => {
-  it('is one slim row, with no separate title bar above it, and Undo as an icon button', async () => {
+  it('is one slim row, with no separate title bar above it and no Undo icon', async () => {
     const user = userEvent.setup();
     await startSession(user, FIVE);
     expect(screen.queryByText('PIKLMatch')).not.toBeInTheDocument();
     const bar = document.querySelector<HTMLElement>('.live-header')!;
     expect(within(bar).getByRole('button', { name: /^Settings/ })).toBeInTheDocument();
     expect(within(bar).getByRole('heading', { level: 1 })).toBeInTheDocument();
-    expect(within(bar).getByRole('button', { name: 'Undo' })).toBeDisabled();
+    expect(within(bar).queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
     expect(within(bar).getByRole('button', { name: 'Menu' })).toBeInTheDocument();
   });
 
