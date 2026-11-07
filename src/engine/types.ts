@@ -80,6 +80,8 @@ export interface Session {
    * how sessions saved before the Ready step behave.
    */
   autoStart?: boolean;
+  /** Waiting players the organizer asked to play next, in the order they were asked. Always players who are waiting. */
+  pinned?: PlayerId[];
 }
 
 /** Everything non-deterministic is injected so tests can control it. */

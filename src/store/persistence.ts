@@ -75,7 +75,8 @@ function isSession(x: unknown): x is Session {
     Array.isArray(x.history) &&
     x.history.every(isFinishedGame) &&
     isNum(x.gameSeq) &&
-    isNum(x.createdAt)
+    isNum(x.createdAt) &&
+    (x.pinned === undefined || (Array.isArray(x.pinned) && x.pinned.every((id) => typeof id === 'string')))
   );
 }
 

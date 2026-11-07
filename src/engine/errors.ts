@@ -7,6 +7,7 @@ export type EngineErrorCode =
   | 'NOT_PLAYING'
   | 'NOT_READY'
   | 'INVALID_RESULT'
+  | 'NOT_WAITING'
   | 'CANNOT_RETURN';
 
 export class EngineError extends Error {

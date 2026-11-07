@@ -14,3 +14,4 @@ export { explainWaiting } from './explain';
 export type { WaitingExplanation } from './explain';
 export { summarize, formatSummaryText, sessionStats, formatDuration, fairnessLine, gameLog, hasResults } from './summary';
 export type { PlayerSummary, SessionStats, GameLogEntry, WinLoss } from './summary';
+export { playNext, skipTurn } from './pins';

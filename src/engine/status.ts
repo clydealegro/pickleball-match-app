@@ -1,6 +1,7 @@
 import { cloneSession } from './clone';
 import { EngineError } from './errors';
 import { fillCourts } from './fill';
+import { unpin } from './pins';
 import { lineupIds, releaseLineup } from './lineup';
 import { lateArrivalGames, onCourtIds, orderedWaiting, playerById } from './pool';
 import type { Ctx, PlayerId, PlayerStatus, Session } from './types';
@@ -41,6 +42,7 @@ export function setPlayerStatus(
   }
 
   if (p.status === 'left' || p.status === target) return n;
+  unpin(n, [p.id]);
 
   if (onCourtIds(n).has(p.id)) {
     p.pendingStatus = target;
@@ -58,6 +60,7 @@ export function setPlayerStatus(
       ];
       readyCourt.lineup = { team1: swap(readyCourt.lineup.team1), team2: swap(readyCourt.lineup.team2) };
       n.queueOrder = n.queueOrder.filter((id) => id !== replacement.id);
+      unpin(n, [replacement.id]);
     } else {
       releaseLineup(n, readyCourt, p.id);
     }

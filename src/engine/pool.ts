@@ -42,17 +42,27 @@ export function compareByPriority(a: Player, b: Player): number {
 }
 
 /**
- * Available players in the order they will be picked.
- * Fairness mode: by priority. Queue mode: FIFO by queueOrder.
+ * Available players in the order they will be picked: the ones the organizer asked to play next first, in the order
+ * they were asked, then everyone else. Fairness mode orders the rest by priority, queue mode by arrival.
  */
 export function orderedWaiting(s: Session): Player[] {
   const pool = availablePlayers(s);
-  if (s.mode === 'fairness') return [...pool].sort(compareByPriority);
-  const byId = new Map(pool.map((p) => [p.id, p]));
-  return s.queueOrder.flatMap((id) => {
-    const p = byId.get(id);
-    return p ? [p] : [];
-  });
+  let rest: Player[];
+  if (s.mode === 'fairness') {
+    rest = [...pool].sort(compareByPriority);
+  } else {
+    const byId = new Map(pool.map((p) => [p.id, p]));
+    rest = s.queueOrder.flatMap((id) => {
+      const p = byId.get(id);
+      return p ? [p] : [];
+    });
+  }
+  const asked = s.pinned ?? [];
+  if (asked.length === 0) return rest;
+  const byId = new Map(rest.map((p) => [p.id, p]));
+  const first = asked.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []));
+  const firstIds = new Set(first.map((p) => p.id));
+  return [...first, ...rest.filter((p) => !firstIds.has(p.id))];
 }
 
 /** Floor of the average gamesPlayed of active players (optionally excluding one). */

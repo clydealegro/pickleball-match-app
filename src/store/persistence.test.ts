@@ -166,3 +166,19 @@ describe('a session with recorded results', () => {
     }
   });
 });
+
+describe('a session with players asked to play next', () => {
+  it('survives a reload, and a malformed list is rejected', () => {
+    const s = newTestSession(['A', 'B', 'C', 'D', 'E', 'F'], { courts: 1 }, makeCtx());
+    const waiting = s.queueOrder[0];
+    s.pinned = [waiting];
+    savePersisted({ session: s, undoStack: [] });
+    expect(loadPersisted()?.session).toEqual(s);
+    for (const bad of ['E', [1, 2], { a: 1 }]) {
+      const broken = JSON.parse(JSON.stringify(s));
+      broken.pinned = bad;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, session: broken, undoStack: [] }));
+      expect(loadPersisted()).toBeNull();
+    }
+  });
+});

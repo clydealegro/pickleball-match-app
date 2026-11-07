@@ -1,3 +1,4 @@
+import { unpin } from './pins';
 import { orderedWaiting } from './pool';
 import { bestSplit } from './selection';
 import type { Ctx, Session, Team } from './types';
@@ -32,5 +33,6 @@ export function fillCourts(s: Session, ctx: Ctx): void {
       court.game = { team1, team2, startedAt: ctx.now };
     }
     s.queueOrder = s.queueOrder.filter((id) => !ids.includes(id));
+    unpin(s, ids);
   }
 }

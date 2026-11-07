@@ -40,6 +40,12 @@ export function assertInvariants(s: Session): void {
     }
   }
 
+  // Everyone asked to play next is waiting, once, and the list is dropped when it is empty.
+  const asked = s.pinned ?? [];
+  expect(new Set(asked).size).toBe(asked.length);
+  for (const id of asked) expect(waiting).toContain(id);
+  if (s.pinned) expect(s.pinned.length).toBeGreaterThan(0);
+
   // Court numbers are unique, and a closing court is always mid-game.
   const numbers = s.courts.map((c) => c.number);
   expect(new Set(numbers).size).toBe(numbers.length);

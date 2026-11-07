@@ -25,6 +25,12 @@ export function explainWaiting(s: Session, playerId: PlayerId): WaitingExplanati
     return { position, reason: `Waiting for ${plural(4 - waiting.length, 'more player')} to start a game.` };
   }
 
+  if (s.pinned?.includes(playerId)) return { position, reason: 'You are playing next.' };
+  // Everyone behind a player who was asked to play next is there because of that, whatever the mode.
+  if (position > 1 && s.pinned?.includes(waiting[index - 1].id)) {
+    return { position, reason: 'Someone was moved to play next.' };
+  }
+
   if (s.mode === 'queue') {
     return { position, reason: position === 1 ? 'Next in the order people arrived.' : 'In the order people arrived.' };
   }

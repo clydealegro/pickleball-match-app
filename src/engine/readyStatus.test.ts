@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { assertInvariants } from './invariants';
 import { lineupIds } from './lineup';
+import { playNext } from './pins';
 import { orderedWaiting } from './pool';
 import { startAllReady } from './start';
 import { setPlayerStatus } from './status';
@@ -61,6 +62,18 @@ describe('a player returning from a break', () => {
     expect(s.courts[0].status).toBe('empty');
     s = setPlayerStatus(s, idOf(s, 'A'), 'active', makeCtx());
     expect(s.courts[0].status).toBe('ready');
+    assertInvariants(s);
+  });
+});
+
+describe('a break on a Ready lineup when someone was asked to play next', () => {
+  it('brings that player in first, and takes them off the play next list', () => {
+    let s = hold(['A', 'B', 'C', 'D', 'E', 'F', 'G']);
+    const chosen = orderedWaiting(s)[2].id;
+    s = playNext(s, chosen);
+    s = setPlayerStatus(s, lineupIds(s.courts[0])[0], 'break', makeCtx());
+    expect(lineupIds(s.courts[0])).toContain(chosen);
+    expect(s.pinned).toBeUndefined();
     assertInvariants(s);
   });
 });
