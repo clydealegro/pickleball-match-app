@@ -15,3 +15,6 @@ export type { WaitingExplanation } from './explain';
 export { summarize, formatSummaryText, sessionStats, formatDuration, fairnessLine, gameLog, hasResults } from './summary';
 export type { PlayerSummary, SessionStats, GameLogEntry, WinLoss } from './summary';
 export { playNext, skipTurn } from './pins';
+export { swapPlayers, notHere } from './swap';
+export { locatePlayer, swapCandidates } from './locate';
+export type { Place, OnCourt, SwapCandidates } from './locate';

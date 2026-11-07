@@ -8,6 +8,8 @@ export type EngineErrorCode =
   | 'NOT_READY'
   | 'INVALID_RESULT'
   | 'NOT_WAITING'
+  | 'INVALID_SWAP'
+  | 'NO_REPLACEMENT'
   | 'CANNOT_RETURN';
 
 export class EngineError extends Error {
