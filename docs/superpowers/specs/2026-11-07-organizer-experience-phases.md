@@ -297,6 +297,16 @@ New pure helper `highlights(session)`: most games, longest game, shortest game, 
 - A short, human line in the summary header based on the numbers ("12 games, 3 hours, everyone got at least 3").
 - No confetti, no sounds, nothing that slows the organizer down.
 
+### Decisions for 4a (settled 2026-11-08, plan in `docs/superpowers/plans/2026-11-08-organizer-phase-4a.md`)
+
+Phase 4 ships in three parts: 4a Summary (4.1, 4.2 and the summary line from 4.6), 4b Board view (4.3), 4c Comfort (4.4, 4.5 and the haptics from 4.6).
+
+- **Board layout (4b):** all courts at once.
+- **Picture and results:** the card reuses the summary's results switch, now labelled "Include results when sharing", so the text and the picture never disagree.
+- **Sunlight (4c):** a fourth option beside Light. Until 4c, the card draws every theme except dark in the light colours.
+- **Highlight lines:** at most three, in this order: unbeaten (only with results on, two wins and no loss), most games, longest game, most partners (two or more), shortest game (only when it differs from the longest). A games or partners line that would name every player is dropped. Total playing time is not a line, because the Time tile and the summary line already say it.
+- **Summary line:** "12 games, 3 hours, everyone got at least 3", with the last part left out when someone did not play.
+
 ### Acceptance
 Highlights are tested with fixed sessions including ties and the under-three-games case. The canvas card is tested for dimensions and for the text it draws (through a canvas stub). The board view renders the same data as the live screen. Reminders fire once per game. Sunlight meets WCAG AA contrast for every text and control colour, with the ratios computed by a script and listed in the plan.
 
