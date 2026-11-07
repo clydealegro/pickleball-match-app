@@ -13,6 +13,7 @@ import { SettingsScreen } from './SettingsScreen';
 import { SetupScreen } from './SetupScreen';
 import { SummaryScreen } from './SummaryScreen';
 import { KEEP_AWAKE_KEY, useBoolPref } from './prefs';
+import { useSessionConflict } from './useSessionConflict';
 import { useWakeLock } from './useWakeLock';
 
 export default function App() {
@@ -25,6 +26,7 @@ export default function App() {
   const loadRoster = useRosterStore((s) => s.load);
   const initAuth = useAuthStore((s) => s.init);
   const [keepAwake] = useBoolPref(KEEP_AWAKE_KEY, true);
+  const sessionConflict = useSessionConflict();
   const [view, setView] = useState<'setup' | 'saved' | 'settings'>('setup');
   // Saved players can be opened from Setup or from Settings; Back returns to whichever it came from.
   const [savedFrom, setSavedFrom] = useState<'setup' | 'settings'>('setup');
@@ -93,6 +95,14 @@ export default function App() {
       {saveFailed && (
         <p className="notice" role="alert">
           Not saved — this browser is blocking storage. The session still works, but a refresh will lose it.
+        </p>
+      )}
+      {sessionConflict && (
+        <p className="notice" role="status">
+          This session was changed in another window.{' '}
+          <button type="button" className="btn btn-small" onClick={() => window.location.reload()}>
+            Reload
+          </button>
         </p>
       )}
       {rosterBlocked && (
