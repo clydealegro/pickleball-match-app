@@ -8,22 +8,21 @@ interface Props {
   court: Court;
   playersById: Map<string, Player>;
   onFinish: () => void;
-  onToggleClosing: () => void;
   onSelectPlayer: (id: string) => void;
 }
 
 /** The court in focus: who is playing, the game clock, and the one thing you do every game, finish it. */
-export function CourtCard({ court, playersById, onFinish, onToggleClosing, onSelectPlayer }: Props) {
+export function CourtCard({ court, playersById, onFinish, onSelectPlayer }: Props) {
   const game = court.game;
   const titleId = useId();
 
-  function team(ids: [string, string]) {
+  function team(ids: [string, string], number: 1 | 2) {
+    const players = ids.flatMap((id) => playersById.get(id) ?? []);
     return (
-      <div className="team">
-        {ids.map((id) => {
-          const p = playersById.get(id);
-          return p ? <PlayerTile key={id} player={p} onClick={() => onSelectPlayer(id)} /> : null;
-        })}
+      <div className={`team team-${number}`} role="group" aria-label={`Team ${number}: ${players.map((p) => p.name).join(' and ')}`}>
+        {players.map((p) => (
+          <PlayerTile key={p.id} player={p} onClick={() => onSelectPlayer(p.id)} />
+        ))}
       </div>
     );
   }
@@ -33,7 +32,7 @@ export function CourtCard({ court, playersById, onFinish, onToggleClosing, onSel
       role="tabpanel"
       id={courtPanelId(court.id)}
       aria-labelledby={titleId}
-      className={`card court ${game ? 'court-live' : ''}`}
+      className="card court"
     >
       <div className="row-flex spread">
         <h2 id={titleId} className="court-title">
@@ -44,9 +43,9 @@ export function CourtCard({ court, playersById, onFinish, onToggleClosing, onSel
 
       {game ? (
         <div className="match">
-          {team(game.team1)}
+          {team(game.team1, 1)}
           <span className="vs">vs</span>
-          {team(game.team2)}
+          {team(game.team2, 2)}
         </div>
       ) : (
         <p className="muted court-empty">Waiting for players</p>
@@ -59,10 +58,6 @@ export function CourtCard({ court, playersById, onFinish, onToggleClosing, onSel
           Game finished<span className="sr-only"> on court {court.number}</span>
         </button>
       )}
-      <button type="button" className="btn btn-ghost btn-small court-remove" onClick={onToggleClosing}>
-        {court.closing ? 'Keep court open' : 'Remove court'}
-        <span className="sr-only"> {court.number}</span>
-      </button>
     </section>
   );
 }

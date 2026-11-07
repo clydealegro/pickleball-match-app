@@ -72,6 +72,14 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
           <LiveMenu
             items={[
               { label: 'Add court', onSelect: () => run((s, ctx) => engine.addCourt(s, ctx)) },
+              ...(selected
+                ? [
+                    {
+                      label: selected.closing ? `Keep court ${selected.number} open` : `Remove court ${selected.number}`,
+                      onSelect: () => run((s) => engine.removeCourt(s, selected.id)),
+                    },
+                  ]
+                : []),
               { label: 'Settings', onSelect: onSettings },
               { label: 'End session', onSelect: endSession, danger: true },
             ]}
@@ -95,7 +103,6 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
                 court={selected}
                 playersById={playersById}
                 onFinish={() => run((s, ctx) => engine.finishGame(s, selected.id, ctx))}
-                onToggleClosing={() => run((s) => engine.removeCourt(s, selected.id))}
                 onSelectPlayer={selectPlayer}
               />
             </>

@@ -36,6 +36,11 @@ async function startFivePlayerSession(user: User) {
   await user.click(await screen.findByRole('button', { name: 'Start session (5 players)' }));
 }
 
+async function menuItem(user: User, name: RegExp) {
+  await user.click(screen.getByRole('button', { name: 'Menu' }));
+  await user.click(screen.getByRole('button', { name }));
+}
+
 async function endSessionFromMenu(user: User) {
   await user.click(screen.getByRole('button', { name: 'Menu' }));
   await user.click(screen.getByRole('button', { name: 'End session' }));
@@ -113,10 +118,10 @@ describe('App', () => {
     await startFivePlayerSession(user);
 
     const court = () => screen.getByRole('tabpanel', { name: 'Court 1' });
-    await user.click(within(court()).getByRole('button', { name: /remove court/i }));
+    await menuItem(user, /remove court 1/i);
     expect(within(court()).getByText('Closing after this game')).toBeInTheDocument();
 
-    await user.click(within(court()).getByRole('button', { name: /keep court open/i }));
+    await menuItem(user, /keep court 1 open/i);
     expect(within(court()).queryByText('Closing after this game')).not.toBeInTheDocument();
   });
 
@@ -149,8 +154,8 @@ describe('App', () => {
 
     // The setup default is two courts: remove the idle one (Court 2), then try to remove the last one.
     await user.click(screen.getByRole('tab', { name: /court 2/i }));
-    await user.click(screen.getByRole('button', { name: /remove court/i }));
-    await user.click(screen.getByRole('button', { name: /remove court/i }));
+    await menuItem(user, /remove court 2/i);
+    await menuItem(user, /remove court 1/i);
     expect(await screen.findByRole('alert')).toHaveTextContent('At least one court must stay open.');
 
     const waitingList = screen.getByRole('list', { name: 'Waiting' });

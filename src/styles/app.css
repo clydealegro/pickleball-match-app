@@ -446,15 +446,37 @@ legend {
 
 /* ---------- Live screen ---------- */
 .live-screen {
-  /* Room for the waiting sheet that sits over the bottom of the screen on a phone. */
-  padding-bottom: 150px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* On a phone the live screen fills the window: the waiting sheet sits at the bottom of the page, after the court, so
+   it never covers it. If the court is taller than the window, the page scrolls and the sheet follows. */
+@media (max-width: 899px) {
+  .app:has(.live-screen) {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    padding-bottom: 0;
+  }
+
+  .app:has(.live-screen) .app-header {
+    margin-bottom: 8px;
+  }
+
+  .app:has(.live-screen) main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 .live-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .live-title {
@@ -463,9 +485,16 @@ legend {
 }
 
 .live-title .screen-title {
-  font-size: 22px;
-  line-height: 1.2;
+  font-size: 18px;
+  line-height: 1.25;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-title .muted {
+  font-size: 13px;
 }
 
 .live-actions {
@@ -559,19 +588,18 @@ legend {
 }
 
 .live-grid {
-  display: grid;
-  gap: var(--gap);
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 12px;
 }
 
 @media (min-width: 900px) {
-  .live-screen {
-    padding-bottom: 0;
-  }
-
   .live-grid {
+    display: grid;
     grid-template-columns: minmax(0, 1fr) 340px;
     align-items: start;
+    gap: var(--gap);
   }
 }
 
@@ -586,7 +614,7 @@ legend {
 .court-tab {
   flex: 1 0 auto;
   min-width: 112px;
-  min-height: 56px;
+  min-height: 52px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -616,7 +644,7 @@ legend {
 }
 
 .court-tab.is-live {
-  border-bottom: 4px solid var(--accent);
+  border-bottom: 3px solid var(--ink);
 }
 
 .court-tab.is-selected {
@@ -634,15 +662,12 @@ legend {
 .court {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  padding: 12px;
 }
 
 .court > .tag {
   align-self: flex-start;
-}
-
-.court-live {
-  border-left: 6px solid var(--accent);
 }
 
 .court-title {
@@ -661,27 +686,33 @@ legend {
 }
 
 .match {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
 }
 
+/* Each pair sits in a bordered panel of its own, so teammates read as a pair. The lime accent is kept for the one
+   call to action, Game finished, so nothing here is coloured. */
 .team {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px 6px 10px;
+  border: 2px solid color-mix(in srgb, var(--ink) 28%, transparent);
+  border-radius: 16px;
+  background: var(--bg);
 }
 
 .tile {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
   min-height: 48px;
-  padding: 6px 4px;
+  padding: 4px;
   border: 0;
   border-radius: 12px;
   background: transparent;
@@ -691,13 +722,13 @@ legend {
 }
 
 .tile:hover {
-  background: var(--bg);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 .tile .avatar-lg {
-  width: 72px;
-  height: 72px;
-  font-size: 22px;
+  width: 60px;
+  height: 60px;
+  font-size: 20px;
 }
 
 .tile-name {
@@ -707,44 +738,57 @@ legend {
 }
 
 .vs {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
   color: var(--muted);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .court-empty {
-  padding: 24px 0;
+  padding: 16px 0;
   text-align: center;
 }
 
 .btn-finish {
-  min-height: 56px;
+  min-height: 52px;
   font-size: 18px;
   font-weight: 800;
 }
 
-.court-remove {
-  align-self: center;
-}
-
 /* Who is waiting: a sheet over the bottom of a phone screen, a plain panel beside the court on a wide one */
 .waiting-sheet {
-  position: fixed;
-  left: 0;
-  right: 0;
+  position: sticky;
   bottom: 0;
   z-index: 5;
-  max-width: 1100px;
-  margin: 0 auto;
+  margin: auto -16px 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 4px 16px calc(12px + env(safe-area-inset-bottom));
+  gap: 6px;
+  padding: 4px 16px calc(10px + env(safe-area-inset-bottom));
   border-radius: 22px 22px 0 0;
   border-bottom: 0;
   box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.14);
+}
+
+/* On a short screen there is no room to keep the sheet in view and the court clear at the same time. The sheet then
+   follows the court instead of floating over it, and the page scrolls. */
+@media (max-height: 700px) and (max-width: 899px) {
+  .waiting-sheet {
+    position: static;
+  }
 }
 
 .sheet-head {
@@ -836,10 +880,11 @@ legend {
 @media (min-width: 900px) {
   .waiting-sheet {
     position: static;
+    margin: 0;
     border-radius: var(--radius);
     border-bottom: 1px solid var(--line);
     box-shadow: none;
-    padding: var(--pad, 16px);
+    padding: 16px;
   }
 
   .waiting-body {

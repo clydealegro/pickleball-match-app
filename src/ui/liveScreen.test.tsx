@@ -68,9 +68,26 @@ describe('court tabs', () => {
     const user = userEvent.setup();
     await startSession(user, FIVE);
     await user.click(tabs()[1]);
-    await user.click(screen.getByRole('button', { name: /remove court/i }));
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    await user.click(screen.getByRole('button', { name: 'Remove court 2' }));
     expect(tabs()).toHaveLength(1);
     expect(screen.getByRole('tabpanel', { name: 'Court 1' })).toBeInTheDocument();
+  });
+
+  it('shows each pair as a team of its own, named for screen readers only', async () => {
+    const user = userEvent.setup();
+    await startSession(user, FIVE);
+    const panel = screen.getByRole('tabpanel', { name: 'Court 1' });
+    const teams = within(panel).getAllByRole('group');
+    expect(teams.map((t) => t.getAttribute('aria-label'))).toEqual([
+      expect.stringMatching(/^Team 1: \w+ and \w+$/),
+      expect.stringMatching(/^Team 2: \w+ and \w+$/),
+    ]);
+    expect(teams[0]).toHaveClass('team-1');
+    expect(teams[1]).toHaveClass('team-2');
+    for (const team of teams) expect(within(team).getAllByRole('button')).toHaveLength(2);
+    // The colour tells the pairs apart on screen; no team names are written on it.
+    expect(panel).not.toHaveTextContent(/team/i);
   });
 
   it('finishes the game with one big button, and the panel shows the players as two teams', async () => {
@@ -105,6 +122,28 @@ describe('the menu', () => {
     await user.click(screen.getByRole('button', { name: 'Menu' }));
     await user.click(screen.getByRole('heading', { level: 1 }));
     expect(screen.queryByRole('button', { name: 'End session' })).not.toBeInTheDocument();
+  });
+
+  it('has the Remove court action for the court on show, and it is not on the court itself', async () => {
+    const user = userEvent.setup();
+    await startSession(user, FIVE);
+    expect(within(screen.getByRole('tabpanel', { name: 'Court 1' })).queryByRole('button', { name: /remove court/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    expect(screen.getByRole('button', { name: 'Remove court 1' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await user.click(tabs()[1]);
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    expect(screen.getByRole('button', { name: 'Remove court 2' })).toBeInTheDocument();
+  });
+
+  it('offers to keep a court open once it is closing', async () => {
+    const user = userEvent.setup();
+    await startSession(user, FIVE);
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    await user.click(screen.getByRole('button', { name: 'Remove court 1' }));
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    expect(screen.getByRole('button', { name: 'Keep court 1 open' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove court 1' })).not.toBeInTheDocument();
   });
 
   it('adds a court', async () => {
