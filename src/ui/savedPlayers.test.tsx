@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetRosterDbForTests } from '../store/rosterDb';
@@ -49,7 +49,8 @@ describe('Saved players rows', () => {
   it('shows a camera badge on avatars without a photo, and none once there is one', async () => {
     const user = userEvent.setup();
     await openSaved(user, 'Ann{enter}Ben{enter}');
-    expect(document.querySelectorAll('.cam-badge')).toHaveLength(2);
+    // Ben is saved a moment after Ann, so the second badge can arrive after the screen opens.
+    await waitFor(() => expect(document.querySelectorAll('.cam-badge')).toHaveLength(2));
     act(() => {
       useRosterStore.setState((s) => ({ players: s.players.map((p) => (p.name === 'Ann' ? { ...p, photoVersion: 1 } : p)) }));
     });
