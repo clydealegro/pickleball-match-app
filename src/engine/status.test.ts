@@ -103,7 +103,7 @@ describe('setPlayerStatus', () => {
     const names = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
     let s = newTestSession(names, { courts: 2 });
     const court2 = s.courts[1];
-    s = removeCourt(s, court2.id);
+    s = removeCourt(s, court2.id, makeCtx());
     expect(s.courts[1].closing).toBe(true);
     const game = s.courts[1].game!;
     const four = [...game.team1, ...game.team2];

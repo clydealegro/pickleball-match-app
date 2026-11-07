@@ -124,7 +124,7 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
                 ? [
                     {
                       label: selected.closing ? `Keep court ${selected.number} open` : `Remove court ${selected.number}`,
-                      onSelect: () => run((s) => engine.removeCourt(s, selected.id)),
+                      onSelect: () => run((s, ctx) => engine.removeCourt(s, selected.id, ctx)),
                     },
                   ]
                 : []),

@@ -5,11 +5,12 @@ import { finishGame } from './game';
 import { assertInvariants } from './invariants';
 import { mulberry32 } from './rng';
 import { addPlayer } from './session';
+import { startAllReady, startCourt } from './start';
 import { setPlayerStatus } from './status';
 import { makeCtx, newTestSession } from './testing';
 import type { Mode, PlayerStatus, Session } from './types';
 
-const TOLERATED = new Set(['CANNOT_RETURN', 'LAST_COURT', 'NOT_PLAYING']);
+const TOLERATED = new Set(['CANNOT_RETURN', 'LAST_COURT', 'NOT_PLAYING', 'NOT_READY']);
 const TARGETS: PlayerStatus[] = ['active', 'break', 'left'];
 const STEPS = 250;
 
@@ -17,20 +18,26 @@ function pick<T>(items: T[], rng: () => number): T {
   return items[Math.min(items.length - 1, Math.floor(rng() * items.length))];
 }
 
-describe.each<Mode>(['fairness', 'queue'])('operation fuzzing (%s mode)', (mode) => {
+// Games start by themselves (a session that does not say, as before) or wait for the organizer's Start.
+describe.each<[Mode, boolean | undefined]>([
+  ['fairness', undefined],
+  ['queue', undefined],
+  ['fairness', false],
+  ['queue', false],
+])('operation fuzzing (%s mode, autoStart %s)', (mode, autoStart) => {
   for (const seed of [1, 2, 3, 4, 5]) {
     it(`keeps every invariant over ${STEPS} random operations (seed ${seed})`, () => {
       const rng = mulberry32(seed);
       const base = makeCtx(seed, 0);
       const names = Array.from({ length: 9 }, (_, i) => `P${i + 1}`);
-      let s: Session = newTestSession(names, { courts: 2, mode }, base);
+      let s: Session = newTestSession(names, { courts: 2, mode, autoStart }, base);
       assertInvariants(s);
       let nextName = names.length + 1;
       let applied = 0;
 
       for (let step = 1; step <= STEPS; step++) {
         const ctx = { ...base, now: step * 60_000 };
-        const kind = Math.floor(rng() * 5);
+        const kind = Math.floor(rng() * 6);
         try {
           switch (kind) {
             case 0: {
@@ -49,8 +56,14 @@ describe.each<Mode>(['fairness', 'queue'])('operation fuzzing (%s mode)', (mode)
               if (s.courts.length >= 5) continue;
               s = addCourt(s, ctx);
               break;
-            default:
-              s = removeCourt(s, pick(s.courts, rng).id);
+            case 4:
+              s = removeCourt(s, pick(s.courts, rng).id, ctx);
+              break;
+            default: {
+              const ready = s.courts.filter((c) => c.status === 'ready');
+              if (ready.length === 0) continue;
+              s = rng() < 0.5 ? startCourt(s, pick(ready, rng).id, ctx) : startAllReady(s, ctx);
+            }
           }
         } catch (e) {
           if (e instanceof EngineError && TOLERATED.has(e.code)) continue;

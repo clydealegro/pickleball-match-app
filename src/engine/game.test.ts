@@ -48,7 +48,7 @@ describe('finishGame', () => {
     const ctx = makeCtx();
     let s = newTestSession(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'], { courts: 2 }, ctx);
     const second = s.courts[1];
-    s = removeCourt(s, second.id);
+    s = removeCourt(s, second.id, makeCtx());
     expect(s.courts[1].closing).toBe(true);
 
     const next = finishGame(s, second.id, makeCtx(3));
