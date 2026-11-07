@@ -1524,7 +1524,7 @@ caption {
   overflow-wrap: anywhere;
 }
 
-.result-winners {
+.result-label {
   margin: 0;
   font-size: 18px;
   font-weight: 800;
@@ -1561,8 +1561,22 @@ caption {
 
 .result-actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
+}
+
+.skip-link {
+  align-self: center;
+  min-height: 44px;
+  margin-top: 4px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .sum-who {

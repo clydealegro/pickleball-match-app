@@ -148,7 +148,7 @@ describe('Settings, Play to', () => {
     await user.click(screen.getByRole('button', { name: 'Back' }));
     await user.click(finishButton());
     await user.click(within(await sheet('Court 1: who won?')).getAllByRole('button')[1]);
-    const winning = screen.getByRole('group', { name: 'Winning score' }).querySelector('output')!;
+    const winning = screen.getByRole('group', { name: /won with$/ }).querySelector('output')!;
     expect(winning.textContent).toBe('15');
   });
 

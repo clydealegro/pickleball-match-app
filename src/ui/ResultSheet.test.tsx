@@ -9,8 +9,8 @@ function setup(playTo = 11) {
   render(<ResultSheet courtNumber={2} team1={['Ann', 'Ben']} team2={['Cy', 'Dee']} playTo={playTo} onSave={onSave} onClose={onClose} />);
   return { onSave, onClose, user: userEvent.setup() };
 }
-const chips = () => within(screen.getByRole('group', { name: 'Their score' })).getAllByRole('button');
-const winning = () => screen.getByRole('group', { name: 'Winning score' }).querySelector('output')!.textContent;
+const chips = () => within(screen.getByRole('group', { name: /scored$/ })).getAllByRole('button');
+const winning = () => screen.getByRole('group', { name: /won with$/ }).querySelector('output')!.textContent;
 
 describe('ResultSheet, who won', () => {
   it('asks who won on a named court, with one big button per team showing the names', () => {
@@ -41,7 +41,8 @@ describe('ResultSheet, the score', () => {
     const { user } = setup();
     await user.click(screen.getByRole('button', { name: 'Cy and Dee' }));
     expect(screen.getByRole('dialog', { name: 'Court 2: score' })).toBeInTheDocument();
-    expect(screen.getByText('Cy and Dee won')).toBeInTheDocument();
+    expect(screen.getByText('Cy and Dee won with')).toBeInTheDocument();
+    expect(screen.getByText('Ann and Ben scored')).toBeInTheDocument();
   });
 
   it('starts the winning score at the target, and a tap on a losing score saves it in team order', async () => {
@@ -117,5 +118,55 @@ describe('ResultSheet, the score', () => {
     expect(winning()).toBe('12');
     await user.click(screen.getByRole('button', { name: '3' }));
     expect(onSave).toHaveBeenCalledWith({ winner: 2, score: [3, 12] });
+  });
+});
+
+describe('ResultSheet, saying whose score is whose', () => {
+  it('names the winners above the big number and the other team above the numbers', async () => {
+    const { user } = setup();
+    await user.click(screen.getByRole('button', { name: 'Ann and Ben' }));
+    expect(screen.getByRole('group', { name: 'Ann and Ben won with' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Cy and Dee scored' })).toBeInTheDocument();
+    expect(screen.queryByText('Their score')).not.toBeInTheDocument();
+  });
+
+  it('swaps the names round when the other team won', async () => {
+    const { user } = setup();
+    await user.click(screen.getByRole('button', { name: 'Cy and Dee' }));
+    expect(screen.getByRole('group', { name: 'Cy and Dee won with' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Ann and Ben scored' })).toBeInTheDocument();
+  });
+
+  it('follows the winner when it is changed', async () => {
+    const { user } = setup();
+    await user.click(screen.getByRole('button', { name: 'Ann and Ben' }));
+    await user.click(screen.getByRole('button', { name: 'Change winner' }));
+    await user.click(screen.getByRole('button', { name: 'Cy and Dee' }));
+    expect(screen.getByText('Cy and Dee won with')).toBeInTheDocument();
+    expect(screen.queryByText('Ann and Ben won with')).not.toBeInTheDocument();
+  });
+});
+
+describe('ResultSheet, skipping the score is quiet', () => {
+  it('is a small plain link below the numbers, not a button next to Change winner', async () => {
+    const { user } = setup();
+    await user.click(screen.getByRole('button', { name: 'Ann and Ben' }));
+    const skip = screen.getByRole('button', { name: 'Skip score' });
+    expect(skip).toHaveClass('skip-link');
+    expect(skip).not.toHaveClass('btn');
+    expect(skip.closest('.result-actions')).toBeNull();
+    const change = screen.getByRole('button', { name: 'Change winner' });
+    expect(change.closest('.result-actions')).not.toBeNull();
+    // It comes after the numbers and after Change winner, so it is the last thing in the sheet.
+    const order = [...document.querySelectorAll('[role=dialog] button')];
+    expect(order.indexOf(skip)).toBe(order.length - 1);
+    expect(order.indexOf(change)).toBeLessThan(order.indexOf(skip));
+  });
+
+  it('still records the winner without a score', async () => {
+    const { user, onSave } = setup();
+    await user.click(screen.getByRole('button', { name: 'Ann and Ben' }));
+    await user.click(screen.getByRole('button', { name: 'Skip score' }));
+    expect(onSave).toHaveBeenCalledWith({ winner: 1 });
   });
 });

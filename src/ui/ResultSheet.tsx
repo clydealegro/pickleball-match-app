@@ -43,6 +43,7 @@ export function ResultSheet({ courtNumber, team1, team2, playTo, onSave, onClose
   }
 
   const winners = winner === 1 ? team1 : team2;
+  const losers = winner === 1 ? team2 : team1;
   // Losing scores run up to just under the winning one, and past the target when the winner is past it.
   const top = Math.max(playTo - 1, winning - 1);
   const chips = Array.from({ length: top + 1 }, (_, n) => n);
@@ -50,9 +51,10 @@ export function ResultSheet({ courtNumber, team1, team2, playTo, onSave, onClose
 
   return (
     <Sheet title={`Court ${courtNumber}: score`} onClose={onClose}>
-      <p className="result-winners">{join(winners)} won</p>
-
-      <div className="result-winning" role="group" aria-label="Winning score">
+      <p className="result-label" id="winning-label">
+        {join(winners)} won with
+      </p>
+      <div className="result-winning" role="group" aria-labelledby="winning-label">
         <button type="button" className="btn icon-btn" aria-label="Lower the winning score" disabled={winning <= 1} onClick={() => setWinning(winning - 1)}>
           −
         </button>
@@ -64,8 +66,8 @@ export function ResultSheet({ courtNumber, team1, team2, playTo, onSave, onClose
         </button>
       </div>
 
-      <p className="label" id="losing-label">
-        Their score
+      <p className="result-label" id="losing-label">
+        {join(losers)} scored
       </p>
       <div className="score-chips" role="group" aria-labelledby="losing-label">
         {chips.map((n) => (
@@ -79,10 +81,11 @@ export function ResultSheet({ courtNumber, team1, team2, playTo, onSave, onClose
         <button type="button" className="btn btn-ghost" onClick={() => setWinner(null)}>
           Change winner
         </button>
-        <button type="button" className="btn btn-ghost" onClick={() => onSave({ winner })}>
-          Skip score
-        </button>
       </div>
+      {/* Skipping the score is allowed but not encouraged: a small quiet link, set apart from the numbers. */}
+      <button type="button" className="skip-link" onClick={() => onSave({ winner })}>
+        Skip score
+      </button>
     </Sheet>
   );
 }
