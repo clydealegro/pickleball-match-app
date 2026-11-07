@@ -78,6 +78,13 @@ describe('what the adapter sends to the real client library', () => {
     expect(seen[0].url.searchParams.get('deleted_at')).toBe('is.null');
   });
 
+  it('deletes all players by calling the database function', async () => {
+    reply = () => json(200, 3);
+    await realClient().deleteAllMyPlayers();
+    expect(seen[0].method).toBe('POST');
+    expect(seen[0].url.pathname).toBe('/rest/v1/rpc/delete_my_players');
+  });
+
   it('turns a dropped connection into an offline error', async () => {
     reply = () => {
       throw new TypeError('Failed to fetch');
@@ -120,7 +127,7 @@ describe('what the adapter sends to the real client library', () => {
     reply = () => json(200, [{ name: '1.jpg' }, { name: '2.jpg' }]);
     expect(await realClient().listPhotoFiles('x/y')).toEqual(['1.jpg', '2.jpg']);
     expect(seen[0].url.pathname).toBe('/storage/v1/object/list/player-photos');
-    expect(JSON.parse(seen[0].body as string)).toMatchObject({ prefix: 'x/y', limit: 100 });
+    expect(JSON.parse(seen[0].body as string)).toMatchObject({ prefix: 'x/y', limit: 100, offset: 0 });
 
     reply = () => json(200, []);
     await realClient().removePhotoFiles(['x/y/1.jpg']);

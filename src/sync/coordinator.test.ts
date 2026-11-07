@@ -24,6 +24,7 @@ function stubRemote() {
     downloadPhoto: async () => null,
     listPhotoFiles: async () => [],
     removePhotoFiles: async () => undefined,
+    deleteAllMyPlayers: async () => undefined,
   };
   return { remote, upserts, pulls: () => pulls };
 }

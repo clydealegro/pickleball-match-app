@@ -9,7 +9,11 @@ const ROW: PushRow = { id: 'p1', name: 'Ann', photo_version: 0, photo_seq: 0, la
 type Reply = { data?: unknown; error?: Record<string, unknown> | null; status?: number };
 
 /** A stand-in for the part of the Supabase client the adapter uses. It records every call the adapter makes. */
-function fakeClient(replies: { table?: (ops: string[]) => Reply; storage?: Record<string, Reply | (() => Reply)> }) {
+function fakeClient(replies: {
+  table?: (ops: string[]) => Reply;
+  storage?: Record<string, Reply | (() => Reply)>;
+  rpc?: Reply;
+}) {
   const calls: string[] = [];
   const from = vi.fn((table: string) => {
     const ops: string[] = [`from(${table})`];
@@ -42,7 +46,11 @@ function fakeClient(replies: { table?: (ops: string[]) => Reply; storage?: Recor
         ]),
       ),
   };
-  return { client: { from, storage } as unknown as SupabaseClient, calls, storageCalls };
+  const rpc = vi.fn(async (name: string) => {
+    calls.push(`rpc(${name})`);
+    return { data: replies.rpc?.data ?? null, error: replies.rpc?.error ?? null, status: replies.rpc?.status ?? 200 };
+  });
+  return { client: { from, storage, rpc } as unknown as SupabaseClient, calls, storageCalls };
 }
 
 const kind = async (promise: Promise<unknown>) => {
@@ -175,9 +183,27 @@ describe('photo files', () => {
   it('lists the files in a folder', async () => {
     const { client, storageCalls } = fakeClient({ storage: { list: { data: [{ name: '1.jpg' }, { name: '2.jpg' }] } } });
     expect(await supabaseRemote(client, OWNER).listPhotoFiles(`${OWNER}/p1`)).toEqual(['1.jpg', '2.jpg']);
-    expect(storageCalls[0].args).toEqual([`${OWNER}/p1`, { limit: 100 }]);
+    expect(storageCalls[0].args).toEqual([`${OWNER}/p1`, { limit: 100, offset: 0 }]);
     const bad = fakeClient({ storage: { list: { error: { status: 500, message: 'x' } } } });
     expect(await kind(supabaseRemote(bad.client, OWNER).listPhotoFiles('x'))).toBe('server');
+  });
+
+  it('keeps listing while a page is full, so a long folder is read whole', async () => {
+    const full = Array.from({ length: 100 }, (_, i) => ({ name: `${i}.jpg` }));
+    let page = 0;
+    const { client, storageCalls } = fakeClient({ storage: { list: () => ({ data: page++ === 0 ? full : [{ name: 'last.jpg' }] }) } });
+    expect(await supabaseRemote(client, OWNER).listPhotoFiles('x')).toHaveLength(101);
+    expect(storageCalls.map((c) => (c.args[1] as { offset: number }).offset)).toEqual([0, 100]);
+  });
+
+  it('deletes all players by calling the database function', async () => {
+    const { client, calls } = fakeClient({});
+    await supabaseRemote(client, OWNER).deleteAllMyPlayers();
+    expect(calls).toEqual(['rpc(delete_my_players)']);
+    const bad = fakeClient({ rpc: { error: { message: 'boom' }, status: 500 } });
+    expect(await kind(supabaseRemote(bad.client, OWNER).deleteAllMyPlayers())).toBe('server');
+    const offline = fakeClient({ rpc: { error: { message: 'Failed to fetch' }, status: 0 } });
+    expect(await kind(supabaseRemote(offline.client, OWNER).deleteAllMyPlayers())).toBe('offline');
   });
 
   it('removes files, and makes no request when there is nothing to remove', async () => {

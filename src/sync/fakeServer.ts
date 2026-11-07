@@ -94,11 +94,16 @@ export async function createFakeServer(): Promise<FakeServer> {
         },
         async listPhotoFiles(folder) {
           guard(`listPhotoFiles:${folder}`);
-          return [...server.files.keys()].filter((p) => p.startsWith(`${folder}/`)).map((p) => p.slice(folder.length + 1));
+          const children = [...server.files.keys()].filter((p) => p.startsWith(`${folder}/`)).map((p) => p.slice(folder.length + 1).split('/')[0]);
+          return [...new Set(children)];
         },
         async removePhotoFiles(paths) {
           guard(`removePhotoFiles:${paths.length}`);
           for (const path of paths) server.files.delete(path);
+        },
+        async deleteAllMyPlayers() {
+          guard('deleteAllMyPlayers');
+          await run(db, { user }, 'select public.delete_my_players()');
         },
       };
     },

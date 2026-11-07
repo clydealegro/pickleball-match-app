@@ -34,6 +34,8 @@ export interface Remote {
   /** The names of the files in a folder. */
   listPhotoFiles(folder: string): Promise<string[]>;
   removePhotoFiles(paths: string[]): Promise<void>;
+  /** Deletes every one of this organizer's players, deleted ones included. Photo files are removed separately. */
+  deleteAllMyPlayers(): Promise<void>;
 }
 
 /** Photos live at `{owner id}/{player id}/{photo_seq}.jpg`, with the owner id in lower case. */
@@ -62,6 +64,8 @@ const isMissing = (error: Failure) =>
 
 /** The server answers at most this many rows a request, so longer lists are read a page at a time. */
 const PAGE = 500;
+/** A file listing is read this many names at a time. */
+const LIST_PAGE = 100;
 
 /** The real server, as the signed-in organizer `ownerId`. */
 export function supabaseRemote(client: SupabaseClient, ownerId: string): Remote {
@@ -111,14 +115,23 @@ export function supabaseRemote(client: SupabaseClient, ownerId: string): Remote 
       return data.arrayBuffer();
     },
     async listPhotoFiles(folder) {
-      const { data, error } = await bucket().list(folder, { limit: 100 });
-      if (error) fail(error as Failure);
-      return data.map((file) => file.name);
+      const names: string[] = [];
+      for (let offset = 0; ; offset += LIST_PAGE) {
+        const { data, error } = await bucket().list(folder, { limit: LIST_PAGE, offset });
+        if (error) fail(error as Failure);
+        names.push(...data.map((file) => file.name));
+        if (data.length < LIST_PAGE) return names;
+      }
     },
     async removePhotoFiles(paths) {
       if (paths.length === 0) return;
       const { error } = await bucket().remove(paths);
       if (error) fail(error as Failure);
+    },
+    async deleteAllMyPlayers() {
+      // The function deletes only the caller's own rows (see the migration).
+      const { error, status } = await client.rpc('delete_my_players');
+      if (error) fail(error, status);
     },
   };
 }
