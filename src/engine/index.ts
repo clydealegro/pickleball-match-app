@@ -9,5 +9,7 @@ export { addCourt, removeCourt } from './courts';
 export { previewNext } from './preview';
 export type { UpNext } from './preview';
 export { orderedWaiting, availablePlayers, onCourtIds } from './pool';
+export { explainWaiting } from './explain';
+export type { WaitingExplanation } from './explain';
 export { summarize, formatSummaryText, sessionStats, formatDuration, fairnessLine, gameLog } from './summary';
 export type { PlayerSummary, SessionStats, GameLogEntry } from './summary';

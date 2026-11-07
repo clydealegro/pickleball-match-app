@@ -7,6 +7,13 @@ import { PhotoPanel } from './PhotoPanel';
 import { PlayerAvatar } from './PlayerAvatar';
 import { Sheet } from './Sheet';
 
+/** 1st, 2nd, 3rd, 4th, 11th, 21st. */
+function ordinal(n: number): string {
+  const teen = n % 100 >= 11 && n % 100 <= 13;
+  const suffix = teen ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th';
+  return `${n}${suffix}`;
+}
+
 interface Props {
   session: Session;
   playerId: string;
@@ -20,6 +27,7 @@ export function PlayerSheet({ session, playerId, onClose }: Props) {
   const player = session.players.find((p) => p.id === playerId);
   const saved = useRosterStore((s) => s.players.find((p) => p.id === player?.rosterId));
   if (!player) return null;
+  const why = engine.explainWaiting(session, playerId);
 
   function setStatus(target: engine.StatusTarget) {
     const res = apply((s, ctx) => engine.setPlayerStatus(s, playerId, target, ctx));
@@ -50,6 +58,12 @@ export function PlayerSheet({ session, playerId, onClose }: Props) {
           {player.status === 'break' && ' · on break'}
         </p>
       </div>
+
+      {why && (
+        <p className="why-waiting">
+          {ordinal(why.position)} in line. {why.reason}
+        </p>
+      )}
 
       {saved && (
         <button type="button" className="btn btn-block" onClick={() => setPhotoOpen(true)}>
