@@ -136,3 +136,33 @@ describe('a session with a Ready court', () => {
     expect(loadPersisted()).toBeNull();
   });
 });
+
+describe('a session with recorded results', () => {
+  function played() {
+    const s = newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }, makeCtx());
+    s.history.push({ team1: ['a', 'b'], team2: ['c', 'd'], courtNumber: 1, startedAt: 1, finishedAt: 2, winner: 1, score: [11, 7] });
+    s.history.push({ team1: ['a', 'b'], team2: ['c', 'd'], courtNumber: 1, startedAt: 3, finishedAt: 4 });
+    return s;
+  }
+
+  it('survives a reload with its winners and scores, and games without a result', () => {
+    const s = played();
+    savePersisted({ session: s, undoStack: [] });
+    expect(loadPersisted()?.session).toEqual(s);
+  });
+
+  it('is rejected when a winner or a score is malformed', () => {
+    for (const change of [
+      (g: Record<string, unknown>) => (g.winner = 3),
+      (g: Record<string, unknown>) => (g.winner = 'one'),
+      (g: Record<string, unknown>) => (g.score = [11]),
+      (g: Record<string, unknown>) => (g.score = [11, 'x']),
+      (g: Record<string, unknown>) => (g.score = 'eleven to seven'),
+    ]) {
+      const broken = JSON.parse(JSON.stringify(played()));
+      change(broken.history[0]);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, session: broken, undoStack: [] }));
+      expect(loadPersisted()).toBeNull();
+    }
+  });
+});

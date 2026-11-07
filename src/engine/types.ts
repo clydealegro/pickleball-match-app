@@ -43,12 +43,23 @@ export interface Court {
   lineup?: Lineup;
 }
 
+/** What the organizer recorded when a game finished. Both parts are optional: a result can be skipped. */
+export interface GameResult {
+  winner: 1 | 2;
+  /** Team 1's points, then team 2's. Present only when the organizer gave a score. */
+  score?: [number, number];
+}
+
 export interface FinishedGame {
   team1: Team;
   team2: Team;
   courtNumber: number;
   startedAt: number;
   finishedAt: number;
+  /** Which team won, when a result was recorded. */
+  winner?: 1 | 2;
+  /** Team 1's points, then team 2's, when a score was recorded. */
+  score?: [number, number];
 }
 
 export interface Session {

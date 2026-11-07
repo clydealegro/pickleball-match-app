@@ -2,13 +2,32 @@ import { cloneSession } from './clone';
 import { EngineError } from './errors';
 import { fillCourts } from './fill';
 import { playerById } from './pool';
-import type { Ctx, PlayerId, Session } from './types';
+import type { Ctx, GameResult, PlayerId, Session } from './types';
 
 function bump(counts: Record<PlayerId, number>, id: PlayerId): void {
   counts[id] = (counts[id] ?? 0) + 1;
 }
 
-export function finishGame(s: Session, courtId: string, ctx: Ctx): Session {
+/** A recorded result must name a team, and a score must be whole numbers with the winner ahead. */
+function checkResult(result: GameResult): void {
+  if (result.winner !== 1 && result.winner !== 2) {
+    throw new EngineError('INVALID_RESULT', 'Choose which team won.');
+  }
+  if (!result.score) return;
+  const [a, b] = result.score;
+  if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0) {
+    throw new EngineError('INVALID_RESULT', 'A score is a whole number, from 0 up.');
+  }
+  const winning = result.winner === 1 ? a : b;
+  const losing = result.winner === 1 ? b : a;
+  if (winning <= losing) {
+    throw new EngineError('INVALID_RESULT', 'The winning score must be higher than the losing score.');
+  }
+}
+
+/** Finishes the game on a court. With a `result`, the winner (and score) are recorded; without one nothing is. */
+export function finishGame(s: Session, courtId: string, ctx: Ctx, result?: GameResult): Session {
+  if (result) checkResult(result);
   const n = cloneSession(s);
   const court = n.courts.find((c) => c.id === courtId);
   if (!court) throw new EngineError('NOT_FOUND', 'Court not found.');
@@ -36,7 +55,15 @@ export function finishGame(s: Session, courtId: string, ctx: Ctx): Session {
     }
   }
 
-  n.history.push({ team1, team2, courtNumber: court.number, startedAt, finishedAt: ctx.now });
+  n.history.push({
+    team1,
+    team2,
+    courtNumber: court.number,
+    startedAt,
+    finishedAt: ctx.now,
+    ...(result ? { winner: result.winner } : {}),
+    ...(result?.score ? { score: [result.score[0], result.score[1]] as [number, number] } : {}),
+  });
 
   // Apply break/leave requests made while the game was running, then re-queue.
   for (const id of everyone) {

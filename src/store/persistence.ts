@@ -54,7 +54,9 @@ function isFinishedGame(x: unknown): boolean {
     isTeam(x.team2) &&
     isNum(x.courtNumber) &&
     isNum(x.startedAt) &&
-    isNum(x.finishedAt)
+    isNum(x.finishedAt) &&
+    (x.winner === undefined || x.winner === 1 || x.winner === 2) &&
+    (x.score === undefined || (Array.isArray(x.score) && x.score.length === 2 && x.score.every(isNum)))
   );
 }
 
