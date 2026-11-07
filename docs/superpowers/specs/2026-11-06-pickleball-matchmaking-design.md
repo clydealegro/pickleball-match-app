@@ -108,7 +108,7 @@ IndexedDB stores: `players`, `photos` (player id → JPEG blob), `outbox` (one m
 
 **Principle:** the device is the source of truth while playing. The app never waits on the network; sync runs in the background when the organizer is signed in and online.
 
-**Auth.** Supabase Auth emailed magic link (no password). The link brings the organizer back to the app, which picks the session up from the page address. The session persists on the device. Signing out stops sync but keeps the local roster. The app works fully while signed out; a small banner offers "Sign in to back up and sync your players".
+**Auth.** Supabase Auth emailed magic link (no password). The link brings the organizer back to the app, which picks the session up from the page address. The session persists on the device. Signing out stops sync but keeps the local roster. The app works fully while signed out; once there is a saved player, a small banner on Setup offers "Sign in to back up and sync your players" until it is dismissed.
 
 **Schema.**
 - Table `players`: `owner_id uuid default auth.uid()`, `id uuid`, `name text`, `photo_version int default 0` (a count of the photo's changes on a device; it can return to 0), `photo_seq int default 0` (only ever goes up, and names the storage file), `last_played_at timestamptz`, `deleted_at timestamptz`, `updated_at timestamptz` (set by a database trigger on every write, using the time of the write). Primary key `(owner_id, id)`. Unique index on `(owner_id, lower(btrim(name)))` where `deleted_at is null`.
@@ -124,14 +124,15 @@ IndexedDB stores: `players`, `photos` (player id → JPEG blob), `outbox` (one m
 4. **Conflicts:** last write wins per player, using the server `updated_at`. A local change still waiting in the outbox is never overwritten by a pulled row; it is pushed afterward. If another device created a player with the same name (unique-index violation), the two are merged: the existing server entry is kept, the other entry stays on this device as a deleted entry that is never pushed, and the kept entry adopts its photo if it has none and its later `lastPlayedAt`. If the name is held by a player whose own rename or deletion is still waiting to be pushed, the push waits for that one first, and two players swapping names are pushed through a temporary name.
 5. **First sign-in on a device:** every saved player is marked for a push, so the local roster and the account's roster are merged by case-insensitive name (union) through the name rule above, then both sides converge via the steps above. A device that already holds one account's players does not sync another account; it reports that and leaves the data untouched.
 
-**Sync status** is always visible in the roster screen header as one of: *Signed out*, *Synced*, *Syncing…*, *Offline — N changes waiting*, or *Can't reach server — will retry*.
+**Sync status** is always visible in the Saved players header (and in Settings under the signed-in email) as one of: *Signed out*, *Synced*, *Syncing…*, *Offline, N changes waiting*, or *Can't reach server, will retry*. Two more cover a sign-in that was not accepted and a device that holds another account's players (Settings explains the way out). A saved session that could not be checked says so and nothing syncs.
 
 **Free tier notes.** Free Supabase projects are paused after a period of inactivity (currently about a week), and an organizer must restore the project from the Supabase dashboard; until then sync reports "Can't reach server" and the app keeps working locally with nothing lost. Roster data plus 256 px photos is far below the free database and storage limits for hundreds of players. Current limits are to be re-checked when the project is created.
 
 **Privacy.**
 - Photos are personal data. They are private (bucket policy, no public URLs) and visible only to the signed-in organizer.
 - The photo capture preview includes a short reminder to take photos with the player's permission.
-- Settings has **Delete all my data**: purges all players and photos from Supabase and from this device after confirmation.
+- Settings has **Delete all my data** (signed in only): after confirmation it pauses syncing, removes every photo file, deletes every player row, and only then clears this device, so a failure leaves the device as it was and the action can be repeated. It also has **Clear saved players on this device**, which empties this device only; whatever was backed up stays in the account and comes back on the next sync. That is also the way out of the state where another account's players are on the device.
+- If a database upgrade is waiting for another tab of the app to let go, the app says so ("Close other tabs of this app to load your saved players") until it does.
 - Deleting a single player marks their row deleted and removes their photo file, as described above.
 - Because device storage is the source of truth, a device that is wiped before its first sync loses unsynced changes; the sync status makes pending changes visible.
 
