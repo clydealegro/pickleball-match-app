@@ -1,7 +1,7 @@
 # PIKLMatch: the organizer experience, in phases
 
 Date: 2026-11-07
-Status: approved in direction on 7 Nov 2026. Phases 1 and 2 are committed to; 3 to 5 each get their own plan. Nothing here is built.
+Status: approved in direction on 7 Nov 2026. Phase 1 is built and live (7 Nov 2026). Phase 2 was reshaped the same day (ready step, results, control) and is the next to plan. Phases 3 to 5 each get their own plan.
 Builds on: `2026-11-06-pickleball-matchmaking-design.md` (the v1 design). Where this document and that one disagree, this one wins for the items below. Section "Changes to the v1 scope" lists them.
 
 ## Why this exists
@@ -15,7 +15,7 @@ On 7 Nov 2026 the app was audited end to end from the organizer's seat (the pers
 3. **Every action is one undo step.** Swaps, pins, skips and substitutions each undo with one tap, like Game finished does today.
 4. **One coloured thing per screen.** Lime stays for the main action only. New controls are neutral.
 5. **No nagging.** Reminders are visual by default. Sounds and vibration are off or tiny, and never repeat.
-6. **Small, reversible changes first.** Session data only gains optional fields, so a session saved by an older build still loads (the validator in `src/store/persistence.ts` checks required fields only).
+6. **Small, reversible changes first.** Session data mostly gains optional fields, which the validator in `src/store/persistence.ts` ignores. The one exception is Phase 2a's new court status `'ready'`: `isCourt` accepts only `'empty'` and `'playing'` today, so the validator must learn it in the same change (see 2a).
 7. **Words follow VOICE.md.** Plain, short, no em dashes.
 
 ## The phases at a glance
@@ -23,14 +23,14 @@ On 7 Nov 2026 the app was audited end to end from the organizer's seat (the pers
 | Phase | Name | What the organizer gets | Needs backend? | Size |
 |---|---|---|---|---|
 | 1 | Run it smoothly | Screen stays on, a toast with the new lineup and Undo, a visible Add player, courts remembered, "why am I waiting", second-tab safety | No | Small |
-| 2 | Take control | Swap players, play next, skip a turn, "not here" in one tap | No | Medium |
+| 2 | Ready, results and control | Games wait for your Start, record the winner and score in two taps, swap players before or during a game, play next, skip a turn | No | Large (three parts) |
 | 3 | Remember | Session history, attendance, regulars first, suggested groups | No (local only) | Medium |
 | 4 | Share and show | A shareable result card, highlights, a board view for a TV, a game-length nudge, a sunlight theme, a little delight | No | Medium |
 | 5 | Open it up | Other organizers can sign in, resume a session on another phone, a read-only live link for players, named groups and history that sync | Yes | Large |
 
-**Why this order.** Phases 1 and 2 fix problems the organizer meets every session and need no new infrastructure. Phase 3 needs Phase 2's data to be stable. Phase 4 builds on Phase 3's history (highlights, share card). Phase 5 is the only one that touches Supabase, so it goes last and is split so each piece ships alone.
+**Why this order.** Phases 1 and 2 fix problems the organizer meets every session and need no new infrastructure. Phase 2 is the largest and is built in three parts (2a, 2b, 2c), each shipped on its own. Phase 3 needs Phase 2's data to be stable. Phase 4 builds on Phase 3's history (highlights, share card). Phase 5 is the only one that touches Supabase, so it goes last and is split so each piece ships alone.
 
-Phases 1 and 2 are the ones to commit to now. Phases 3 to 5 are agreed in direction; each gets its own plan before building.
+Phase 1 is done. Phase 2 is the one to commit to now. Phases 3 to 5 are agreed in direction; each gets its own plan before building.
 
 ## Changes to the v1 scope
 
@@ -39,8 +39,10 @@ The v1 design lists these as out of scope. This spec moves them in:
 - **Read-only live view for players** (Phase 4 board view on the same device, Phase 5 live link). The v1 design says "live sync of the session itself so players can follow along on their own phones" is out of scope. It comes in at Phase 5, read-only. Players still never log in.
 - **Session history beyond the current device** (Phase 3 local, Phase 5 synced).
 - **Manual control of the queue** (Phase 2). The v1 design has no override.
+- **A Ready step before each game, instead of games starting by themselves** (Phase 2a). The v1 design starts the next game the moment one finishes.
+- **Recording the winner and the score** (Phase 2b). Results are recorded and shown. They never change matchmaking.
 
-Still out of scope: score entry and leaderboards, skill ratings and skill-balanced teams, shared group accounts, players logging in. See "Considered and not now" for why.
+Still out of scope: leaderboards and rankings, skill ratings and skill-balanced teams, shared group accounts, players logging in. See "Considered and not now" for why.
 
 ---
 
@@ -125,63 +127,104 @@ Tests for each item, typecheck and build clean, checked in the browser at 360 px
 
 ---
 
-## Phase 2: Take control
+## Phase 2: Ready, results and control
 
-Goal: let the organizer fix real life without breaking the fairness data. This is the highest-value phase.
+Goal: games start when the organizer says so, results are recorded in two taps, and real life can be fixed without breaking the fairness data. This is the highest-value phase and it is built in three parts, each shipped on its own.
 
-### The gap, verified in code
+### The gaps, verified in code
 
-On a player who is on court, **Take a break** and **Leave** only set `pendingStatus`, applied when the game ends (`setPlayerStatus` in `src/engine/status.ts`). If someone does not show up or gets hurt, the game runs with three players until it finishes. There is no swap, no skip, no way to choose who plays next.
+- **Games start by themselves.** Five code paths start a game with no organizer action: session creation, adding a player, a player returning from a break, adding a court, and finishing a game (`fillCourts` is called from `session.ts` twice, once on creation and once on adding a player, and from `status.ts`, `courts.ts` and `game.ts`). Players are still walking to the court, so the clock is wrong, and a player who is missing is already "on court".
+- **No fix once a game has started.** On a player who is on court, **Take a break** and **Leave** only set `pendingStatus`, applied when the game ends (`setPlayerStatus` in `src/engine/status.ts`). A game runs with three players until it finishes.
+- **No result.** `FinishedGame` has teams, court and times, but no winner or score.
 
-### Engine
+### Part 2a: the Ready step (no auto-start)
 
-Three new pure functions, each returning a new session, each validated like the existing ones (`EngineError` with a clear message):
+**Decision (7 Nov 2026):** games never start by themselves by default, including the first games of a session.
+
+**Behaviour.**
+- A court with a full lineup waiting to be started is **Ready**. The court card shows the proposed four in their teams under a "Next up" label, and a lime **Start game** button in the place Game finished sits during play. The clock starts when Start is pressed, so game lengths become true.
+- At the start of a session the courts open as Ready. When a game finishes, its court becomes Ready with the next four (or **Empty** with "Waiting for N more players" when fewer than four are waiting, as today).
+- Ready lineups are **reserved**: those four are not in the waiting list and cannot be proposed to another court.
+- The court tab shows "Ready" in place of the clock. When two or more courts are Ready, the menu offers **Start all ready courts**.
+- A player on a Ready lineup who goes on break or leaves is taken out immediately (no waiting for a game that has not started) and replaced by the next waiting player. With nobody to replace them, the court goes back to Empty and the other three return to the waiting list.
+- Settings, **During a session**: **Auto-start next game**, off by default. When on, games start as they do today, with no Ready step.
+
+**Engine.**
+- `Court.status` becomes `'empty' | 'ready' | 'playing'`. A Ready court holds `lineup: { team1, team2 }` and no `startedAt`. The lineup is kept apart from `Court.game` on purpose: `isGame` in the validator requires `startedAt`, and every running-game rule keys off `game`.
+- `onCourtIds` keeps meaning "in a running game", and a new helper counts reserved Ready players. `availablePlayers` and the waiting list exclude both. `setPlayerStatus` treats a Ready lineup player as off court, so a break or leave takes effect at once instead of becoming `pendingStatus`.
+- **The saved-session validator must change in the same task.** `isCourt` rejects any court whose status is not `'empty'` or `'playing'`, and `loadPersisted` then discards the whole saved session and undo stack. So `isCourt` learns `'ready'` (with a valid two-team lineup and no game), with a test that a saved session containing a Ready court survives a reload. A build older than 2a that opens such a session would discard it, which is the only downgrade risk; the in-app "Reload now" update and the Phase 1 second-window notice keep two versions from running side by side for long.
+- A Ready court is never `closing` (a closing court is always mid-game, per `assertInvariants`). **Removing a Ready court** takes it away at once and its four return to the waiting list. **Ending the session** drops Ready lineups, since nothing was played.
+- `Session` gains optional `autoStart?: boolean`, set from the setting when the session is created, so the engine stays pure.
+- `fillCourts` makes Ready courts (or Playing ones when `autoStart` is on). `startCourt(s, courtId, ctx)` turns Ready into Playing and stamps `startedAt`. `startAllReady(s, ctx)` does it for every Ready court.
+- The invariant in `assertInvariants` changes: an Empty court only exists when fewer than four are waiting (a Ready court is not Empty). New rules: a Ready lineup has four distinct players, none of them waiting or on another court.
+- `swapPlayers` (below) works on Ready lineups, which is the main way to fix a no-show before it matters.
+
+**The Waiting sheet's preview.** `previewNext` only treats `'empty'` courts as open and only reads `'playing'` courts for the soonest to free up, so a Ready court is already ignored by it, and the reserved four are out of the waiting list. The one change is the label: when every court is Ready (so there is no open court and no running game), `WaitingSheet` would say "No open court to play on", which should read "Courts are ready. Press Start."
+
+**UI.** The court card gains a Ready state. The Phase 1 toast after a finish becomes "Court 1 is ready: Ann and Ben vs Cy and Dee", still with Undo (Undo takes the court back to Playing with the old clock).
+
+**Acceptance.** No game starts by itself with the default setting, on any of the five paths. Start stamps the clock and reserves nothing twice. A break or leave on a Ready lineup replaces the player or empties the court. With Auto-start on, behaviour is unchanged from today. Start is one undo step. The fuzz test extended to cover Ready keeps all invariants.
+
+### Part 2b: results
+
+**Decisions (7 Nov 2026):** a result may always be skipped; the score picker supports play-to 11, 15 and 21 with 11 the default.
+
+**Flow.** Pressing **Game finished** opens a short sheet instead of committing anything:
+1. **Who won?** Two large buttons, one per team, showing the names. One tap.
+2. **Score.** The winner's score starts at the play-to target (11, 15 or 21) with a minus and plus stepper (it can go above the target, for a win at 12 to 10). The loser's score is a row of number chips from 0 to the target minus one. One tap. No keyboard and no slider.
+3. **Skip result** is always there, on both steps, and finishes the game with no winner. **Cancel** closes the sheet and the court keeps playing, so an accidental tap changes nothing.
+- The app does not enforce win by two. It records what the organizer says, with one rule: the winner's score must be higher than the loser's.
+- Settings, **During a session**: **Play to** (11, 15, 21).
+
+**Data.** `FinishedGame` gains optional `winner: 1 | 2` and `score: [number, number]` (team 1 then team 2). Old sessions load unchanged. `finishGame` takes an optional result.
+
+**Where it shows.**
+- Summary: each player's row shows wins and losses, and the expanded row shows the record with each partner. Highlights (Phase 4.1) gain "unbeaten" when results exist.
+- Game by game: shows the score and the winner.
+- The shared text and picture **leave results out by default**, with a switch "Include results" in the share options. Win records can sting in a social 40-plus group, so sharing them is a choice.
+- Results are recorded and shown only. They never change who plays next. Leaderboards stay out of scope.
+
+**Acceptance.** Winner then score takes two taps. Skip and Cancel behave as above. Scores that break the rule (winner not higher) cannot be confirmed. History, the summary and the game log show results and show nothing for skipped games. The shared text has no results unless switched on.
+
+### Part 2c: control
+
+Three further engine functions, each pure, each returning a new session, each validated like the existing ones (`EngineError` with a clear message):
 
 1. **`swapPlayers(s, aId, bId, ctx)`**
-   - Valid pairs: waiting with a player on court (substitution), or a player on one court with a player on another court (or the same court, moving them to the other team).
+   - Valid pairs: a waiting player with a player on a Ready lineup (the common case), a waiting player with a player in a running game (substitution), or two players on courts, in the same or different lineups.
    - Swaps their places. The two keep their own `gamesPlayed`, `lastFinishedSeq` and counts.
-   - Credit rule (documented, tested): a game credits `gamesPlayed`, partners and opponents to **whoever is on court when it finishes**. A substitute joining mid-game is credited. A player taken off is not.
-   - The player taken off returns to the waiting list. In fairness mode they sort by the usual rule (fewest games, then longest wait). They were not credited for the game in progress, so they are owed it and tend to come back soon. In queue mode they go to the **front** of `queueOrder`.
-   - Not valid: two waiting players (their order is derived in fairness mode, see `playNext`), a player on break or who left, a court that is empty.
+   - Credit rule (documented, tested): a game credits `gamesPlayed`, partners and opponents to **whoever is on court when it finishes**. A substitute joining mid-game is credited. A player taken off is not. For a Ready lineup nothing has been credited yet, so a swap changes nothing about the record.
+   - The player taken off returns to the waiting list. In fairness mode they sort by the usual rule (fewest games, then longest wait). In queue mode they go to the **front** of `queueOrder`.
+   - Not valid: two waiting players (their order is derived in fairness mode, see `playNext`), a player on break or who left, an Empty court.
 2. **`playNext(s, playerId)`**
    - Adds the player to a new optional `Session.pinned: PlayerId[]`. `orderedWaiting` puts pinned players first, in the order they were pinned.
    - Pins clear when the player is placed on a court, goes on break or leaves.
    - Works in both modes. If more than four are pinned, the first four play.
 3. **`skipTurn(s, playerId)`**
-   - Moves the player to the back for this turn: sets `lastFinishedSeq = gameSeq` (as if they had just finished) and moves them to the end of `queueOrder`.
-   - Removes any pin on them.
-   - Does not change `gamesPlayed`, so fairness still owes them a game.
+   - Moves the player to the back for this turn: sets `lastFinishedSeq = gameSeq` and moves them to the end of `queueOrder`. Removes any pin on them. Does not change `gamesPlayed`, so fairness still owes them a game.
    - In fairness mode a skip only reorders players who have the same number of games, because fewest games always comes first. That is intended: the organizer can pass someone over for one turn, not cheat them out of games. In queue mode it moves them to the back.
 
-**Queue bookkeeping.** `queueOrder` is kept in both modes and must always equal the set of available players (`assertInvariants` checks this). So every swap removes the incoming player from `queueOrder` and adds the outgoing one (at the front in queue mode, anywhere in fairness mode, where the order is derived). `cloneSession` is a JSON round trip, so a new optional field survives every action.
+**Queue bookkeeping.** `queueOrder` is kept in both modes and must always equal the set of available players (`assertInvariants` checks this). So every swap removes the incoming player from `queueOrder` and adds the outgoing one (at the front in queue mode, anywhere in fairness mode, where the order is derived). `cloneSession` is a JSON round trip, so new optional fields survive every action.
 
-`Session` gains one optional field, `pinned?: PlayerId[]`. The persistence validator already tolerates unknown optional fields, so no version bump is needed.
+`Session` gains optional `pinned?: PlayerId[]`, and `FinishedGame` gains the optional result fields. The persistence validator ignores unknown optional fields, so these need no version bump. The `'ready'` court status in 2a is the one change the validator must be taught (see 2a).
 
-### UI
-
-- **Player sheet, player on court:** buttons **Swap with…**, **Not here**, **Take a break**, **Leave session**.
+**UI.**
+- **Player sheet, player on a Ready lineup or in a game:** buttons **Swap with…**, **Not here**, **Take a break**, **Leave session**.
   - **Swap with…** opens a picker listing waiting players first, then players on other courts, with names, avatars and games played. One tap swaps and closes.
-  - **Not here** is the no-show shortcut: it swaps the player with the next waiting player and puts the absent player on break, as **one** action, one undo step. If nobody is waiting it explains: "No one is waiting to take their place."
-- **Player sheet, waiting player:** buttons **Play next**, **Skip this turn**, **Swap onto a court…** (opens a picker of players on court), **Take a break**, **Leave session**. The "why am I waiting" line from 1.5 sits above them.
+  - **Not here** swaps the player with the next waiting player and puts the absent player on break, as one action and one undo step. If nobody is waiting it explains: "No one is waiting to take their place."
+- **Player sheet, waiting player:** **Play next**, **Skip this turn**, **Swap onto a court…**, **Take a break**, **Leave session**. The "why am I waiting" line from 1.5 stays above them, and gains "You are playing next." for a pinned player.
 - A pinned player shows a small "Next" badge in the waiting list and on the peek.
-- After any of these actions the Phase 1 toast confirms what changed ("Ben swapped in for Ann on Court 1") with Undo.
-- Danger styling stays on Leave only.
+- After any of these the toast confirms what changed with Undo. Danger styling stays on Leave only.
 
-### Edge cases to decide in the plan, with my default
-- Swapping on a court where the timer has run for a while: the timer is untouched (it is the court's game).
-- Swapping the last two on a team from different courts: allowed, each court keeps four players.
+**Edge cases, with my default.**
+- Swapping in a running game leaves the timer untouched (it is the court's game).
 - Pin vs a late arrival: the pinned player still goes first.
-- Undo restores `pinned` as well (it is part of the session snapshot).
+- Undo restores `pinned` too (it is part of the session snapshot).
 
-### Acceptance
-- Substituting leaves both courts with four players and the right people credited at finish (test with a full game).
-- Fairness numbers after a swap match the credit rule above, with a test for each case.
-- Not here with an empty waiting list fails with the clear message and changes nothing.
-- Every action is one undo step.
-- A property test: random sequences of finish, swap, play next, skip, break, add keep the existing invariants (the repo already has `invariants.ts` and a fuzz test to extend). `assertInvariants` gains one rule: every pinned player is waiting, and appears once.
+**Acceptance.** Swapping a Ready lineup and a running game each leave every court with four players and the right people credited at finish (test with a full game). Not here with an empty waiting list fails with the clear message and changes nothing. Every action is one undo step. A property test of random sequences of finish, start, swap, play next, skip, break and add keeps the invariants, and `assertInvariants` gains one rule: every pinned player is waiting and appears once.
 
 ### Phase 2 definition of done
-Engine tests first (they are the risk), then UI tests, the fuzz test extended, browser check, phone check at the courts with a real swap. Ralph loop plus mutation checks on the credit rule, as was done for the sync engine.
+Per part: engine tests first (they are the risk), then UI tests, the fuzz test extended, a browser check, and a phone check at the courts. Ralph loop plus mutation checks on the credit rule and the reservation rule, as was done for the sync engine. Build order: 2a first (it changes the shape of the engine), then 2b, then 2c.
 
 ---
 
@@ -222,13 +265,13 @@ Goal: make the end of the session a moment, and let people see the queue without
 
 ### 4.1 Highlights
 
-New pure helper `highlights(session)`: most games, longest game, shortest game, most different partners, total playing time. Shown as three short lines on the summary under the stat tiles. Never shown for fewer than three games. Ties are named together ("Ann and Ben, 6 games").
+New pure helper `highlights(session)`: most games, longest game, shortest game, most different partners, total playing time, and (when Phase 2b results exist) players who were unbeaten. Shown as three short lines on the summary under the stat tiles. Never shown for fewer than three games. Ties are named together ("Ann and Ben, 6 games").
 
 ### 4.2 A shareable result card
 
 - Render a 1080 by 1350 PNG on a canvas: session name, date, games and time, the highlights, and a grid of avatars with games (photos when present, initials otherwise). Light and dark variants follow the theme.
 - **Share results** gets a second option, **Share as picture**, using the Web Share API with a file; where files cannot be shared it downloads the PNG.
-- No network is used. The existing text share stays.
+- No network is used. The existing text share stays. Like the text, the picture leaves win records out unless the organizer switches results on.
 
 ### 4.3 Board view
 
@@ -302,7 +345,7 @@ Goal: let anyone run it, survive a dead phone, and let players follow along. Thi
 
 ## Cross-cutting rules
 
-**Settings additions, in one place.** Appearance (Auto, Dark, Light, Sunlight); Matchmaking (exists); **During a session**: Keep the screen on, Vibrate on finish, Game length reminder. Each stores a `pickleball.*` key in `localStorage` with a safe fallback when storage is blocked, like `pickleball.mode` does.
+**Settings additions, in one place.** Appearance (Auto, Dark, Light, Sunlight); Matchmaking (exists); **During a session**: Keep the screen on, Vibrate on finish, Auto-start next game (off), Play to (11, 15 or 21), Game length reminder. Each stores a `pickleball.*` key in `localStorage` with a safe fallback when storage is blocked, like `pickleball.mode` does.
 
 **Undo.** Every new engine action goes through the session store's `apply`, so each is one snapshot and one Undo.
 
@@ -318,9 +361,10 @@ Goal: let anyone run it, survive a dead phone, and let players follow along. Thi
 
 | Idea | Why not now |
 |---|---|
-| Score entry, winners-stay and king-of-the-court formats | Needs results per game and a new format in the engine. Revisit after Phase 2 shows how much the organizer overrides by hand. |
+| Winners-stay and king-of-the-court formats | Needs results (Phase 2b) plus a new format in the engine. Revisit once results have been recorded for a few sessions. |
+| Leaderboards, rankings and rating-based teams | Results are recorded and shown only. Ranking people is a different product decision and can change the mood of a social group. |
 | Skill levels and level-matched teams | Out of scope in v1. A light optional tag could come after groups (5.4). |
-| Fixed partners and "avoid" pairs | Rare in open play and complex in the split rule. Manual swap (Phase 2) covers it. |
+| Fixed partners and "avoid" pairs | Rare in open play and complex in the split rule. Manual swap (Phase 2c) covers it. |
 | Co-organizer control from a second phone | Needs conflict handling. Read-only (5.3) comes first. |
 | Sounds and announcements by voice | Easy to annoy a whole court. Visual first. |
 
@@ -333,14 +377,22 @@ Settled with the owner on 7 Nov 2026:
 3. **History (Phase 3): local only first.** Clearing browser data or losing the phone loses it until 5.5 syncs it. Accepted.
 4. **Scope now: Phases 1 and 2.** Phases 3 to 5 are agreed in direction and get their own plans when the earlier phases ship.
 
+Settled the same day after the Phase 2 reshape:
+
+5. **A result can always be skipped (2b).** Winner and score are two taps, with Skip and Cancel always available.
+6. **Play to 11, 15 or 21 (2b),** default 11, as a setting.
+7. **The first games of a session wait for Start too (2a).** Courts open as Ready.
+8. **Games never auto-start by default (2a),** with an Auto-start setting for anyone who wants today's behaviour.
+
 Still open: the sending address and domain for 5.1.
 
-## Suggested build order inside the first two phases
+## Build order
 
-1. 1.1 wake lock, 1.4 courts remembered (tiny, ship together).
-2. 1.2 toast, 1.3 visible Add player.
-3. 1.5 why waiting, 1.6 second-tab notice.
-4. Phase 2 engine (`swapPlayers`, `playNext`, `skipTurn`) with tests and fuzz.
-5. Phase 2 UI (pickers, Not here) and the toast wiring.
+Phase 1 is built and live. Next:
 
-Each step is one commit, merged to production after the owner's check.
+1. Phase 2a (Ready step), with its own plan: engine first with the fuzz test, then the court card and Start.
+2. Phase 2b (results): the sheet, the data, the summary.
+3. Phase 2c (control): swap, play next, skip.
+4. Then Phase 3, 4 and 5 in order, each with its own plan.
+
+Each part is one plan, built task by task with tests first, merged to production after the owner's check.
