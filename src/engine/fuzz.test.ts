@@ -3,14 +3,16 @@ import { addCourt, removeCourt } from './courts';
 import { EngineError } from './errors';
 import { finishGame } from './game';
 import { assertInvariants } from './invariants';
+import { playNext, skipTurn } from './pins';
 import { mulberry32 } from './rng';
 import { addPlayer } from './session';
 import { startAllReady, startCourt } from './start';
 import { setPlayerStatus } from './status';
+import { notHere, swapPlayers } from './swap';
 import { makeCtx, newTestSession } from './testing';
 import type { Mode, PlayerStatus, Session } from './types';
 
-const TOLERATED = new Set(['CANNOT_RETURN', 'LAST_COURT', 'NOT_PLAYING', 'NOT_READY']);
+const TOLERATED = new Set(['CANNOT_RETURN', 'LAST_COURT', 'NOT_PLAYING', 'NOT_READY', 'NOT_WAITING', 'INVALID_SWAP', 'NO_REPLACEMENT']);
 const TARGETS: PlayerStatus[] = ['active', 'break', 'left'];
 const STEPS = 250;
 
@@ -37,7 +39,7 @@ describe.each<[Mode, boolean | undefined]>([
 
       for (let step = 1; step <= STEPS; step++) {
         const ctx = { ...base, now: step * 60_000 };
-        const kind = Math.floor(rng() * 6);
+        const kind = Math.floor(rng() * 10);
         try {
           switch (kind) {
             case 0: {
@@ -59,11 +61,23 @@ describe.each<[Mode, boolean | undefined]>([
             case 4:
               s = removeCourt(s, pick(s.courts, rng).id, ctx);
               break;
-            default: {
+            case 5: {
               const ready = s.courts.filter((c) => c.status === 'ready');
               if (ready.length === 0) continue;
               s = rng() < 0.5 ? startCourt(s, pick(ready, rng).id, ctx) : startAllReady(s, ctx);
+              break;
             }
+            case 6:
+              s = playNext(s, pick(s.players, rng).id);
+              break;
+            case 7:
+              s = skipTurn(s, pick(s.players, rng).id);
+              break;
+            case 8:
+              s = swapPlayers(s, pick(s.players, rng).id, pick(s.players, rng).id);
+              break;
+            default:
+              s = notHere(s, pick(s.players, rng).id, ctx);
           }
         } catch (e) {
           if (e instanceof EngineError && TOLERATED.has(e.code)) continue;
