@@ -1179,36 +1179,74 @@ caption {
 }
 
 /* ---------- New session ---------- */
-.setup-top {
+.setup-head {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px 16px;
-  align-items: flex-end;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.setup-name {
-  flex: 1 1 160px;
-  min-width: 0;
+.setup-count {
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 .setup-note {
   margin: 0;
 }
 
-.add-row {
+.quick {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  align-items: flex-start;
 }
 
-.add-row .field {
-  flex: 1;
-  min-width: 0;
-  resize: none;
+.edit-players {
+  align-self: flex-start;
 }
 
-.controls.quick {
-  margin-top: 0;
+.start-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.start-btn {
+  flex: 1 1 150px;
+  width: auto;
+  padding-inline: 12px;
+  white-space: nowrap;
+}
+
+.stepper-sm {
+  gap: 2px;
+}
+
+.stepper-sm .btn {
+  min-width: 42px;
+  padding: 0;
+}
+
+.stepper-sm output {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 44px;
+  font-size: 14px;
+  line-height: 1.1;
+}
+
+.stepper-value {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.stepper-caption {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .pick-grid {
@@ -1257,7 +1295,17 @@ caption {
   content: '✓ ';
 }
 
-.pick:has(input:focus-visible) {
+.pick-add {
+  border-style: dashed;
+  width: 100%;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  text-align: left;
+}
+
+.pick:has(input:focus-visible),
+.pick-add:focus-visible {
   outline: 3px solid var(--ink);
   outline-offset: 2px;
 }

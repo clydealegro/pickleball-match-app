@@ -29,8 +29,8 @@ beforeEach(async () => {
 });
 
 async function addPlayers(user: User, text: string) {
-  await user.type(screen.getByLabelText('Add players'), text);
-  await user.click(screen.getByRole('button', { name: 'Add' }));
+  await user.type(screen.getByLabelText('Search or add players'), text);
+  await user.keyboard('{Enter}');
 }
 
 /** Takes a photo in the open photo dialog and confirms it. */
@@ -50,7 +50,7 @@ describe('photos in the app', () => {
     render(<App />);
     await addPlayers(user, 'Ann{enter}Ben');
     expect(screen.queryByRole('button', { name: /photo for/i })).not.toBeInTheDocument(); // not on the New session page
-    await user.click(await screen.findByRole('button', { name: 'Manage saved players' }));
+    await user.click(await screen.findByRole('button', { name: 'Edit players' }));
     await user.click(await screen.findByRole('button', { name: 'Add photo for Ann' }));
     expect(await screen.findByRole('dialog', { name: 'Photo for Ann' })).toBeInTheDocument();
 
@@ -69,7 +69,7 @@ describe('photos in the app', () => {
     const ann = await useRosterStore.getState().add('Ann');
     await useRosterStore.getState().setPhoto(ann.id, processed);
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: 'Manage saved players' }));
+    await user.click(await screen.findByRole('button', { name: 'Edit players' }));
     await waitFor(() => expect(rowFor('Saved players', 'Ann').querySelector('img')).not.toBeNull());
 
     await user.click(screen.getByRole('button', { name: 'Change photo for Ann' }));
@@ -83,7 +83,7 @@ describe('photos in the app', () => {
     const user = userEvent.setup();
     render(<App />);
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}Eve');
-    await user.click(await screen.findByRole('button', { name: 'Start session (5 players)' }));
+    await user.click(await screen.findByRole('button', { name: 'Start 5 players' }));
 
     const waiting = within(screen.getByRole('list', { name: 'Waiting' })).getAllByRole('listitem')[0];
     const name = within(waiting).getByText(/^(Ann|Ben|Cy|Dee|Eve)$/).textContent!;
@@ -100,7 +100,7 @@ describe('photos in the app', () => {
     const user = userEvent.setup();
     render(<App />);
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
-    await user.click(await screen.findByRole('button', { name: 'Start session (4 players)' }));
+    await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
 
     await user.click(screen.getByRole('button', { name: '+ Add player' }));
     await user.type(await screen.findByLabelText('New player name'), 'Fay');
@@ -115,7 +115,7 @@ describe('photos in the app', () => {
     const user = userEvent.setup();
     render(<App />);
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
-    await user.click(await screen.findByRole('button', { name: 'Start session (4 players)' }));
+    await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
 
     await user.click(screen.getByRole('button', { name: '+ Add player' }));
     await user.type(await screen.findByLabelText('New player name'), 'Fay');
@@ -131,7 +131,7 @@ describe('photos in the app', () => {
     const user = userEvent.setup();
     render(<App />);
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}Eve');
-    await user.click(await screen.findByRole('button', { name: 'Start session (5 players)' }));
+    await user.click(await screen.findByRole('button', { name: 'Start 5 players' }));
     const waiting = within(screen.getByRole('list', { name: 'Waiting' })).getAllByRole('listitem')[0];
     const name = within(waiting).getByText(/^(Ann|Ben|Cy|Dee|Eve)$/).textContent!;
     const saved = useRosterStore.getState().players.find((p) => p.name === name)!;
@@ -148,7 +148,7 @@ describe('photos in the app', () => {
     const user = userEvent.setup();
     render(<App />);
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}Eve');
-    await user.click(await screen.findByRole('button', { name: 'Start session (5 players)' }));
+    await user.click(await screen.findByRole('button', { name: 'Start 5 players' }));
 
     const court = screen.getByRole('tabpanel', { name: 'Court 1' });
     const name = within(court).getAllByText(/^(Ann|Ben|Cy|Dee|Eve)$/)[0].textContent!;
@@ -168,7 +168,7 @@ describe('photos in the app', () => {
     await waitFor(() => expect(useRosterStore.getState().players).toHaveLength(4)); // the adds are async
     const ann = useRosterStore.getState().players.find((p) => p.name === 'Ann')!;
     await act(() => useRosterStore.getState().setPhoto(ann.id, { type: 'image/jpeg', data: new Uint8Array([9]).buffer }));
-    await user.click(await screen.findByRole('button', { name: 'Start session (4 players)' }));
+    await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
 
     await user.click(screen.getByRole('button', { name: '+ Add player' }));
     await user.type(await screen.findByLabelText('New player name'), 'ann');
@@ -185,7 +185,7 @@ describe('photos in the app', () => {
     const user = userEvent.setup();
     render(<App />);
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
-    await user.click(await screen.findByRole('button', { name: 'Start session (4 players)' }));
+    await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
 
     await user.click(screen.getByRole('button', { name: '+ Add player' }));
     await user.type(await screen.findByLabelText('New player name'), 'Fay');

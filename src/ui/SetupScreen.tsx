@@ -7,25 +7,30 @@ import { PlayerAvatar } from './PlayerAvatar';
 
 const MIN_PLAYERS = 4;
 const MAX_COURTS = 12;
-const MAX_ADD_ROWS = 5;
 
 interface Props {
   onManage: () => void;
+}
+
+const norm = (name: string) => name.trim().toLowerCase();
+
+/** "Saturday open play": enough to tell sessions apart without asking for a name. */
+function defaultSessionName(now = new Date()): string {
+  return `${now.toLocaleDateString('en', { weekday: 'long' })} open play`;
 }
 
 export function SetupScreen({ onManage }: Props) {
   const roster = useRosterStore((s) => s.players);
   const addToRoster = useRosterStore((s) => s.add);
   const start = useSessionStore((s) => s.start);
-
-  const [name, setName] = useState('');
-  const [courtCount, setCourtCount] = useState(2);
   const [mode] = useDefaultMode();
+
+  const [courtCount, setCourtCount] = useState(2);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [draft, setDraft] = useState('');
+  const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
-  // Adds run one after another, so typing on while names are being saved cannot create doubles.
+  // Adds run one after another, so typing on while a name is being saved cannot create doubles.
   const adding = useRef<Promise<void>>(Promise.resolve());
 
   // A start error belongs to the selection it was raised for.
@@ -36,7 +41,10 @@ export function SetupScreen({ onManage }: Props) {
   const lastIds = lastSessionIds(roster);
   const chosen = roster.filter((p) => selected.has(p.id));
   const canStart = chosen.length >= MIN_PLAYERS;
-  const addRows = Math.min(MAX_ADD_ROWS, Math.max(1, draft.split('\n').length));
+  const typed = query.trim();
+  const exact = roster.find((p) => norm(p.name) === norm(typed));
+  const shown = typed ? roster.filter((p) => norm(p.name).includes(norm(typed))) : roster;
+  const canAdd = typed !== '' && !exact;
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -47,14 +55,10 @@ export function SetupScreen({ onManage }: Props) {
     });
   }
 
-  function addPlayers() {
-    const lines = draft
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean);
+  /** Saves each name and picks it. Names that already exist are just picked. */
+  function addNames(names: string[]) {
+    const lines = names.map((l) => l.trim()).filter(Boolean);
     if (lines.length === 0) return;
-    // Clear the box at once so whatever is typed next starts a fresh entry.
-    setDraft('');
     adding.current = adding.current.then(async () => {
       const ids: string[] = [];
       let failure: string | null = null;
@@ -70,9 +74,17 @@ export function SetupScreen({ onManage }: Props) {
     });
   }
 
+  function submitQuery() {
+    if (!typed) return;
+    // Enter picks the player the typing points at, or adds a new one.
+    if (exact) setSelected((prev) => new Set(prev).add(exact.id));
+    else addNames([typed]);
+    setQuery('');
+  }
+
   function startSession() {
     const res = start({
-      name,
+      name: defaultSessionName(),
       mode: getDefaultMode(),
       courtCount,
       players: chosen.map((p) => ({ name: p.name, rosterId: p.id })),
@@ -81,147 +93,132 @@ export function SetupScreen({ onManage }: Props) {
   }
 
   return (
-    <div className="stack">
-      <h1 className="screen-title">New session</h1>
+    <div className="stack setup">
+      <div className="setup-head">
+        <h1 className="screen-title">Who’s playing?</h1>
+        <span className="setup-count" aria-live="polite">
+          {chosen.length} selected
+        </span>
+      </div>
 
-      <section className="card stack">
-        <div className="setup-top">
-          <div className="setup-name">
-            <label className="label" htmlFor="session-name">
-              Session name
-            </label>
-            <input
-              id="session-name"
-              className="field"
-              value={name}
-              placeholder="Open play"
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-          <div>
-            <span className="label" id="courts-label">
-              Courts
-            </span>
-            <div className="stepper" role="group" aria-labelledby="courts-label">
-              <button
-                type="button"
-                className="btn"
-                aria-label="Fewer courts"
-                disabled={courtCount <= 1}
-                onClick={() => setCourtCount((c) => c - 1)}
-              >
-                −
-              </button>
-              <output aria-live="polite">{courtCount}</output>
-              <button
-                type="button"
-                className="btn"
-                aria-label="More courts"
-                disabled={courtCount >= MAX_COURTS}
-                onClick={() => setCourtCount((c) => c + 1)}
-              >
-                +
-              </button>
-            </div>
-          </div>
-        </div>
-        {mode === 'queue' && <p className="muted setup-note">Simple queue matchmaking. Change it in Settings.</p>}
-      </section>
-
-      <section className="card stack">
-        <div className="row-flex spread">
-          <h2 className="section-title">Players ({chosen.length} selected)</h2>
-          <button type="button" className="btn btn-ghost btn-small" onClick={onManage}>
-            Manage saved players
-          </button>
-        </div>
-
-        <form
-          className="add-row"
-          onSubmit={(e) => {
+      <input
+        className="field"
+        type="text"
+        aria-label="Search or add players"
+        placeholder={roster.length > 0 ? 'Search or add a name' : 'Add a name, then press Enter'}
+        autoComplete="off"
+        enterKeyHint="done"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
             e.preventDefault();
-            addPlayers();
-          }}
-        >
-          <textarea
-            className="field"
-            aria-label="Add players"
-            rows={addRows}
-            placeholder="Add a name, then Enter"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              // Enter adds the name; paste a list to add several at once.
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                addPlayers();
-              }
-            }}
-          />
-          <button type="submit" className="btn">
-            Add
+            submitQuery();
+          }
+        }}
+        onPaste={(e) => {
+          // A pasted list becomes one player per line.
+          const text = e.clipboardData.getData('text');
+          if (!text.includes('\n')) return;
+          e.preventDefault();
+          addNames(text.split('\n'));
+          setQuery('');
+        }}
+      />
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+      {roster.length === 0 && <p className="muted setup-note">Add the people who play regularly. They are saved for next time.</p>}
+      {mode === 'queue' && <p className="muted setup-note">Simple queue matchmaking. Change it in Settings.</p>}
+
+      {roster.length > 0 && (
+        <div className="quick">
+          {lastIds.length > 0 && (
+            <button type="button" className="btn btn-small" onClick={() => setSelected(new Set(lastIds))}>
+              Same as last time ({lastIds.length})
+            </button>
+          )}
+          <button type="button" className="btn btn-ghost btn-small" onClick={() => setSelected(new Set(roster.map((p) => p.id)))}>
+            Select all
           </button>
-        </form>
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
+          {selected.size > 0 && (
+            <button type="button" className="btn btn-ghost btn-small" onClick={() => setSelected(new Set())}>
+              Clear
+            </button>
+          )}
+        </div>
+      )}
 
-        {roster.length > 0 && (
-          <>
-            <div className="controls quick">
-              <button
-                type="button"
-                className="btn btn-small"
-                disabled={lastIds.length === 0}
-                onClick={() => setSelected(new Set(lastIds))}
-              >
-                Same as last session
+      {(shown.length > 0 || canAdd) && (
+        <ul className="pick-grid" aria-label="Saved players">
+          {canAdd && (
+            <li>
+              <button type="button" className="pick pick-add" onClick={submitQuery}>
+                + Add “{typed}”
               </button>
-              <button
-                type="button"
-                className="btn btn-small"
-                onClick={() => setSelected(new Set(roster.map((p) => p.id)))}
-              >
-                Select all
-              </button>
-              {selected.size > 0 && (
-                <button type="button" className="btn btn-ghost btn-small" onClick={() => setSelected(new Set())}>
-                  Clear
-                </button>
-              )}
-            </div>
-            <ul className="pick-grid" aria-label="Saved players">
-              {roster.map((p) => (
-                <li key={p.id}>
-                  <label className="pick">
-                    <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} />
-                    <PlayerAvatar name={p.name} rosterId={p.id} size="sm" />
-                    <span className="row-name">{p.name}</span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </section>
+            </li>
+          )}
+          {shown.map((p) => (
+            <li key={p.id}>
+              <label className="pick">
+                <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} />
+                <PlayerAvatar name={p.name} rosterId={p.id} size="sm" />
+                <span className="row-name">{p.name}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+      {typed !== '' && shown.length === 0 && !canAdd && <p className="muted">No one matches.</p>}
 
-      <div className="sticky-bar">
-        <button
-          type="button"
-          className="btn btn-primary btn-block"
-          disabled={!canStart}
-          onClick={startSession}
-        >
-          {canStart ? `Start session (${chosen.length} players)` : 'Start session'}
+      {roster.length > 0 && (
+        <button type="button" className="btn btn-ghost btn-small edit-players" onClick={onManage}>
+          Edit players
         </button>
+      )}
+
+      <div className="sticky-bar start-bar">
+        <div className="start-row">
+          <div className="stepper stepper-sm" role="group" aria-label="Courts">
+            <button
+              type="button"
+              className="btn"
+              aria-label="Fewer courts"
+              disabled={courtCount <= 1}
+              onClick={() => setCourtCount((c) => c - 1)}
+            >
+              −
+            </button>
+            <output aria-live="polite" aria-label="Courts">
+              <span className="stepper-value">{courtCount}</span>
+              <span className="stepper-caption">{courtCount === 1 ? 'court' : 'courts'}</span>
+            </output>
+            <button
+              type="button"
+              className="btn"
+              aria-label="More courts"
+              disabled={courtCount >= MAX_COURTS}
+              onClick={() => setCourtCount((c) => c + 1)}
+            >
+              +
+            </button>
+          </div>
+          <button
+            type="button"
+            className={`btn btn-block start-btn${canStart ? ' btn-live' : ''}`}
+            disabled={!canStart}
+            onClick={startSession}
+          >
+            {canStart ? `Start ${chosen.length} players` : `Pick at least ${MIN_PLAYERS}`}
+          </button>
+        </div>
         {startError && (
           <p className="error" role="alert">
             {startError}
           </p>
         )}
-        {!canStart && <p className="muted">Select at least {MIN_PLAYERS} players to start.</p>}
       </div>
     </div>
   );

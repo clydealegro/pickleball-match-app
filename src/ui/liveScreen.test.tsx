@@ -25,10 +25,10 @@ afterEach(() => {
 
 async function startSession(user: User, names: string) {
   render(<App />);
-  await user.type(screen.getByLabelText('Add players'), names);
-  await user.click(screen.getByRole('button', { name: 'Add' }));
+  await user.type(screen.getByLabelText('Search or add players'), names);
+  await user.keyboard('{Enter}');
   const count = names.split('{enter}').length;
-  await user.click(await screen.findByRole('button', { name: `Start session (${count} players)` }));
+  await user.click(await screen.findByRole('button', { name: `Start ${count} players` }));
 }
 const tabs = () => screen.getAllByRole('tab');
 const FIVE = 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}Eve';

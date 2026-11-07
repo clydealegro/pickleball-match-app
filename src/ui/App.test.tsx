@@ -26,14 +26,14 @@ afterEach(() => {
 });
 
 async function addPlayers(user: User, text: string) {
-  await user.type(screen.getByLabelText('Add players'), text);
-  await user.click(screen.getByRole('button', { name: 'Add' }));
+  await user.type(screen.getByLabelText('Search or add players'), text);
+  await user.keyboard('{Enter}');
 }
 
 async function startFivePlayerSession(user: User) {
   render(<App />);
   await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}Eve');
-  await user.click(await screen.findByRole('button', { name: 'Start session (5 players)' }));
+  await user.click(await screen.findByRole('button', { name: 'Start 5 players' }));
 }
 
 async function menuItem(user: User, name: RegExp) {
@@ -56,10 +56,10 @@ describe('App', () => {
   it('disables Start until four players are selected', async () => {
     const user = userEvent.setup();
     render(<App />);
-    expect(screen.getByRole('button', { name: 'Start session' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Pick at least 4' })).toBeDisabled();
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy');
-    await screen.findByText('Players (3 selected)');
-    expect(screen.getByRole('button', { name: 'Start session' })).toBeDisabled();
+    await screen.findByText('3 selected');
+    expect(screen.getByRole('button', { name: 'Pick at least 4' })).toBeDisabled();
   });
 
   it('runs a session: start, finish a game, the waiting player gets on court', async () => {
@@ -174,7 +174,7 @@ describe('App', () => {
     for (const name of ['Ann', 'Ben', 'Cy', 'Dee']) {
       await user.click(await screen.findByRole('checkbox', { name }));
     }
-    await user.click(screen.getByRole('button', { name: 'Start session (4 players)' }));
+    await user.click(screen.getByRole('button', { name: 'Start 4 players' }));
 
     await user.click(screen.getByRole('button', { name: '+ Add player' }));
     const offered = await screen.findByRole('list', { name: 'Saved players not in this session' });
@@ -199,18 +199,20 @@ describe('App', () => {
     await waitFor(() => expect(useRosterStore.getState().players.filter((p) => p.lastPlayedAt !== undefined)).toHaveLength(5));
 
     await user.click(screen.getByRole('button', { name: 'Start new session' }));
-    await user.click(await screen.findByRole('button', { name: 'Same as last session' }));
-    expect(await screen.findByRole('button', { name: 'Start session (5 players)' })).toBeEnabled();
+    await user.click(await screen.findByRole('button', { name: /^Same as last time/ }));
+    expect(await screen.findByRole('button', { name: 'Start 5 players' })).toBeEnabled();
   });
 
   it('keeps the half-filled setup form when visiting Saved players and coming back', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.type(screen.getByLabelText('Session name'), 'Friday night');
-    await user.click(screen.getByRole('button', { name: 'Manage saved players' }));
+    await user.type(screen.getByLabelText('Search or add players'), 'Ann{enter}Ben{enter}Cy{enter}Fri');
+    await screen.findByText('3 selected');
+    await user.click(screen.getByRole('button', { name: 'Edit players' }));
     expect(await screen.findByRole('heading', { name: 'Saved players' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Back' }));
-    expect(screen.getByLabelText('Session name')).toHaveValue('Friday night');
+    expect(screen.getByLabelText('Search or add players')).toHaveValue('Fri');
+    expect(screen.getByText('3 selected')).toBeInTheDocument();
   });
 
   it('offers a new version only when ready, and reloads only after a click', async () => {
@@ -258,18 +260,18 @@ describe('App', () => {
     const user = userEvent.setup();
     render(<App />);
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
-    await screen.findByText('Players (4 selected)');
+    await screen.findByText('4 selected');
 
     await user.click(screen.getByRole('button', { name: 'Clear' }));
-    expect(screen.getByText('Players (0 selected)')).toBeInTheDocument();
+    expect(screen.getByText('0 selected')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Select all' }));
-    expect(screen.getByText('Players (4 selected)')).toBeInTheDocument();
+    expect(screen.getByText('4 selected')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^Settings/ }));
     await user.click(screen.getByRole('radio', { name: /simple queue/i }));
     await user.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByText(/Simple queue matchmaking/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Start session (4 players)' }));
+    await user.click(screen.getByRole('button', { name: 'Start 4 players' }));
     expect(useSessionStore.getState().session?.mode).toBe('queue');
   });
 
@@ -277,7 +279,7 @@ describe('App', () => {
     const user = userEvent.setup();
     render(<App />);
     await addPlayers(user, 'Ann{enter}ann');
-    await screen.findByText('Players (1 selected)');
+    await screen.findByText('1 selected');
     const list = screen.getByRole('list', { name: 'Saved players' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(1);
   });
@@ -286,8 +288,8 @@ describe('App', () => {
     async function openSavedPlayers(user: User) {
       render(<App />);
       await addPlayers(user, 'Ann{enter}Ben');
-      await screen.findByText('Players (2 selected)');
-      await user.click(screen.getByRole('button', { name: 'Manage saved players' }));
+      await screen.findByText('2 selected');
+      await user.click(screen.getByRole('button', { name: 'Edit players' }));
       await screen.findByRole('heading', { name: 'Saved players' });
     }
 

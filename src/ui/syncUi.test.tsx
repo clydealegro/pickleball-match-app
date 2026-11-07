@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetRosterDbForTests } from '../store/rosterDb';
 import type { SyncState } from '../sync/syncStore';
 
 const backend = vi.hoisted(() => ({ client: null as unknown }));
@@ -36,11 +37,16 @@ async function startApp(options: { client: ReturnType<typeof fakeClient> | null 
   return { user: userEvent.setup(), auth: useAuthStore, sync: useSyncStore, roster: useRosterStore };
 }
 
-const openSaved = (user: ReturnType<typeof userEvent.setup>) => user.click(screen.getByRole('button', { name: /manage saved players/i }));
+const openSaved = async (user: ReturnType<typeof userEvent.setup>) => {
+  // The Edit players link shows once there is someone saved.
+  await user.type(screen.getByLabelText('Search or add players'), 'Ann{enter}');
+  await user.click(await screen.findByRole('button', { name: /edit players/i }));
+};
 const openSettings = (user: ReturnType<typeof userEvent.setup>) => user.click(screen.getByRole('button', { name: 'Settings' }));
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
+  await resetRosterDbForTests();
   actions.deleteAllMyData.mockReset();
   actions.clearThisDevice.mockReset();
 });
