@@ -23,6 +23,12 @@ export default function App() {
   const loadRoster = useRosterStore((s) => s.load);
   const initAuth = useAuthStore((s) => s.init);
   const [view, setView] = useState<'setup' | 'saved' | 'settings'>('setup');
+  // Saved players can be opened from Setup or from Settings; Back returns to whichever it came from.
+  const [savedFrom, setSavedFrom] = useState<'setup' | 'settings'>('setup');
+  const openSaved = (from: 'setup' | 'settings') => {
+    setSavedFrom(from);
+    setView('saved');
+  };
 
   useEffect(() => {
     // A failing roster load is already reflected by the store's `persistent` flag.
@@ -43,22 +49,24 @@ export default function App() {
       <>
         <div hidden={view !== 'setup'}>
           <SignInBanner onSignIn={() => setView('settings')} />
-          <SetupScreen onManage={() => setView('saved')} />
+          <SetupScreen onManage={() => openSaved('setup')} />
         </div>
-        {view === 'saved' && <SavedPlayersScreen onBack={() => setView('setup')} />}
-        {view === 'settings' && <SettingsScreen onBack={() => setView('setup')} />}
+        {view === 'saved' && <SavedPlayersScreen onBack={() => setView(savedFrom)} />}
+        {view === 'settings' && <SettingsScreen onBack={() => setView('setup')} onManage={() => openSaved('settings')} />}
       </>
     );
+  } else if (view === 'settings') {
+    screen = <SettingsScreen onBack={() => setView('setup')} onManage={() => openSaved('settings')} />;
+  } else if (view === 'saved') {
+    screen = <SavedPlayersScreen onBack={() => setView(savedFrom)} />;
   } else if (session.endedAt) {
     screen = <SummaryScreen session={session} />;
-  } else if (view === 'settings') {
-    screen = <SettingsScreen onBack={() => setView('setup')} />;
   } else {
     screen = <LiveScreen session={session} onSettings={() => setView('settings')} />;
   }
 
   // The live screen has its own slim top bar, so the app's title bar is left out to give the court the room.
-  const live = !!session && !session.endedAt && view !== 'settings';
+  const live = !!session && !session.endedAt && view === 'setup';
 
   return (
     <div className="app">

@@ -8,9 +8,10 @@ import { useTheme } from './useTheme';
 
 interface Props {
   onBack: () => void;
+  onManage: () => void;
 }
 
-export function SettingsScreen({ onBack }: Props) {
+export function SettingsScreen({ onBack, onManage }: Props) {
   const { status, email, error, busy, sendLink, changeEmail, signOut } = useAuthStore();
   const [emailInput, setEmailInput] = useState('');
   const syncStatus = useSyncStore((s) => s.status);
@@ -74,6 +75,16 @@ export function SettingsScreen({ onBack }: Props) {
           </label>
         </div>
         <p className="muted">Applies to new sessions. Fairness gives the players with the fewest games the next court. Simple queue goes in the order people arrive.</p>
+      </section>
+
+      <section className="card stack" aria-labelledby="players-title">
+        <h2 id="players-title" className="section-title">
+          Players
+        </h2>
+        <button type="button" className="btn" onClick={onManage}>
+          Manage players
+        </button>
+        <p className="muted">Rename or remove saved players, and add their photos.</p>
       </section>
 
       <section className="card stack" aria-labelledby="account-title">
