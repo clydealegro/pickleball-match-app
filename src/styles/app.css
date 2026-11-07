@@ -634,23 +634,25 @@ legend {
 }
 
 /* Court tabs */
+/* The tabs share the width equally, so they never scroll sideways. With more courts than fit in a row they wrap onto a
+   second row. The bottom gap leaves room for the arrow under the selected tab. */
 .court-tabs {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 2px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: 14px 8px;
+  padding-bottom: 8px;
 }
 
 .court-tab {
-  flex: 1 0 auto;
-  min-width: 112px;
+  position: relative;
+  min-width: 0;
   min-height: 52px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 6px 14px;
+  padding: 6px 4px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface);
@@ -660,7 +662,9 @@ legend {
 }
 
 .court-tab-name {
+  font-size: 15px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .court-tab .timer,
@@ -681,6 +685,20 @@ legend {
   background: var(--ink);
   color: var(--bg);
   border-color: var(--ink);
+}
+
+/* An arrow joins the selected tab to the court below it, so it is clear which court is on show. */
+.court-tab.is-selected::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 9px solid var(--ink);
 }
 
 .court-tab.is-selected .timer,
