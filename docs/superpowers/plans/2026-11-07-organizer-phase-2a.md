@@ -1660,7 +1660,7 @@ Expected: FAIL (the test files exist, but what they check does not yet).
   text-transform: uppercase;
 }
 
-.court-tab.is-ready .court-tab-state {
+.court-tab.is-ready:not(.is-selected) .court-tab-state {
   color: var(--ink);
   font-weight: 800;
 }
