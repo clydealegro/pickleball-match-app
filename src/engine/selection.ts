@@ -2,6 +2,13 @@ import type { Player, Team } from './types';
 
 type Pair = [Player, Player];
 
+/** What an unrated player counts as. With nobody rated, every split has the same gap, so nothing changes. */
+export const DEFAULT_RATING = 5;
+/** Cost of each point of difference between the two teams' rating totals. A repeat partner costs 10. */
+export const RATING_GAP_WEIGHT = 4;
+
+const ratingOf = (p: Player) => p.rating ?? DEFAULT_RATING;
+
 function splitCost(t1: Pair, t2: Pair): number {
   const partnerRepeats =
     (t1[0].partnerCounts[t1[1].id] ?? 0) + (t2[0].partnerCounts[t2[1].id] ?? 0);
@@ -9,13 +16,14 @@ function splitCost(t1: Pair, t2: Pair): number {
   for (const a of t1) {
     for (const b of t2) opponentRepeats += a.opponentCounts[b.id] ?? 0;
   }
-  return partnerRepeats * 10 + opponentRepeats;
+  const gap = Math.abs(ratingOf(t1[0]) + ratingOf(t1[1]) - ratingOf(t2[0]) - ratingOf(t2[1]));
+  return partnerRepeats * 10 + opponentRepeats + gap * RATING_GAP_WEIGHT;
 }
 
 /**
  * Of the 3 ways to split 4 players into two teams, choose the one with the
- * fewest repeat partners (weight 10) and repeat opponents (weight 1).
- * Exact ties are broken with the injected rng.
+ * fewest repeat partners (weight 10) and repeat opponents (weight 1), plus the
+ * difference between the teams' rating totals (weight 4 a point). Exact ties are broken with the injected rng.
  */
 export function bestSplit(four: Player[], rng: () => number): [Team, Team] {
   if (four.length !== 4) throw new Error('bestSplit needs exactly 4 players');

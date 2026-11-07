@@ -10,6 +10,12 @@ function makeCourt(number: number, ctx: Ctx): Court {
   return { id: ctx.newId(), number, status: 'empty', closing: false };
 }
 
+/** The private rating for a saved player, as a spread-in field so players without one stay as they were. */
+function ratingFor(input: NewPlayerInput, ctx: Ctx): { rating?: number } {
+  const rating = input.rosterId ? ctx.ratingOf?.(input.rosterId) : undefined;
+  return rating === undefined ? {} : { rating };
+}
+
 /** MUTATES `s`. Validates, creates the player, and queues them at the back. */
 function insertPlayer(s: Session, input: NewPlayerInput, ctx: Ctx): void {
   const name = input.name.trim();
@@ -21,6 +27,7 @@ function insertPlayer(s: Session, input: NewPlayerInput, ctx: Ctx): void {
     id: ctx.newId(),
     name,
     rosterId: input.rosterId,
+    ...ratingFor(input, ctx),
     status: 'active',
     gamesPlayed: lateArrivalGames(s),
     lastFinishedSeq: s.gameSeq,

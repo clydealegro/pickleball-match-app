@@ -22,7 +22,7 @@ Replace manual paddle stacking at pickleball sessions. An organizer creates a se
 **Out of scope for v1 (possible later)**
 - Live sync of the session itself so players can follow along on their own phones (v1 uses Supabase only for the roster and photos; the live session stays local).
 - Score entry and leaderboards.
-- Skill ratings and skill-balanced teams.
+- Skill ratings that sync between devices, and skill-balanced teams in simple queue mode. (Amended 7 Nov 2026: the organizer can set private 1 to 10 ratings in Settings. They stay on the device, never sync, are never shown on a court, tile or summary, and only the team split in fairness mode reads them. Unrated players count as 5, so with no ratings the split is unchanged.)
 - Shared group accounts (several organizers sharing one roster), session history beyond the current device, and players logging in themselves.
 
 ## Architecture

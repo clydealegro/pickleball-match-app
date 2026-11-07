@@ -1639,3 +1639,33 @@ caption {
   font-size: 13px;
   text-align: right;
 }
+
+/* Skill ratings in Settings */
+.rating-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.rating-row {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 1.3fr) minmax(0, 1fr) 1.25rem auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+.rating-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rating-row input[type='range'] {
+  width: 100%;
+}
+.rating-unset {
+  opacity: 0.5;
+}
+.rating-value {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}

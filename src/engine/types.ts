@@ -8,6 +8,11 @@ export interface Player {
   name: string;
   /** Links to a saved roster entry; used only to look up the photo later. */
   rosterId?: string;
+  /**
+   * The organizer's private skill rating, 1 to 10, copied from this device when the player joins. Missing counts as
+   * 5. Only the team split reads it. It is never shown on a court, a tile or the summary.
+   */
+  rating?: number;
   status: PlayerStatus;
   /** Applies when the player's current game ends. */
   pendingStatus?: 'break' | 'left';
@@ -89,6 +94,8 @@ export interface Ctx {
   now: number;
   rng: () => number;
   newId: () => string;
+  /** Looks up the organizer's private rating for a saved player. Absent in tests and for organizers who set none. */
+  ratingOf?: (rosterId: string) => number | undefined;
 }
 
 export interface NewPlayerInput {

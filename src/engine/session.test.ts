@@ -113,3 +113,35 @@ describe('endSession', () => {
     expect(idOf(ended, 'A')).toBe(idOf(s, 'A'));
   });
 });
+
+describe('private ratings', () => {
+  it('copies a saved player\'s rating onto the session player and uses it for the first split', () => {
+    const ratings: Record<string, number> = { ra: 10, rb: 9, rc: 2, rd: 1 };
+    const ctx = { ...makeCtx(), ratingOf: (id: string) => ratings[id] };
+    const s = createSession(
+      {
+        name: 'T',
+        mode: 'fairness',
+        courtCount: 1,
+        players: ['a', 'b', 'c', 'd'].map((n) => ({ name: n, rosterId: `r${n}` })),
+      },
+      ctx,
+    );
+    expect(s.players.map((p) => p.rating)).toEqual([10, 9, 2, 1]);
+    const game = s.courts[0].game!;
+    const teamOf = (id: string) => (game.team1.includes(id) ? 1 : 2);
+    const byName = (n: string) => s.players.find((p) => p.name === n)!.id;
+    // 10 + 1 against 9 + 2 is the closest split.
+    expect(teamOf(byName('a'))).toBe(teamOf(byName('d')));
+    expect(teamOf(byName('b'))).toBe(teamOf(byName('c')));
+    expect(teamOf(byName('a'))).not.toBe(teamOf(byName('b')));
+  });
+
+  it('adds no rating field when the lookup has none', () => {
+    const s = createSession(
+      { name: 'T', mode: 'fairness', courtCount: 1, players: [{ name: 'a', rosterId: 'ra' }] },
+      makeCtx(),
+    );
+    expect('rating' in s.players[0]).toBe(false);
+  });
+});

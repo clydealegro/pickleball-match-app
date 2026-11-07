@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useAuthStore } from '../sync/auth';
 import { clearThisDevice, deleteAllMyData, type DataResult } from '../sync/dataActions';
 import { useSyncStore } from '../sync/syncStore';
+import { RatingsSection } from './RatingsSection';
 import { SyncStatusLine } from './SyncStatusLine';
 import { useDefaultMode } from './matchmaking';
 import { AUTO_START_KEY, KEEP_AWAKE_KEY, PLAY_TO_CHOICES, useBoolPref, usePlayTo, VIBRATE_KEY } from './prefs';
@@ -123,6 +124,8 @@ export function SettingsScreen({ onBack, onManage }: Props) {
         </button>
         <p className="muted">Rename or remove saved players, and add their photos.</p>
       </section>
+
+      <RatingsSection />
 
       <section className="card stack" aria-labelledby="account-title">
         <h2 id="account-title" className="section-title">
