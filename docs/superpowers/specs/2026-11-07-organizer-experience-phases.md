@@ -195,14 +195,15 @@ Three further engine functions, each pure, each returning a new session, each va
    - Swaps their places. The two keep their own `gamesPlayed`, `lastFinishedSeq` and counts.
    - Credit rule (documented, tested): a game credits `gamesPlayed`, partners and opponents to **whoever is on court when it finishes**. A substitute joining mid-game is credited. A player taken off is not. For a Ready lineup nothing has been credited yet, so a swap changes nothing about the record.
    - The player taken off returns to the waiting list. In fairness mode they sort by the usual rule (fewest games, then longest wait). In queue mode they go to the **front** of `queueOrder`.
-   - Not valid: two waiting players (their order is derived in fairness mode, see `playNext`), a player on break or who left, an Empty court.
+   - Not valid: two waiting players (their order is derived in fairness mode, see `playNext`), a player on break or who left, two players on the same team (a pointless swap), an Empty court.
+   - A player taken off a running game who had asked to go on a break or leave at the end of it has that applied at once, since they are no longer in the game.
 2. **`playNext(s, playerId)`**
    - Adds the player to a new optional `Session.pinned: PlayerId[]`. `orderedWaiting` puts pinned players first, in the order they were pinned.
    - Pins clear when the player is placed on a court, goes on break or leaves.
    - Works in both modes. If more than four are pinned, the first four play.
 3. **`skipTurn(s, playerId)`**
    - Moves the player to the back for this turn: sets `lastFinishedSeq = gameSeq` and moves them to the end of `queueOrder`. Removes any pin on them. Does not change `gamesPlayed`, so fairness still owes them a game.
-   - In fairness mode a skip only reorders players who have the same number of games, because fewest games always comes first. That is intended: the organizer can pass someone over for one turn, not cheat them out of games. In queue mode it moves them to the back.
+   - In fairness mode a skip only reorders players who have the same number of games (and goes last among an exact tie, by nudging the random tie key), because fewest games always comes first. That is intended: the organizer can pass someone over for one turn, not cheat them out of games. In queue mode it moves them to the back.
 
 **Queue bookkeeping.** `queueOrder` is kept in both modes and must always equal the set of available players (`assertInvariants` checks this). So every swap removes the incoming player from `queueOrder` and adds the outgoing one (at the front in queue mode, anywhere in fairness mode, where the order is derived). `cloneSession` is a JSON round trip, so new optional fields survive every action.
 
@@ -213,7 +214,7 @@ Three further engine functions, each pure, each returning a new session, each va
   - **Swap with…** opens a picker listing waiting players first, then players on other courts, with names, avatars and games played. One tap swaps and closes.
   - **Not here** swaps the player with the next waiting player and puts the absent player on break, as one action and one undo step. If nobody is waiting it explains: "No one is waiting to take their place."
 - **Player sheet, waiting player:** **Play next**, **Skip this turn**, **Swap onto a court…**, **Take a break**, **Leave session**. The "why am I waiting" line from 1.5 stays above them, and gains "You are playing next." for a pinned player.
-- A pinned player shows a small "Next" badge in the waiting list and on the peek.
+- A pinned player shows a small "Next" tag in the waiting list. The preview faces need no mark, because pinned players come first in them.
 - After any of these the toast confirms what changed with Undo. Danger styling stays on Leave only.
 
 **Edge cases, with my default.**
