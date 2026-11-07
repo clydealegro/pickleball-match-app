@@ -9,8 +9,10 @@ import {
   setRosterPhoto,
   setSyncMeta,
 } from '../store/rosterDb';
+import { clearHistory, listHistory, resetHistoryDbForTests, saveSessionToHistory } from '../store/historyDb';
 import { USER_A, USER_B } from './db/harness';
 import { clearThisDevice, deleteAllMyData, removeAllPhotoFiles, type DataActionDeps } from './dataActions';
+import { createSession } from '../engine';
 import { createFakeServer, type FakeServer } from './fakeServer';
 import { RemoteError } from './remote';
 
@@ -41,6 +43,7 @@ const filesOf = (user: string) => [...server.files.keys()].filter((p) => p.start
 
 beforeEach(async () => {
   await resetRosterDbForTests();
+  await resetHistoryDbForTests();
   await server.db.exec('truncate public.players');
   server.files.clear();
   server.calls.length = 0;
@@ -59,6 +62,26 @@ beforeEach(async () => {
   await setSyncMeta('syncUser', USER_A);
 });
 afterEach(() => vi.restoreAllMocks());
+
+const endedSession = () => {
+  const ctx = { now: 1000, rng: () => 0.5, newId: () => 'hs1' };
+  return { ...createSession({ name: 'Night', mode: 'fairness', courtCount: 1, players: [] }, ctx), endedAt: 2000 };
+};
+
+describe('past sessions and the data actions', () => {
+  it('delete all my data forgets past sessions too', async () => {
+    await saveSessionToHistory(endedSession());
+    await deleteAllMyData(deps());
+    expect(await listHistory()).toEqual([]);
+  });
+
+  it('clearing this device leaves past sessions alone', async () => {
+    await saveSessionToHistory(endedSession());
+    await clearThisDevice(deps());
+    expect(await listHistory()).toHaveLength(1);
+    await clearHistory();
+  });
+});
 
 describe('deleting all my data', () => {
   it('removes every photo file and player from the account, then clears this device, and touches nobody else', async () => {
