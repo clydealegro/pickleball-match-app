@@ -154,14 +154,13 @@ describe('fixing a no-show before the game starts', () => {
 });
 
 describe('the Waiting sheet', () => {
-  it('says the courts are ready when every court holds a lineup and four more are waiting', async () => {
+  it('says who is next in line when every court holds a lineup and four more are waiting', async () => {
     const user = userEvent.setup();
     await startSession(user, 12);
-    expect(screen.getByText('Courts are ready. Press Start.')).toBeInTheDocument();
+    expect(screen.getByText('Next in line')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Menu' }));
     await user.click(screen.getByRole('button', { name: 'Start all ready courts' }));
-    expect(screen.queryByText('Courts are ready. Press Start.')).not.toBeInTheDocument();
-    expect(screen.getByText(/^Next game, court \d$/)).toBeInTheDocument();
+    expect(screen.getByText('Next in line')).toBeInTheDocument();
   });
 });
 

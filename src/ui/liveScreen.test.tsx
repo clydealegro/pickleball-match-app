@@ -344,27 +344,11 @@ describe('the waiting sheet', () => {
     expect(screen.getByRole('heading', { name: 'Waiting (1)' })).toBeInTheDocument();
   });
 
-  it('keeps every action on the open list: the waiting rows and Add player', async () => {
+  it('keeps every action on the open list: the waiting rows, with Add player always at the top', async () => {
     const user = userEvent.setup();
     await startSession(user, FIVE);
     await user.click(screen.getByRole('button', { name: /^Waiting/ }));
     expect(within(screen.getByRole('list', { name: 'Waiting' })).getAllByRole('button')).toHaveLength(1);
-    expect(screen.getByRole('button', { name: '+ Add player' })).toBeInTheDocument();
-  });
-});
-
-describe('the waiting sheet chevron', () => {
-  it('is a drawn icon, not a text character, and flips when the sheet opens', async () => {
-    const user = userEvent.setup();
-    await startSession(user, FIVE);
-    const handle = screen.getByRole('button', { name: /^Waiting/ });
-    const chevron = handle.querySelector('svg.sheet-chevron');
-    expect(chevron).not.toBeNull();
-    expect(handle.textContent).not.toMatch(/[⌃⌄^v]/);
-    const sheet = handle.closest('.waiting-sheet')!;
-    expect(sheet).not.toHaveClass('is-open');
-    await user.click(handle);
-    expect(sheet).toHaveClass('is-open');
-    expect(handle.querySelector('svg.sheet-chevron')).toBe(chevron);
+    expect(screen.getByRole('button', { name: 'Add player' })).toBeInTheDocument();
   });
 });

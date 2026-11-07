@@ -730,7 +730,7 @@ legend {
   align-items: stretch;
   gap: 6px;
   padding: 8px 6px 10px;
-  border: 2px solid color-mix(in srgb, var(--ink) 28%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 32%, transparent);
   border-radius: 16px;
   background: var(--bg);
 }
@@ -851,23 +851,6 @@ legend {
   margin-left: -20px;
   border-radius: 2px;
   background: var(--line);
-}
-
-.sheet-chevron {
-  flex: none;
-  color: var(--muted);
-  transition: transform 0.15s ease;
-}
-
-/* The chevron points up while the sheet is closed (it opens upward) and down once it is open. */
-.waiting-sheet.is-open .sheet-chevron {
-  transform: rotate(180deg);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sheet-chevron {
-    transition: none;
-  }
 }
 
 .next-label {
@@ -1429,22 +1412,51 @@ caption {
   accent-color: var(--ink);
 }
 
-.waiting-sheet .sheet-head {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.sheet-top {
+  cursor: pointer;
 }
 
-.waiting-sheet .sheet-handle {
+.sheet-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sheet-bar .sheet-head,
+.sheet-bar .section-title {
   flex: 1;
   min-width: 0;
 }
 
+.sheet-bar .section-title {
+  margin: 0;
+}
+
 .sheet-add {
+  display: inline-flex;
   flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   margin-top: 8px;
 }
 
+.peek-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.peek-more {
+  align-self: center;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
 
 .why-waiting {
   margin: 0;
@@ -1462,9 +1474,12 @@ caption {
   text-transform: uppercase;
 }
 
+.court-tab.is-ready .court-tab-state {
+  font-weight: 800;
+}
+
 .court-tab.is-ready:not(.is-selected) .court-tab-state {
   color: var(--ink);
-  font-weight: 800;
 }
 
 /* ---------- One Undo ---------- */

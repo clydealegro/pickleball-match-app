@@ -3,6 +3,7 @@ import * as engine from '../engine';
 import type { Session } from '../engine';
 import { PlayerAvatar } from './PlayerAvatar';
 import { useIsWide } from './useIsWide';
+import { useSheetSwipe } from './useSheetSwipe';
 
 interface Props {
   session: Session;
@@ -27,22 +28,32 @@ export function WaitingSheet({ session, onSelect, onAdd }: Props) {
   const next = engine.previewNext(session);
   const byId = new Map(session.players.map((p) => [p.id, p]));
   const peek = next ? next.playerIds.flatMap((id) => (byId.get(id) ? [byId.get(id)!] : [])) : waiting.slice(0, 4);
-  // Every open court holding a lineup that has not started: the reason there is no court for the next four.
-  const openCourts = session.courts.filter((c) => !c.closing);
-  const allReady = openCourts.length > 0 && openCourts.every((c) => c.status === 'ready');
-  const nextLabel = next
-    ? `Next game, court ${next.courtNumber}`
-    : waiting.length >= 4
-      ? allReady
-        ? 'Courts are ready. Press Start.'
-        : 'No open court to play on'
-      : `Need ${4 - waiting.length} more waiting to fill the next game`;
+  const more = Math.max(0, waiting.length - peek.length);
+  const nextLabel = waiting.length >= 4 ? 'Next in line' : `Need ${4 - waiting.length} more waiting to fill the next game`;
+  // Swiping up on the top of the sheet opens it, swiping down closes it.
+  const swipe = useSheetSwipe((direction) => setOpen(direction === 'up'));
 
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key === 'Escape' && open) setOpen(false);
   }
 
   const title = <span id={titleId}>Waiting ({waiting.length})</span>;
+  const addButton = (
+    <button
+      type="button"
+      className="btn btn-small sheet-add"
+      onClick={(e) => {
+        // The top of the sheet toggles it; adding a player must not.
+        e.stopPropagation();
+        onAdd();
+      }}
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+        <path d="M12 5v14M5 12h14" />
+      </svg>
+      Add player
+    </button>
+  );
 
   return (
     <section
@@ -51,33 +62,37 @@ export function WaitingSheet({ session, onSelect, onAdd }: Props) {
       onKeyDown={onKeyDown}
     >
       {wide ? (
-        <h2 className="section-title">{title}</h2>
+        <div className="sheet-bar">
+          <h2 className="section-title">{title}</h2>
+          {addButton}
+        </div>
       ) : (
-        <h2 className="sheet-head">
-          <button type="button" className="sheet-handle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen(!open)}>
-            <span className="sheet-grip" aria-hidden="true" />
-            <span className="sheet-handle-title">{title}</span>
-            <svg className="sheet-chevron" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="m6 15 6-6 6 6" />
-            </svg>
-          </button>
-          <button type="button" className="btn btn-ghost icon-btn sheet-add" aria-label="Add player" onClick={onAdd}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </button>
-        </h2>
+        // The whole top of the sheet opens and closes it. The real button inside is what keyboards and screen readers
+        // use; a tap anywhere on the grip, the title, the label or the faces reaches it through this handler.
+        <div className="sheet-top" onClick={() => setOpen(!open)} {...swipe}>
+          <div className="sheet-bar">
+            <h2 className="sheet-head">
+              <button type="button" className="sheet-handle" aria-expanded={open} aria-controls={bodyId}>
+                <span className="sheet-grip" aria-hidden="true" />
+                <span className="sheet-handle-title">{title}</span>
+              </button>
+            </h2>
+            {addButton}
+          </div>
+          <p className="next-label">{nextLabel}</p>
+          <div className="peek-row">
+            <ul className="peek" aria-label="Next game players">
+              {peek.map((p) => (
+                <li key={p.id}>
+                  <PlayerAvatar name={p.name} rosterId={p.rosterId} size="md" />
+                  <span className="peek-name">{firstName(p.name)}</span>
+                </li>
+              ))}
+            </ul>
+            {more > 0 && <span className="peek-more">+{more} more</span>}
+          </div>
+        </div>
       )}
-
-      <p className="next-label">{nextLabel}</p>
-      <ul className="peek" aria-label="Next game players">
-        {peek.map((p) => (
-          <li key={p.id}>
-            <PlayerAvatar name={p.name} rosterId={p.rosterId} size="md" />
-            <span className="peek-name">{firstName(p.name)}</span>
-          </li>
-        ))}
-      </ul>
 
       <div id={bodyId} className="waiting-body">
         {waiting.length === 0 ? (
@@ -121,10 +136,6 @@ export function WaitingSheet({ session, onSelect, onAdd }: Props) {
             </ul>
           </>
         )}
-
-        <button type="button" className="dashed" onClick={onAdd}>
-          + Add player
-        </button>
       </div>
     </section>
   );

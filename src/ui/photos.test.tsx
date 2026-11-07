@@ -103,7 +103,7 @@ describe('photos in the app', () => {
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
 
-    await user.click(screen.getByRole('button', { name: '+ Add player' }));
+    await user.click(screen.getByRole('button', { name: 'Add player' }));
     await user.type(await screen.findByLabelText('New player name'), 'Fay');
     await user.click(screen.getByRole('button', { name: 'Add with photo' }));
     await takeAndUsePhoto(user);
@@ -118,7 +118,7 @@ describe('photos in the app', () => {
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
 
-    await user.click(screen.getByRole('button', { name: '+ Add player' }));
+    await user.click(screen.getByRole('button', { name: 'Add player' }));
     await user.type(await screen.findByLabelText('New player name'), 'Fay');
     await user.click(screen.getByRole('button', { name: 'Add with photo' }));
     await user.click(await screen.findByRole('button', { name: 'Add without a photo' }));
@@ -171,7 +171,7 @@ describe('photos in the app', () => {
     await act(() => useRosterStore.getState().setPhoto(ann.id, { type: 'image/jpeg', data: new Uint8Array([9]).buffer }));
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
 
-    await user.click(screen.getByRole('button', { name: '+ Add player' }));
+    await user.click(screen.getByRole('button', { name: 'Add player' }));
     await user.type(await screen.findByLabelText('New player name'), 'ann');
     await user.click(screen.getByRole('button', { name: 'Add with photo' }));
 
@@ -188,7 +188,7 @@ describe('photos in the app', () => {
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
 
-    await user.click(screen.getByRole('button', { name: '+ Add player' }));
+    await user.click(screen.getByRole('button', { name: 'Add player' }));
     await user.type(await screen.findByLabelText('New player name'), 'Fay');
     await user.click(screen.getByRole('button', { name: 'Add with photo' }));
     expect(await screen.findByText(/Fay is saved\./)).toBeInTheDocument();

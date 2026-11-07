@@ -130,7 +130,7 @@ describe('App', () => {
     const user = userEvent.setup();
     await startFivePlayerSession(user);
 
-    await user.click(screen.getByRole('button', { name: '+ Add player' }));
+    await user.click(screen.getByRole('button', { name: 'Add player' }));
     await user.type(screen.getByLabelText('New player name'), 'Fay');
     await user.click(screen.getByRole('button', { name: 'Add to session' }));
 
@@ -142,7 +142,7 @@ describe('App', () => {
     const user = userEvent.setup();
     await startFivePlayerSession(user);
 
-    await user.click(screen.getByRole('button', { name: '+ Add player' }));
+    await user.click(screen.getByRole('button', { name: 'Add player' }));
     await user.type(screen.getByLabelText('New player name'), 'ann');
     await user.click(screen.getByRole('button', { name: 'Add to session' }));
 
@@ -177,7 +177,7 @@ describe('App', () => {
     }
     await user.click(screen.getByRole('button', { name: 'Start 4 players' }));
 
-    await user.click(screen.getByRole('button', { name: '+ Add player' }));
+    await user.click(screen.getByRole('button', { name: 'Add player' }));
     const offered = await screen.findByRole('list', { name: 'Saved players not in this session' });
     expect(within(offered).getAllByRole('listitem')).toHaveLength(1);
     expect(within(offered).queryByText('Ann')).not.toBeInTheDocument();
@@ -363,7 +363,7 @@ describe('App', () => {
       const user = userEvent.setup();
       await startFivePlayerSession(user);
 
-      const trigger = screen.getByRole('button', { name: '+ Add player' });
+      const trigger = screen.getByRole('button', { name: 'Add player' });
       await user.click(trigger);
       const dialog = await screen.findByRole('dialog', { name: 'Add player' });
 
