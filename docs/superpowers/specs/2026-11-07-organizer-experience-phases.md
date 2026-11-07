@@ -172,7 +172,7 @@ Goal: games start when the organizer says so, results are recorded in two taps, 
 **Flow.** Pressing **Game finished** opens a short sheet instead of committing anything:
 1. **Who won?** Two large buttons, one per team, showing the names. One tap.
 2. **Score.** The winner's score starts at the play-to target (11, 15 or 21) with a minus and plus stepper (it can go above the target, for a win at 12 to 10). The loser's score is a row of number chips from 0 to the target minus one. One tap. No keyboard and no slider.
-3. **Skip result** is always there, on both steps, and finishes the game with no winner. **Cancel** closes the sheet and the court keeps playing, so an accidental tap changes nothing.
+3. **Skip result** on the first step finishes the game with no result. **Skip score** on the second step records the winner without a score, so a winner the organizer already tapped is not thrown away. **Cancel** closes the sheet and the court keeps playing, so an accidental tap changes nothing.
 - The app does not enforce win by two. It records what the organizer says, with one rule: the winner's score must be higher than the loser's.
 - Settings, **During a session**: **Play to** (11, 15, 21).
 
