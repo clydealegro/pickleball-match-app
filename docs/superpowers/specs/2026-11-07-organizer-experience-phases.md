@@ -235,25 +235,26 @@ Goal: the app knows its regulars and what happened. Local only in this phase.
 
 ### 3.1 Session history
 
-- New IndexedDB store `sessions` (database version 4, additive). On End session, save a compact record: id, name, start and end time, per-player games, games list (teams by roster id and name, court, length), and which players were present. Keep the last 100 sessions; older ones are dropped.
-- The upgrade must branch on `oldVersion` like the version 3 upgrade, and an old tab opening the new database must not look like "storage unavailable" (the follow-ups note already documents this trap).
-- **Past sessions** screen, reached from Settings and from the summary. A list (date, name, games, time). Tapping one opens the same summary screen, read-only, with Share.
-- The summary's **Start new session** warning ("you have not shared it yet") stops mattering once history exists: the session is saved. Keep the warning only if saving failed.
+- **A database of its own**, `pickleball-history` (version 1, one store `sessions`), not a bump of the roster database. Saved players, their photos and their sync stay exactly as they were: no upgrade to get wrong, no old tab blocking it, and "Clear this device" keeps meaning saved players only. If it cannot open (private mode), history lives in memory for that visit and the Past sessions screen says so.
+- **The whole finished session is stored**, plus its name, start, end and game count for the list. The summary screen reads a session, so a past session opens in the same screen and its numbers cannot drift from a second copy of the maths. It is capped at the last 100 sessions; older ones are dropped when a new one is saved. Entries that fail a shape check are left out of the list.
+- A session is saved when its summary opens, once, and saving again replaces the same entry. That covers a reload on the summary screen as well as the moment of ending.
+- **Past sessions** is reached from Settings. A list (name, short date, games, players). Tapping one opens the same summary, read-only: Share or Copy stays, Start new session goes, and a Back button returns to the list.
+- The summary's **Start new session** warning ("you have not shared it yet") only shows now when the session is not in history, that is, when saving failed.
+- **Delete all my data** also clears history. **Clear saved players on this device** does not.
 
 ### 3.2 Attendance on saved players
 
-- Derived from history, no new roster fields: sessions attended, total games, last played.
-- Saved players shows a muted second line under the name ("12 sessions, last Sat") and a sort control: A to Z, Recently played, Most sessions.
-- The second line only shows when there is history, and long text is cut off with an ellipsis so every row keeps the same height, as the icon-button rows do today.
+- Derived from history, no new roster fields: sessions attended (once per session however many games) and the date the latest one ended.
+- Saved players shows a muted second line under each name ("12 sessions, last Sat 8 Nov", or "No sessions yet"). The list stays A to Z so a player is easy to find to rename or remove. Ordering by attendance happens on New session instead (3.3).
 
 ### 3.3 Regulars first, suggested groups
 
-- New session: sort the chips **recently played first** by default (a Settings switch brings back A to Z).
-- Suggested shortcuts, computed from history with no stored groups: **Same as last time** (exists) and, when there is enough history, **Tuesday regulars (14)**: players who attended at least half of the last six sessions that started on that weekday. At most two suggestions show.
+- New session lists the people who come most often first, then the most recent, then A to Z. People with no history keep their usual order after them. A Settings switch, **Show regulars first**, on by default, brings back A to Z.
+- One weekday suggestion, computed from history with no stored groups: **Wednesday regulars (6)**, the saved players who came to at least two sessions that started on today's weekday. It only shows with at least four of them. **Same as last time** stays as it is.
 - Real named groups are Phase 5 (they must sync).
 
 ### Acceptance
-End a session and it appears in Past sessions with correct numbers (the same numbers as the summary). Attendance counts match history. Upgrading from database version 3 keeps every saved player and photo (reuse the Task 6 browser upgrade check from the 3B1 plan). The suggestions are deterministic and tested with fixed dates.
+End a session and it appears in Past sessions with the same numbers as the summary. Attendance counts match history. The roster database is untouched, so no upgrade check is needed. The suggestions are deterministic and tested with fixed dates. Checked at 360 px: Settings, Past sessions, the read-only summary.
 
 ### Open point
 History is local to the device in this phase, so clearing browser data loses it. Syncing it is in Phase 5.
