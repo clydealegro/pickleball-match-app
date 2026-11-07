@@ -8,6 +8,7 @@ vi.mock('idb', async (importOriginal) => ({
 import {
   ackOutbox,
   addRosterPlayer,
+  clearRosterData,
   getRosterEntry,
   getSyncMeta,
   listOutbox,
@@ -102,6 +103,15 @@ describe('roster db without IndexedDB', () => {
     expect(await listOutbox()).toEqual([]);
     await addRosterPlayer('Ben');
     expect((await listOutbox())[0].rev).toBe(2); // the failed change did not use up a revision
+  });
+
+  it('clears everything in memory too', async () => {
+    await addRosterPlayer('Ann');
+    await setSyncMeta('syncUser', 'u1');
+    await clearRosterData();
+    expect(await listRoster()).toEqual([]);
+    expect(await listOutbox()).toEqual([]);
+    expect(await getSyncMeta('syncUser')).toBeUndefined();
   });
 
   it('starts fresh after a reset', async () => {

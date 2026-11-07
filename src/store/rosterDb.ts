@@ -78,6 +78,8 @@ interface Backend {
   ackOutbox(playerId: string, rev: number): Promise<void>;
   getMeta(key: string): Promise<unknown>;
   setMeta(key: string, value: unknown): Promise<void>;
+  /** Removes every player, photo, mark and sync value, keeping only the revision counter. */
+  clear(): Promise<void>;
   close?(): void;
 }
 
@@ -86,6 +88,27 @@ let queue: Promise<unknown> = Promise.resolve();
 
 let backendPromise: Promise<Backend> | null = null;
 let persistent = true;
+let upgradeBlocked = false;
+const blockedListeners = new Set<() => void>();
+
+function setBlocked(value: boolean) {
+  if (upgradeBlocked === value) return;
+  upgradeBlocked = value;
+  blockedListeners.forEach((listener) => listener());
+}
+
+/** True while a database upgrade waits for another tab of this app to let go, so saved players cannot load yet. */
+export function isRosterBlocked(): boolean {
+  return upgradeBlocked;
+}
+
+/** Calls `listener` when `isRosterBlocked` changes. Returns a function that stops listening. */
+export function subscribeRosterBlocked(listener: () => void): () => void {
+  blockedListeners.add(listener);
+  return () => {
+    blockedListeners.delete(listener);
+  };
+}
 
 /** Rows saved before `photoSeq` existed (or by an older build) have none. Their photo count is a safe start. */
 function withSeq(player: RosterPlayer): RosterPlayer {
@@ -180,6 +203,15 @@ function idbBackend(database: IDBPDatabase<RosterSchema>): Backend {
     async setMeta(key, value) {
       if (database.objectStoreNames.contains('syncMeta')) await database.put('syncMeta', value, key);
     },
+    async clear() {
+      const names = STORES.filter((name) => database.objectStoreNames.contains(name));
+      const tx = database.transaction(names, 'readwrite');
+      // The revision counter stays, so a revision is still never reused.
+      const rev = names.includes('syncMeta') ? await tx.objectStore('syncMeta').get(REV_KEY) : undefined;
+      for (const name of names) await tx.objectStore(name).clear();
+      if (rev !== undefined) await tx.objectStore('syncMeta').put(rev, REV_KEY);
+      await tx.done;
+    },
     close: () => database.close(),
   };
 }
@@ -255,6 +287,12 @@ function memoryBackend(): Backend {
     setMeta: async (key, value) => {
       meta.set(key, value);
     },
+    clear: async () => {
+      map.clear();
+      photos.clear();
+      outbox.clear();
+      meta.clear();
+    },
   };
 }
 
@@ -292,6 +330,7 @@ async function openBackend(): Promise<Backend> {
     // An older tab still holds the database open. The upgrade waits until that tab steps aside.
     blocked() {
       console.warn('Saved players are waiting for another tab of this app to close its connection.');
+      setBlocked(true);
     },
   };
   try {
@@ -303,9 +342,11 @@ async function openBackend(): Promise<Backend> {
       // Open it as it is; the newer schema only adds to the old one.
       database = await openDB<RosterSchema>(DB_NAME, undefined, callbacks);
     }
+    setBlocked(false);
     return idbBackend(database);
   } catch {
     // Private mode or blocked storage: keep working for this visit, without saving.
+    setBlocked(false);
     persistent = false;
     return memoryBackend();
   }
@@ -327,6 +368,7 @@ export async function resetRosterDbForTests(): Promise<void> {
   if (backendPromise) (await backendPromise).close?.();
   backendPromise = null;
   persistent = true;
+  upgradeBlocked = false;
   queue = Promise.resolve();
   await deleteDB(DB_NAME);
 }
@@ -593,4 +635,12 @@ export async function getSyncMeta(key: string): Promise<unknown> {
 
 export function setSyncMeta(key: string, value: unknown): Promise<void> {
   return serial(async () => (await db()).setMeta(key, value));
+}
+
+/**
+ * Removes every saved player, photo, mark and sync value from this device. Nothing is pushed, so an account the
+ * players were backed up to is untouched. Only the revision counter is kept.
+ */
+export function clearRosterData(): Promise<void> {
+  return serial(async () => (await db()).clear());
 }

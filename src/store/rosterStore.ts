@@ -3,8 +3,10 @@ import { requestPersistentStorage } from '../lib/persist';
 import {
   addRosterPlayer,
   deleteRosterPlayer,
+  isRosterBlocked,
   isRosterPersistent,
   listRoster,
+  subscribeRosterBlocked,
   markRosterPlayed,
   removeRosterPhoto,
   renameRosterPlayer,
@@ -18,6 +20,8 @@ interface RosterState {
   loaded: boolean;
   /** False when saved players only live in memory (IndexedDB unavailable). */
   persistent: boolean;
+  /** True while another tab of the app keeps saved players from loading (a database upgrade is waiting for it). */
+  blocked: boolean;
   load: () => Promise<void>;
   add: (name: string) => Promise<RosterPlayer>;
   rename: (id: string, name: string) => Promise<void>;
@@ -32,10 +36,12 @@ export const useRosterStore = create<RosterState>()((set) => {
     const players = await listRoster();
     set({ players, loaded: true, persistent: isRosterPersistent() });
   };
+  subscribeRosterBlocked(() => set({ blocked: isRosterBlocked() }));
   return {
     players: [],
     loaded: false,
     persistent: true,
+    blocked: false,
     load: refresh,
     async add(name) {
       const player = await addRosterPlayer(name);
