@@ -3,11 +3,13 @@ import { useRosterStore } from '../store/rosterStore';
 import { useAuthStore } from '../sync/auth';
 import { startSyncCoordinator } from '../sync/coordinator';
 import { useUpdateStore } from '../pwa';
+import { useHistoryStore } from '../store/historyStore';
 import { useSessionStore } from '../store/sessionStore';
 import { AccountButton } from './AccountButton';
 import { ErrorBoundary } from './ErrorBoundary';
 import { SignInBanner } from './SignInBanner';
 import { LiveScreen } from './LiveScreen';
+import { PastSessionsScreen } from './PastSessionsScreen';
 import { SavedPlayersScreen } from './SavedPlayersScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { SetupScreen } from './SetupScreen';
@@ -24,10 +26,11 @@ export default function App() {
   const rosterPersistent = useRosterStore((s) => s.persistent);
   const rosterBlocked = useRosterStore((s) => s.blocked);
   const loadRoster = useRosterStore((s) => s.load);
+  const loadHistory = useHistoryStore((s) => s.load);
   const initAuth = useAuthStore((s) => s.init);
   const [keepAwake] = useBoolPref(KEEP_AWAKE_KEY, true);
   const sessionConflict = useSessionConflict();
-  const [view, setView] = useState<'setup' | 'saved' | 'settings'>('setup');
+  const [view, setView] = useState<'setup' | 'saved' | 'settings' | 'history'>('setup');
   // Saved players can be opened from Setup or from Settings; Back returns to whichever it came from.
   const [savedFrom, setSavedFrom] = useState<'setup' | 'settings'>('setup');
   const openSaved = (from: 'setup' | 'settings') => {
@@ -39,6 +42,10 @@ export default function App() {
     // A failing roster load is already reflected by the store's `persistent` flag.
     loadRoster().catch(() => {});
   }, [loadRoster]);
+
+  useEffect(() => {
+    void loadHistory();
+  }, [loadHistory]);
 
   useEffect(() => {
     void initAuth();
@@ -60,11 +67,14 @@ export default function App() {
           <SetupScreen onManage={() => openSaved('setup')} />
         </div>
         {view === 'saved' && <SavedPlayersScreen onBack={() => setView(savedFrom)} />}
-        {view === 'settings' && <SettingsScreen onBack={() => setView('setup')} onManage={() => openSaved('settings')} />}
+        {view === 'settings' && <SettingsScreen onBack={() => setView('setup')} onManage={() => openSaved('settings')} onHistory={() => setView('history')} />}
+        {view === 'history' && <PastSessionsScreen onBack={() => setView('settings')} />}
       </>
     );
   } else if (view === 'settings') {
-    screen = <SettingsScreen onBack={() => setView('setup')} onManage={() => openSaved('settings')} />;
+    screen = <SettingsScreen onBack={() => setView('setup')} onManage={() => openSaved('settings')} onHistory={() => setView('history')} />;
+  } else if (view === 'history') {
+    screen = <PastSessionsScreen onBack={() => setView('settings')} />;
   } else if (view === 'saved') {
     screen = <SavedPlayersScreen onBack={() => setView(savedFrom)} />;
   } else if (session.endedAt) {
@@ -81,7 +91,7 @@ export default function App() {
       {!live && (
         <header className="app-header">
           <span className="app-title">PIKLMatch</span>
-          {view !== 'settings' && <AccountButton onClick={() => setView('settings')} />}
+          {view !== 'settings' && view !== 'history' && <AccountButton onClick={() => setView('settings')} />}
         </header>
       )}
       {updateReady && (

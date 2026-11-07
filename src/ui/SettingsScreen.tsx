@@ -5,15 +5,17 @@ import { useSyncStore } from '../sync/syncStore';
 import { RatingsSection } from './RatingsSection';
 import { SyncStatusLine } from './SyncStatusLine';
 import { useDefaultMode } from './matchmaking';
-import { AUTO_START_KEY, KEEP_AWAKE_KEY, PLAY_TO_CHOICES, useBoolPref, usePlayTo, VIBRATE_KEY } from './prefs';
+import { AUTO_START_KEY, KEEP_AWAKE_KEY, PLAY_TO_CHOICES, REGULARS_FIRST_KEY, useBoolPref, usePlayTo, VIBRATE_KEY } from './prefs';
 import { useTheme } from './useTheme';
 
 interface Props {
   onBack: () => void;
   onManage: () => void;
+  onHistory: () => void;
 }
 
-export function SettingsScreen({ onBack, onManage }: Props) {
+export function SettingsScreen({ onBack, onManage, onHistory }: Props) {
+  const [regularsFirst, setRegularsFirst] = useBoolPref(REGULARS_FIRST_KEY, true);
   const { status, email, error, busy, sendLink, changeEmail, signOut } = useAuthStore();
   const [emailInput, setEmailInput] = useState('');
   const syncStatus = useSyncStore((s) => s.status);
@@ -123,6 +125,15 @@ export function SettingsScreen({ onBack, onManage }: Props) {
           Manage players
         </button>
         <p className="muted">Rename or remove saved players, and add their photos.</p>
+        <button type="button" className="btn" onClick={onHistory}>
+          Past sessions
+        </button>
+        <p className="muted">Look back at sessions you have ended. They stay on this phone.</p>
+        <label className="switch-row">
+          <span>Show regulars first</span>
+          <input type="checkbox" role="switch" checked={regularsFirst} onChange={(e) => setRegularsFirst(e.target.checked)} />
+        </label>
+        <p className="muted">When you set up a session, the people who come most often are listed first.</p>
       </section>
 
       <RatingsSection />
