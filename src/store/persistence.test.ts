@@ -95,3 +95,44 @@ describe('persistence', () => {
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).undoStack.length).toBeLessThanOrEqual(5);
   });
 });
+
+describe('a session with a Ready court', () => {
+  function ready() {
+    const s = newTestSession(['A', 'B', 'C', 'D', 'E'], { courts: 1, autoStart: false });
+    expect(s.courts[0].status).toBe('ready');
+    return s;
+  }
+
+  it('survives a reload with its lineup, and keeps the setting', () => {
+    const s = ready();
+    expect(savePersisted({ session: s, undoStack: [] })).toBe(true);
+    const loaded = loadPersisted();
+    expect(loaded?.session).toEqual(s);
+    expect(loaded?.session?.autoStart).toBe(false);
+  });
+
+  it('is kept in the undo stack too', () => {
+    const s = ready();
+    savePersisted({ session: s, undoStack: [s] });
+    expect(loadPersisted()?.undoStack).toHaveLength(1);
+  });
+
+  it('is rejected when the Ready court has no valid lineup', () => {
+    const s = ready();
+    const broken = JSON.parse(JSON.stringify(s));
+    delete broken.courts[0].lineup;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, session: broken, undoStack: [] }));
+    expect(loadPersisted()).toBeNull();
+    broken.courts[0].lineup = { team1: ['a'], team2: ['b', 'c'] };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, session: broken, undoStack: [] }));
+    expect(loadPersisted()).toBeNull();
+  });
+
+  it('still rejects a court with an unknown status', () => {
+    const s = ready();
+    const broken = JSON.parse(JSON.stringify(s));
+    broken.courts[0].status = 'paused';
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, session: broken, undoStack: [] }));
+    expect(loadPersisted()).toBeNull();
+  });
+});

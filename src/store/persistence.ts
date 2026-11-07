@@ -17,14 +17,19 @@ function isGame(x: unknown): boolean {
   return isObject(x) && isTeam(x.team1) && isTeam(x.team2) && isNum(x.startedAt);
 }
 
+function isLineup(x: unknown): boolean {
+  return isObject(x) && isTeam(x.team1) && isTeam(x.team2);
+}
+
 function isCourt(x: unknown): boolean {
   return (
     isObject(x) &&
     typeof x.id === 'string' &&
     isNum(x.number) &&
-    (x.status === 'empty' || x.status === 'playing') &&
+    (x.status === 'empty' || x.status === 'ready' || x.status === 'playing') &&
     typeof x.closing === 'boolean' &&
-    (x.status !== 'playing' || isGame(x.game))
+    (x.status !== 'playing' || isGame(x.game)) &&
+    (x.status !== 'ready' || isLineup(x.lineup))
   );
 }
 
