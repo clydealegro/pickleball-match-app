@@ -213,7 +213,7 @@ describe('an upgrade that waits for another tab', () => {
   In `src/store/rosterDb.fallback.test.ts`, replace:
 
 ```ts
-  it('starts fresh after a reset'
+  it('starts fresh after a reset', async () => {
 ```
 
   with:
@@ -228,7 +228,7 @@ describe('an upgrade that waits for another tab', () => {
     expect(await getSyncMeta('syncUser')).toBeUndefined();
   });
 
-  it('starts fresh after a reset'
+  it('starts fresh after a reset', async () => {
 ```
 
 - [ ] **Step 5: Watch them fail**
@@ -1045,7 +1045,7 @@ npx vitest run src/sync/runner.test.ts src/sync/coordinator.test.ts
 
 ```ts
 /**
- * Keeps one sync runner going while an organizer is signed in, and none otherwise.
+ * Keeps one sync runner going while an organizer is signed in, and none otherwise. A saved session that could not be
 ```
 
   with:
@@ -1071,7 +1071,7 @@ export function syncNow(): void {
 }
 
 /**
- * Keeps one sync runner going while an organizer is signed in, and none otherwise.
+ * Keeps one sync runner going while an organizer is signed in, and none otherwise. A saved session that could not be
 ```
 
 - [ ] **Step 10: ...and not follow the sign-in store while paused**
@@ -2176,7 +2176,6 @@ import { SignInBanner } from './SignInBanner';
 
 ```ts
         <div hidden={view !== 'setup'}>
-          <SetupScreen
 ```
 
   with:
@@ -2184,7 +2183,6 @@ import { SignInBanner } from './SignInBanner';
 ```ts
         <div hidden={view !== 'setup'}>
           <SignInBanner onSignIn={() => setView('settings')} />
-          <SetupScreen
 ```
 
 - [ ] **Step 15: App: tell the organizer to close other tabs**
