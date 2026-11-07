@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import * as engine from '../engine';
 import type { Session } from '../engine';
 import { useRosterStore } from '../store/rosterStore';
@@ -7,8 +7,11 @@ import { AccountButton } from './AccountButton';
 import { AddPlayerSheet } from './AddPlayerSheet';
 import { CourtCard } from './CourtCard';
 import { CourtTabs } from './CourtTabs';
+import { finishMessage } from './finishMessage';
 import { LiveMenu } from './LiveMenu';
 import { PlayerSheet } from './PlayerSheet';
+import { getBoolPref, VIBRATE_KEY } from './prefs';
+import { Toast } from './Toast';
 import { useSwipe } from './useSwipe';
 import { WaitingSheet } from './WaitingSheet';
 
@@ -24,6 +27,8 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
   const [slide, setSlide] = useState<'from-right' | 'from-left' | null>(null);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
+  const dismissToast = useCallback(() => setToast(null), []);
 
   const playersById = useMemo(
     () => new Map(session.players.map((p) => [p.id, p])),
@@ -44,6 +49,26 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
     const res = apply(action);
     setError(res.ok ? null : res.error);
     return res.ok;
+  }
+
+  /** Finishes a game and says what the court is doing now, with a way back. */
+  function finishCourt(courtId: string, courtNumber: number) {
+    if (!run((s, ctx) => engine.finishGame(s, courtId, ctx))) return;
+    const after = useSessionStore.getState().session;
+    if (after) setToast({ id: Date.now(), text: finishMessage(after, courtNumber) });
+    // A short buzz where the device can, so a glance away from the screen still knows it registered.
+    if (getBoolPref(VIBRATE_KEY, true)) {
+      try {
+        navigator.vibrate?.(25);
+      } catch {
+        // Not allowed here: the toast is enough.
+      }
+    }
+  }
+
+  function undoLast() {
+    undo();
+    setToast(null);
   }
 
   function endSession() {
@@ -85,7 +110,7 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
           </span>
         </div>
         <div className="live-actions">
-          <button type="button" className="btn btn-ghost icon-btn" aria-label="Undo" disabled={undoCount === 0} onClick={undo}>
+          <button type="button" className="btn btn-ghost icon-btn" aria-label="Undo" disabled={undoCount === 0} onClick={undoLast}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M9 14 4 9l5-5" />
               <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
@@ -123,10 +148,11 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
                 <CourtCard
                   court={selected}
                   playersById={playersById}
-                  onFinish={() => run((s, ctx) => engine.finishGame(s, selected.id, ctx))}
+                  onFinish={() => finishCourt(selected.id, selected.number)}
                   onSelectPlayer={selectPlayer}
                 />
               </div>
+              {toast && <Toast id={toast.id} text={toast.text} onUndo={undoLast} onDismiss={dismissToast} />}
             </>
           )}
         </div>
