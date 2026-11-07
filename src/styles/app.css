@@ -1390,3 +1390,13 @@ caption {
   background: var(--ink);
   color: var(--bg);
 }
+
+.add-saved {
+  display: flex;
+  gap: 8px;
+}
+
+.add-saved .field {
+  flex: 1;
+  min-width: 0;
+}

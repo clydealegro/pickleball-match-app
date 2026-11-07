@@ -66,3 +66,45 @@ describe('Saved players rows', () => {
     expect(screen.queryByText(/@/)).not.toBeInTheDocument();
   });
 });
+
+describe('adding a player on Saved players', () => {
+  it('adds a new player from the field at the top, by button or by Enter', async () => {
+    const user = userEvent.setup();
+    await openSaved(user, 'Ann{enter}');
+    const box = screen.getByLabelText('New player name');
+    const add = screen.getByRole('button', { name: 'Add' });
+    expect(add).toBeDisabled();
+    await user.type(box, 'Zed');
+    expect(add).toBeEnabled();
+    await user.click(add);
+    expect(await screen.findByRole('button', { name: 'Rename Zed' })).toBeInTheDocument();
+    expect(box).toHaveValue('');
+    await user.type(box, 'Yan{enter}');
+    expect(await screen.findByRole('button', { name: 'Rename Yan' })).toBeInTheDocument();
+    expect(screen.getAllByRole('listitem').filter((li) => li.classList.contains('saved-row'))).toHaveLength(3);
+  });
+
+  it('works when nobody is saved yet, and ignores spaces only', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /^Settings/ }));
+    await user.click(screen.getByRole('button', { name: 'Manage players' }));
+    const box = await screen.findByLabelText('New player name');
+    await user.type(box, '   ');
+    expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
+    await user.clear(box);
+    await user.type(box, 'Ann{enter}');
+    expect(await screen.findByRole('button', { name: 'Rename Ann' })).toBeInTheDocument();
+    expect(screen.queryByText(/No saved players yet/)).not.toBeInTheDocument();
+  });
+
+  it('says so when the name is already saved, and keeps what was typed', async () => {
+    const user = userEvent.setup();
+    await openSaved(user, 'Ann{enter}');
+    const box = screen.getByLabelText('New player name');
+    await user.type(box, 'ann{enter}');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ann is already saved.');
+    expect(box).toHaveValue('ann');
+    expect(screen.getAllByRole('button', { name: /^Rename / })).toHaveLength(1);
+  });
+});

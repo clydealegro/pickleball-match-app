@@ -12,10 +12,12 @@ export function SavedPlayersScreen({ onBack }: Props) {
   const roster = useRosterStore((s) => s.players);
   const rename = useRosterStore((s) => s.rename);
   const remove = useRosterStore((s) => s.remove);
+  const add = useRosterStore((s) => s.add);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [newName, setNewName] = useState('');
   const [photoFor, setPhotoFor] = useState<{ id: string; name: string } | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -52,6 +54,23 @@ export function SavedPlayersScreen({ onBack }: Props) {
     }
   }
 
+  async function addPlayer() {
+    const name = newName.trim();
+    if (!name) return;
+    const existing = roster.find((p) => p.name.trim().toLowerCase() === name.toLowerCase());
+    if (existing) {
+      setError(`${existing.name} is already saved.`);
+      return;
+    }
+    try {
+      await add(name);
+      setNewName('');
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not add that player.');
+    }
+  }
+
   async function confirmRemove(id: string, name: string) {
     if (!window.confirm(`Remove ${name} from saved players?`)) return;
     try {
@@ -72,6 +91,28 @@ export function SavedPlayersScreen({ onBack }: Props) {
       </div>
 
       <SyncStatusLine />
+
+      <form
+        className="add-saved"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void addPlayer();
+        }}
+      >
+        <input
+          className="field"
+          type="text"
+          aria-label="New player name"
+          placeholder="Add a player"
+          autoComplete="off"
+          enterKeyHint="done"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+        />
+        <button type="submit" className="btn btn-primary" disabled={!newName.trim()}>
+          Add
+        </button>
+      </form>
 
       {error && (
         <p className="error" role="alert">
