@@ -1438,3 +1438,20 @@ caption {
   flex: none;
 }
 
+
+.waiting-sheet .sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.waiting-sheet .sheet-handle {
+  flex: 1;
+  min-width: 0;
+}
+
+.sheet-add {
+  flex: none;
+  margin-top: 8px;
+}
+

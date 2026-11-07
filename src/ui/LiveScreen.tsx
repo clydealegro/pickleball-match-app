@@ -118,6 +118,7 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
           </button>
           <LiveMenu
             items={[
+              { label: 'Add player', onSelect: openAdd },
               { label: 'Add court', onSelect: () => run((s, ctx) => engine.addCourt(s, ctx)) },
               ...(selected
                 ? [

@@ -56,6 +56,11 @@ export function WaitingSheet({ session, onSelect, onAdd }: Props) {
               {open ? '⌄' : '⌃'}
             </span>
           </button>
+          <button type="button" className="btn btn-ghost icon-btn sheet-add" aria-label="Add player" onClick={onAdd}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
         </h2>
       )}
 
