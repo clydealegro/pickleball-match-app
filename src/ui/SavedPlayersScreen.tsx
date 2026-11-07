@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import { useAuthStore } from '../sync/auth';
 import { useRosterStore } from '../store/rosterStore';
 import { PhotoSheet } from './PhotoSheet';
 import { PlayerAvatar } from './PlayerAvatar';
@@ -13,8 +12,6 @@ export function SavedPlayersScreen({ onBack }: Props) {
   const roster = useRosterStore((s) => s.players);
   const rename = useRosterStore((s) => s.rename);
   const remove = useRosterStore((s) => s.remove);
-  const authStatus = useAuthStore((s) => s.status);
-  const authEmail = useAuthStore((s) => s.email);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -74,11 +71,6 @@ export function SavedPlayersScreen({ onBack }: Props) {
         </button>
       </div>
 
-      {authStatus === 'signedIn' && (
-        <p className="muted" style={{ overflowWrap: 'anywhere' }}>
-          Signed in as {authEmail}
-        </p>
-      )}
       <SyncStatusLine />
 
       {error && (
@@ -92,10 +84,10 @@ export function SavedPlayersScreen({ onBack }: Props) {
       ) : (
         <ul ref={listRef} className="list card" aria-label="Saved players">
           {roster.map((p) => (
-            <li key={p.id} className="row-flex spread">
+            <li key={p.id} className="saved-row">
               {editingId === p.id ? (
                 <form
-                  className="row-flex"
+                  className="edit-form"
                   onSubmit={(e) => {
                     e.preventDefault();
                     void saveEdit(p.id);
@@ -120,7 +112,7 @@ export function SavedPlayersScreen({ onBack }: Props) {
                 </form>
               ) : (
                 <>
-                  <span className="row-flex">
+                  <span className="saved-who">
                     <button
                       type="button"
                       className="avatar-btn"
@@ -128,25 +120,43 @@ export function SavedPlayersScreen({ onBack }: Props) {
                       onClick={() => setPhotoFor({ id: p.id, name: p.name })}
                     >
                       <PlayerAvatar name={p.name} rosterId={p.id} size="md" />
+                      {p.photoVersion === 0 && (
+                        <span className="cam-badge" aria-hidden="true">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 8h4l2-3h6l2 3h4v12H3z" />
+                            <circle cx="12" cy="13" r="3.5" />
+                          </svg>
+                        </span>
+                      )}
                     </button>
                     <span className="row-name">{p.name}</span>
                   </span>
-                  <span className="row-flex">
+                  <span className="saved-actions">
                     <button
                       type="button"
-                      className="btn btn-small"
+                      className="icon-action"
                       aria-label={`Rename ${p.name}`}
+                      title="Rename"
                       onClick={() => startEdit(p.id, p.name)}
                     >
-                      Rename
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M4 20h4L19 9l-4-4L4 16z" />
+                        <path d="m13.5 6.5 4 4" />
+                      </svg>
                     </button>
                     <button
                       type="button"
-                      className="btn btn-small btn-danger"
+                      className="icon-action danger"
                       aria-label={`Remove ${p.name}`}
+                      title="Remove"
                       onClick={() => void confirmRemove(p.id, p.name)}
                     >
-                      Remove
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M4 7h16" />
+                        <path d="M9 7V4h6v3" />
+                        <path d="M6 7l1 13h10l1-13" />
+                        <path d="M10 11v6M14 11v6" />
+                      </svg>
                     </button>
                   </span>
                 </>

@@ -164,7 +164,8 @@ describe('sign-in state on Saved players', () => {
       fakeClient({ getSession: vi.fn().mockResolvedValue({ data: { session: session('ann@example.com') }, error: null }) }),
     );
     await openEditPlayers(user);
-    expect(await screen.findByText('Signed in as ann@example.com')).toBeInTheDocument();
+    expect(await screen.findByText(/^Sync(ed|ing…)$/)).toBeInTheDocument();
+    expect(screen.queryByText(/ann@example.com/)).not.toBeInTheDocument(); // the account lives in Settings
   });
 
   it('shows nothing about sign-in when the build has no backend', async () => {

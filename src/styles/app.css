@@ -1007,6 +1007,7 @@ caption {
 
 /* ---------- Photos ---------- */
 .avatar-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1308,4 +1309,84 @@ caption {
 .pick-add:focus-visible {
   outline: 3px solid var(--ink);
   outline-offset: 2px;
+}
+
+/* ---------- Saved players rows ---------- */
+.saved-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.saved-who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.saved-who .row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-actions {
+  display: flex;
+  flex: none;
+}
+
+.icon-action {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.icon-action:hover {
+  background: var(--bg);
+}
+
+.icon-action.danger {
+  color: var(--danger);
+}
+
+.icon-action:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.edit-form {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.edit-form .field {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.cam-badge {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--bg);
 }

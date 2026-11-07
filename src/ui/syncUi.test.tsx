@@ -65,7 +65,7 @@ describe('the sync line on Saved players', () => {
   it('follows where syncing stands', async () => {
     const { user, auth, sync } = await startApp({ client: fakeClient(true) });
     await openSaved(user);
-    await screen.findByText(/signed in as ann@example.com/i);
+    await vi.waitFor(() => expect(auth.getState().status).toBe('signedIn'));
     const lines: [Partial<SyncState>, string][] = [
       [{ status: 'synced', pending: 0 }, 'Synced'],
       [{ status: 'syncing', pending: 0 }, 'Syncing…'],
