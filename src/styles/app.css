@@ -1627,3 +1627,15 @@ caption {
   font-size: 14px;
   font-weight: 700;
 }
+
+/* ---------- Swap and play next ---------- */
+.control-hint {
+  margin: -4px 0 0;
+  font-size: 14px;
+}
+
+.swap-where {
+  flex: none;
+  font-size: 13px;
+  text-align: right;
+}

@@ -108,6 +108,7 @@ export function WaitingSheet({ session, onSelect, onAdd }: Props) {
                   </span>
                   <PlayerAvatar name={p.name} rosterId={p.rosterId} size="sm" />
                   <span className="row-name">{p.name}</span>
+                  {session.pinned?.includes(p.id) && <span className="tag">Next</span>}
                   <span className="badge">
                     {p.gamesPlayed}
                     <span className="sr-only"> games played</span>
