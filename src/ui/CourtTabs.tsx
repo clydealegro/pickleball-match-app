@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from 'react';
+import { useEffect, type KeyboardEvent } from 'react';
 import type { Court } from '../engine';
 import { Timer } from './Timer';
 
@@ -13,6 +13,11 @@ interface Props {
 
 /** One tab per court. Each shows its own game clock, so a game finishing on another court is not out of sight. */
 export function CourtTabs({ courts, selectedId, onSelect }: Props) {
+  // With many courts the strip scrolls; keep the court on show in view when it changes by swipe.
+  useEffect(() => {
+    document.getElementById(courtTabId(selectedId))?.scrollIntoView?.({ inline: 'nearest', block: 'nearest' });
+  }, [selectedId]);
+
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const index = courts.findIndex((c) => c.id === selectedId);
     let next = index;

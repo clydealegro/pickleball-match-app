@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetRosterDbForTests } from '../store/rosterDb';
@@ -103,14 +103,16 @@ describe('court tabs', () => {
 });
 
 describe('the menu', () => {
-  it('opens, offers Add court, Settings and End session, and closes on Escape with focus back on the button', async () => {
+  it('opens, offers Add court, Remove court, the theme and End session, and closes on Escape with focus back on the button', async () => {
     const user = userEvent.setup();
     await startSession(user, FIVE);
     const button = screen.getByRole('button', { name: 'Menu' });
     expect(button).toHaveAttribute('aria-expanded', 'false');
     await user.click(button);
     expect(button).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(expect.arrayContaining(['Add court', 'Settings', 'End session']));
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(
+      expect.arrayContaining(['Add court', 'Remove court 1', expect.stringMatching(/^Use (light|dark) theme$/), 'End session']),
+    );
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('button', { name: 'End session' })).not.toBeInTheDocument();
     expect(button).toHaveFocus();
@@ -167,13 +169,118 @@ describe('the menu', () => {
   it('opens Settings in the middle of a session, and Back returns to the live screen', async () => {
     const user = userEvent.setup();
     await startSession(user, FIVE);
-    await user.click(screen.getByRole('button', { name: 'Menu' }));
-    const menu = document.querySelector<HTMLElement>('.menu-pop')!;
-    await user.click(within(menu).getByRole('button', { name: 'Settings' }));
+    await user.click(screen.getByRole('button', { name: /^Settings/ }));
     expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByRole('tablist', { name: 'Courts' })).toBeInTheDocument();
+  });
+});
+
+describe('the top bar', () => {
+  it('is one slim row, with no separate title bar above it, and Undo as an icon button', async () => {
+    const user = userEvent.setup();
+    await startSession(user, FIVE);
+    expect(screen.queryByText('Pickleball Matchmaker')).not.toBeInTheDocument();
+    const bar = document.querySelector<HTMLElement>('.live-header')!;
+    expect(within(bar).getByRole('button', { name: /^Settings/ })).toBeInTheDocument();
+    expect(within(bar).getByRole('heading', { level: 1 })).toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: 'Undo' })).toBeDisabled();
+    expect(within(bar).getByRole('button', { name: 'Menu' })).toBeInTheDocument();
+  });
+
+  it('brings the title bar back outside a live session', async () => {
+    render(<App />);
+    expect(screen.getByText('Pickleball Matchmaker')).toBeInTheDocument();
+  });
+
+  it('flips the theme from the menu, which now holds the theme switch', async () => {
+    const user = userEvent.setup();
+    delete document.documentElement.dataset.theme;
+    await startSession(user, FIVE);
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    const first = screen.getByRole('button', { name: /^Use (light|dark) theme$/ });
+    const before: string = document.documentElement.dataset.theme ?? 'light';
+    await user.click(first);
+    expect(document.documentElement.dataset.theme).toBe(before === 'dark' ? 'light' : 'dark');
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    // The item now offers the way back.
+    expect(screen.getByRole('button', { name: before === 'dark' ? 'Use dark theme' : 'Use light theme' })).toBeInTheDocument();
+  });
+});
+
+describe('swiping between courts', () => {
+  /** A finger drag across the court on show, from (x1, y1) to (x2, y2). */
+  function swipe(x1: number, y1: number, x2: number, y2: number, target = () => screen.getByRole('tabpanel')) {
+    fireEvent.touchStart(target(), { touches: [{ clientX: x1, clientY: y1 }] });
+    fireEvent.touchEnd(target(), { changedTouches: [{ clientX: x2, clientY: y2 }] });
+  }
+  const selectedTab = () => screen.getByRole('tab', { selected: true }).textContent;
+
+  it('moves to the next court on a swipe left, and back on a swipe right, and stops at the ends', async () => {
+    const user = userEvent.setup();
+    await startSession(user, FIVE);
+    expect(selectedTab()).toMatch(/^Court 1/);
+    swipe(300, 400, 100, 410);
+    expect(selectedTab()).toMatch(/^Court 2/);
+    swipe(300, 400, 100, 400); // already on the last court
+    expect(selectedTab()).toMatch(/^Court 2/);
+    swipe(100, 400, 300, 390);
+    expect(selectedTab()).toMatch(/^Court 1/);
+    swipe(100, 400, 300, 400); // already on the first court
+    expect(selectedTab()).toMatch(/^Court 1/);
+  });
+
+  it('slides the new court in from the side it came from', async () => {
+    const user = userEvent.setup();
+    await startSession(user, FIVE);
+    swipe(300, 400, 100, 400);
+    expect(document.querySelector('.court-slot')).toHaveClass('slide-from-right');
+    swipe(100, 400, 300, 400);
+    expect(document.querySelector('.court-slot')).toHaveClass('slide-from-left');
+  });
+
+  it('ignores a short drag, a mostly vertical drag, a slow drag and a second finger', async () => {
+    const user = userEvent.setup();
+    await startSession(user, FIVE);
+    swipe(300, 400, 270, 400); // too short
+    swipe(300, 300, 150, 520); // mostly vertical: the page scrolling
+    expect(selectedTab()).toMatch(/^Court 1/);
+
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(1_000);
+    fireEvent.touchStart(screen.getByRole('tabpanel'), { touches: [{ clientX: 300, clientY: 400 }] });
+    now.mockReturnValue(2_000); // a second later is a slow drag
+    fireEvent.touchEnd(screen.getByRole('tabpanel'), { changedTouches: [{ clientX: 100, clientY: 400 }] });
+    expect(selectedTab()).toMatch(/^Court 1/);
+
+    now.mockRestore();
+    fireEvent.touchStart(screen.getByRole('tabpanel'), {
+      touches: [
+        { clientX: 300, clientY: 400 },
+        { clientX: 320, clientY: 400 },
+      ],
+    });
+    fireEvent.touchEnd(screen.getByRole('tabpanel'), { changedTouches: [{ clientX: 100, clientY: 400 }] });
+    expect(selectedTab()).toMatch(/^Court 1/);
+  });
+
+  it('forgets a drag that was cancelled', async () => {
+    const user = userEvent.setup();
+    await startSession(user, FIVE);
+    fireEvent.touchStart(screen.getByRole('tabpanel'), { touches: [{ clientX: 300, clientY: 400 }] });
+    fireEvent.touchCancel(screen.getByRole('tabpanel'));
+    fireEvent.touchEnd(screen.getByRole('tabpanel'), { changedTouches: [{ clientX: 100, clientY: 400 }] });
+    expect(selectedTab()).toMatch(/^Court 1/);
+  });
+
+  it('also slides when a tab is tapped, towards the court tapped', async () => {
+    const user = userEvent.setup();
+    await startSession(user, FIVE);
+    await user.click(tabs()[1]);
+    expect(document.querySelector('.court-slot')).toHaveClass('slide-from-right');
+    await user.click(tabs()[0]);
+    expect(document.querySelector('.court-slot')).toHaveClass('slide-from-left');
   });
 });
 

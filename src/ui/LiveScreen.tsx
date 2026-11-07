@@ -9,6 +9,8 @@ import { CourtCard } from './CourtCard';
 import { CourtTabs } from './CourtTabs';
 import { LiveMenu } from './LiveMenu';
 import { PlayerSheet } from './PlayerSheet';
+import { useSwipe } from './useSwipe';
+import { useTheme } from './useTheme';
 import { WaitingSheet } from './WaitingSheet';
 
 export function LiveScreen({ session, onSettings }: { session: Session; onSettings: () => void }) {
@@ -19,6 +21,9 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [courtId, setCourtId] = useState<string | null>(null);
+  /** Which way the court on show last moved, so the next one slides in from that side. */
+  const [slide, setSlide] = useState<'from-right' | 'from-left' | null>(null);
+  const [theme, toggleTheme] = useTheme();
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +60,22 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
   // A court that is gone (removed once its game ended) falls back to the first one.
   const selected = sorted.find((c) => c.id === courtId) ?? sorted[0];
 
+  /** Shows another court, sliding it in from the side it sits on. */
+  function showCourt(id: string) {
+    const from = sorted.findIndex((c) => c.id === selected?.id);
+    const to = sorted.findIndex((c) => c.id === id);
+    if (to === from || to < 0) return;
+    setSlide(to > from ? 'from-right' : 'from-left');
+    setCourtId(id);
+  }
+
+  // Swiping left brings the next court in from the right, swiping right the one before. It stops at the first and last.
+  const swipe = useSwipe((direction) => {
+    const index = sorted.findIndex((c) => c.id === selected?.id);
+    const target = sorted[index + (direction === 'left' ? 1 : -1)];
+    if (target) showCourt(target.id);
+  });
+
   return (
     <div className="live-screen">
       <div className="live-header">
@@ -66,8 +87,11 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
           </span>
         </div>
         <div className="live-actions">
-          <button type="button" className="btn btn-small" disabled={undoCount === 0} onClick={undo}>
-            Undo
+          <button type="button" className="btn btn-ghost icon-btn" aria-label="Undo" disabled={undoCount === 0} onClick={undo}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 14 4 9l5-5" />
+              <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+            </svg>
           </button>
           <LiveMenu
             items={[
@@ -80,7 +104,7 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
                     },
                   ]
                 : []),
-              { label: 'Settings', onSelect: onSettings },
+              { label: theme === 'dark' ? 'Use light theme' : 'Use dark theme', onSelect: toggleTheme },
               { label: 'End session', onSelect: endSession, danger: true },
             ]}
           />
@@ -97,14 +121,15 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
         <div className="stack">
           {selected && (
             <>
-              <CourtTabs courts={sorted} selectedId={selected.id} onSelect={setCourtId} />
-              <CourtCard
-                key={selected.id}
-                court={selected}
-                playersById={playersById}
-                onFinish={() => run((s, ctx) => engine.finishGame(s, selected.id, ctx))}
-                onSelectPlayer={selectPlayer}
-              />
+              <CourtTabs courts={sorted} selectedId={selected.id} onSelect={showCourt} />
+              <div key={selected.id} className={`court-slot${slide ? ` slide-${slide}` : ''}`} {...swipe}>
+                <CourtCard
+                  court={selected}
+                  playersById={playersById}
+                  onFinish={() => run((s, ctx) => engine.finishGame(s, selected.id, ctx))}
+                  onSelectPlayer={selectPlayer}
+                />
+              </div>
             </>
           )}
         </div>

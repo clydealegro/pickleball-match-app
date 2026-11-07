@@ -57,12 +57,17 @@ export default function App() {
     screen = <LiveScreen session={session} onSettings={() => setView('settings')} />;
   }
 
+  // The live screen has its own slim top bar, so the app's title bar is left out to give the court the room.
+  const live = !!session && !session.endedAt && view !== 'settings';
+
   return (
     <div className="app">
-      <header className="app-header">
-        <span className="app-title">Pickleball Matchmaker</span>
-        <ThemeToggle />
-      </header>
+      {!live && (
+        <header className="app-header">
+          <span className="app-title">Pickleball Matchmaker</span>
+          <ThemeToggle />
+        </header>
+      )}
       {updateReady && (
         <p className="notice" role="status">
           A new version is ready.{' '}
