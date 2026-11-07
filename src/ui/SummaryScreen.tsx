@@ -8,6 +8,16 @@ function countList(items: { name: string; count: number }[]): string {
   return items.map((p) => (p.count > 1 ? `${p.name} ×${p.count}` : p.name)).join(', ');
 }
 
+/** "Ann ×2 · 2W 0L": a partner, how often, and how the pair did when games had a result. */
+function partnerList(items: PlayerSummary['partners']): string {
+  return items
+    .map((p) => {
+      const base = p.count > 1 ? `${p.name} ×${p.count}` : p.name;
+      return p.wins + p.losses > 0 ? `${base} · ${p.wins}W ${p.losses}L` : base;
+    })
+    .join(', ');
+}
+
 function PlayerRow({ row, maxGames }: { row: PlayerSummary; maxGames: number }) {
   const width = maxGames > 0 ? Math.round((row.gamesPlayed / maxGames) * 100) : 0;
   return (
@@ -16,8 +26,15 @@ function PlayerRow({ row, maxGames }: { row: PlayerSummary; maxGames: number }) 
         <summary>
           <PlayerAvatar name={row.name} rosterId={row.rosterId} size="sm" />
           <span className="sum-name">
-            <span className="row-name">{row.name}</span>
-            {row.status === 'left' && <span className="tag">Left</span>}
+            <span className="sum-who">
+              <span className="row-name">{row.name}</span>
+              {row.status === 'left' && <span className="tag">Left</span>}
+            </span>
+            {row.wins + row.losses > 0 && (
+              <span className="sum-record">
+                {row.wins}W {row.losses}L
+              </span>
+            )}
           </span>
           <span className="sum-bar" aria-hidden="true">
             <span style={{ width: `${width}%` }} />
@@ -28,8 +45,16 @@ function PlayerRow({ row, maxGames }: { row: PlayerSummary; maxGames: number }) 
           </span>
         </summary>
         <dl className="sum-detail">
+          {row.wins + row.losses > 0 && (
+            <>
+              <dt>Record</dt>
+              <dd>
+                {row.wins} {row.wins === 1 ? 'win' : 'wins'}, {row.losses} {row.losses === 1 ? 'loss' : 'losses'}
+              </dd>
+            </>
+          )}
           <dt>Partners</dt>
-          <dd>{row.partners.length ? countList(row.partners) : '—'}</dd>
+          <dd>{row.partners.length ? partnerList(row.partners) : '—'}</dd>
           <dt>Played against</dt>
           <dd>{row.opponents.length ? countList(row.opponents) : '—'}</dd>
         </dl>
@@ -42,16 +67,19 @@ export function SummaryScreen({ session }: { session: Session }) {
   const reset = useSessionStore((s) => s.reset);
   const [message, setMessage] = useState('');
   const [shared, setShared] = useState(false);
+  // Win records can sting in a friendly group, so they only go into the shared text when switched on, each time.
+  const [withResults, setWithResults] = useState(false);
   const rows = engine.summarize(session);
   const stats = engine.sessionStats(session);
   const log = engine.gameLog(session);
   const fairness = engine.fairnessLine(stats);
+  const anyResults = engine.hasResults(session);
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
   async function share() {
     // Pass the device's UTC offset so the date in the text is the local date.
     const offsetMinutes = -new Date(session.createdAt).getTimezoneOffset();
-    const text = engine.formatSummaryText(session, offsetMinutes);
+    const text = engine.formatSummaryText(session, offsetMinutes, { results: withResults });
     if (canShare) {
       try {
         await navigator.share({ title: session.name, text });
@@ -121,10 +149,23 @@ export function SummaryScreen({ session }: { session: Session }) {
                 <span>
                   {g.team1.join(' & ')} <span className="muted">vs</span> {g.team2.join(' & ')}
                 </span>
+                {g.winner && (
+                  <span className="sum-log-result">
+                    {(g.winner === 1 ? g.team1 : g.team2).join(' & ')} won
+                    {g.score ? ` ${Math.max(...g.score)} to ${Math.min(...g.score)}` : ''}
+                  </span>
+                )}
               </li>
             ))}
           </ol>
         </details>
+      )}
+
+      {anyResults && (
+        <label className="switch-row">
+          <span>Include results in the shared text</span>
+          <input type="checkbox" role="switch" checked={withResults} onChange={(e) => setWithResults(e.target.checked)} />
+        </label>
       )}
 
       {message && (

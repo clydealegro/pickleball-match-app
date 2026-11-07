@@ -113,3 +113,75 @@ describe('session summary screen', () => {
     expect(reset).toHaveBeenCalledOnce();
   });
 });
+
+/** Two games with results and one without, on one court. */
+function withResults() {
+  const ctx = makeCtx(1, 1_000_000);
+  let s = newTestSession(['Ann', 'Ben', 'Cy', 'Dee'], { courts: 1 }, ctx);
+  const id = (name: string) => s.players.find((p) => p.name === name)!.id;
+  const play = (t1: [string, string], t2: [string, string], at: number, result?: Parameters<typeof finishGame>[3]) => {
+    s.courts[0].game = { team1: [id(t1[0]), id(t1[1])], team2: [id(t2[0]), id(t2[1])], startedAt: at };
+    s = finishGame(s, s.courts[0].id, { ...ctx, now: at + 600_000 }, result);
+  };
+  play(['Ann', 'Ben'], ['Cy', 'Dee'], 1_000_000, { winner: 1, score: [11, 7] });
+  play(['Ann', 'Cy'], ['Ben', 'Dee'], 2_000_000, { winner: 2 });
+  play(['Ann', 'Dee'], ['Ben', 'Cy'], 3_000_000);
+  return { ...s, endedAt: 4_000_000 };
+}
+
+describe('results on the summary', () => {
+  it('shows each player’s record under their name, only for players who have one', () => {
+    render(<SummaryScreen session={withResults()} />);
+    const rows = within(screen.getByRole('list', { name: 'Games per player' })).getAllByRole('listitem');
+    const ann = rows.find((r) => r.textContent!.startsWith('AN') || r.textContent!.includes('Ann'))!;
+    expect(ann.textContent).toContain('1W 1L');
+    expect(rows.find((r) => r.textContent!.includes('Dee'))!.textContent).toContain('1W 1L');
+  });
+
+  it('shows no record at all when no game had a result', () => {
+    render(<SummaryScreen session={finished(2)} />);
+    expect(document.querySelector('.sum-record')).toBeNull();
+  });
+
+  it('opens a player to their record and how they did with each partner', async () => {
+    const user = userEvent.setup();
+    render(<SummaryScreen session={withResults()} />);
+    const row = within(screen.getByRole('list', { name: 'Games per player' })).getAllByRole('listitem').find((r) => r.textContent!.includes('Ann'))!;
+    await user.click(row.querySelector('summary')!);
+    expect(within(row).getByText('Record')).toBeInTheDocument();
+    expect(within(row).getByText('1 win, 1 loss')).toBeInTheDocument();
+    // Ben and Cy partnered Ann in games with a result, Dee in the game without one.
+    expect(within(row).getByText('Partners').nextElementSibling!.textContent).toBe('Ben · 1W 0L, Cy · 0W 1L, Dee');
+  });
+
+  it('writes the result under each game in the game by game list', async () => {
+    const user = userEvent.setup();
+    render(<SummaryScreen session={withResults()} />);
+    await user.click(screen.getByText('Game by game (3)'));
+    const log = document.querySelector('.sum-log')!;
+    expect(log.textContent).toContain('Ann & Ben won 11 to 7');
+    expect(log.textContent).toContain('Ben & Dee won');
+    expect(within(log as HTMLElement).getAllByRole('listitem')).toHaveLength(3);
+    expect(log.querySelectorAll('.sum-log-result')).toHaveLength(2); // the third game had no result
+  });
+
+  it('offers to include results in the shared text only when there are some, off by default', () => {
+    const { unmount } = render(<SummaryScreen session={withResults()} />);
+    expect(screen.getByRole('switch', { name: 'Include results in the shared text' })).not.toBeChecked();
+    unmount();
+    render(<SummaryScreen session={finished(2)} />);
+    expect(screen.queryByRole('switch', { name: 'Include results in the shared text' })).not.toBeInTheDocument();
+  });
+
+  it('leaves results out of the shared text by default, and adds them when switched on', async () => {
+    const user = userEvent.setup();
+    const share = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', Object.assign(Object.create(navigator), { share }));
+    render(<SummaryScreen session={withResults()} />);
+    await user.click(screen.getByRole('button', { name: 'Share results' }));
+    expect(share.mock.calls[0][0].text).not.toMatch(/\dW \dL/);
+    await user.click(screen.getByRole('switch', { name: 'Include results in the shared text' }));
+    await user.click(screen.getByRole('button', { name: 'Share results' }));
+    expect(share.mock.calls[1][0].text).toMatch(/Ann: 3 · 1W 1L/);
+  });
+});
