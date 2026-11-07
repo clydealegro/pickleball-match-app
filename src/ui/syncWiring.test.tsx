@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const stop = vi.fn();
 const start = vi.fn(() => stop);
-vi.mock('../sync/coordinator', () => ({ startSyncCoordinator: () => start() }));
+vi.mock('../sync/coordinator', () => ({
+  startSyncCoordinator: () => start(),
+  pauseSync: async () => () => undefined,
+  syncNow: () => undefined,
+}));
 
 beforeEach(() => {
   start.mockClear();

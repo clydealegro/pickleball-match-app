@@ -5,6 +5,7 @@ import { startSyncCoordinator } from '../sync/coordinator';
 import { useUpdateStore } from '../pwa';
 import { useSessionStore } from '../store/sessionStore';
 import { ErrorBoundary } from './ErrorBoundary';
+import { SignInBanner } from './SignInBanner';
 import { LiveScreen } from './LiveScreen';
 import { SavedPlayersScreen } from './SavedPlayersScreen';
 import { SettingsScreen } from './SettingsScreen';
@@ -18,6 +19,7 @@ export default function App() {
   const updateReady = useUpdateStore((s) => s.ready);
   const applyUpdate = useUpdateStore((s) => s.apply);
   const rosterPersistent = useRosterStore((s) => s.persistent);
+  const rosterBlocked = useRosterStore((s) => s.blocked);
   const loadRoster = useRosterStore((s) => s.load);
   const initAuth = useAuthStore((s) => s.init);
   const [view, setView] = useState<'setup' | 'saved' | 'settings'>('setup');
@@ -40,6 +42,7 @@ export default function App() {
     screen = (
       <>
         <div hidden={view !== 'setup'}>
+          <SignInBanner onSignIn={() => setView('settings')} />
           <SetupScreen onManage={() => setView('saved')} onSettings={() => setView('settings')} />
         </div>
         {view === 'saved' && <SavedPlayersScreen onBack={() => setView('setup')} />}
@@ -69,6 +72,11 @@ export default function App() {
       {saveFailed && (
         <p className="notice" role="alert">
           Not saved — this browser is blocking storage. The session still works, but a refresh will lose it.
+        </p>
+      )}
+      {rosterBlocked && (
+        <p className="notice" role="status">
+          Close other tabs of this app to load your saved players.
         </p>
       )}
       {!rosterPersistent && (

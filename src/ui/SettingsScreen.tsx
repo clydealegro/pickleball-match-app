@@ -1,5 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useAuthStore } from '../sync/auth';
+import { clearThisDevice, deleteAllMyData, type DataResult } from '../sync/dataActions';
+import { useSyncStore } from '../sync/syncStore';
+import { SyncStatusLine } from './SyncStatusLine';
 
 interface Props {
   onBack: () => void;
@@ -8,6 +11,21 @@ interface Props {
 export function SettingsScreen({ onBack }: Props) {
   const { status, email, error, busy, sendLink, changeEmail, signOut } = useAuthStore();
   const [emailInput, setEmailInput] = useState('');
+  const syncStatus = useSyncStore((s) => s.status);
+  const [working, setWorking] = useState(false);
+  const [outcome, setOutcome] = useState<{ result: DataResult; done: string } | null>(null);
+
+  /** Asks first, then runs one of the data actions and says how it went. */
+  async function runDataAction(question: string, action: () => Promise<DataResult>, done: string) {
+    if (working || !window.confirm(question)) return;
+    setWorking(true);
+    setOutcome(null);
+    try {
+      setOutcome({ result: await action(), done });
+    } finally {
+      setWorking(false);
+    }
+  }
 
   function submitEmail(event: FormEvent) {
     event.preventDefault();
@@ -89,6 +107,13 @@ export function SettingsScreen({ onBack }: Props) {
             <p>
               Signed in as <strong style={{ overflowWrap: 'anywhere' }}>{email}</strong>.
             </p>
+            <SyncStatusLine />
+            {syncStatus === 'otherAccount' && (
+              <p className="error" role="alert">
+                This device holds saved players from a different account, so nothing is synced. Clear the saved players on this
+                device below to start syncing this account, or sign out.
+              </p>
+            )}
             <button type="button" className="btn" disabled={busy} onClick={() => void signOut()}>
               Sign out
             </button>
@@ -101,6 +126,66 @@ export function SettingsScreen({ onBack }: Props) {
           </p>
         )}
       </section>
+
+      {status !== 'loading' && (
+        <section className="card stack" aria-labelledby="data-title">
+          <h2 id="data-title" className="section-title">
+            Your data
+          </h2>
+          <button
+            type="button"
+            className="btn"
+            disabled={working}
+            onClick={() =>
+              void runDataAction(
+                'Clear the saved players and photos on this device? Anything backed up to an account stays there.',
+                clearThisDevice,
+                'Cleared. This device has no saved players now.',
+              )
+            }
+          >
+            Clear saved players on this device
+          </button>
+          <p className="muted">
+            Removes them from this device only.{' '}
+            {status === 'signedIn'
+              ? 'They come back from your account the next time this device syncs.'
+              : 'If you backed them up, they are still in your account.'}
+          </p>
+          {status === 'signedIn' && (
+            <>
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={working}
+                onClick={() =>
+                  void runDataAction(
+                    'Delete all your saved players and photos from your account and from this device? This cannot be undone.',
+                    deleteAllMyData,
+                    'Deleted. Your account and this device have no saved players now.',
+                  )
+                }
+              >
+                Delete all my data
+              </button>
+              <p className="muted">Deletes every saved player and photo from your account and from this device. This cannot be undone.</p>
+            </>
+          )}
+          {working && (
+            <p className="muted" role="status">
+              Working…
+            </p>
+          )}
+          {outcome &&
+            (outcome.result.ok ? (
+              <p role="status">{outcome.done}</p>
+            ) : (
+              <p className="error" role="alert">
+                {outcome.result.message}
+              </p>
+            ))}
+        </section>
+      )}
     </div>
   );
 }

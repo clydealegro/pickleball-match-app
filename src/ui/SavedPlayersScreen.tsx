@@ -3,6 +3,7 @@ import { useAuthStore } from '../sync/auth';
 import { useRosterStore } from '../store/rosterStore';
 import { PhotoSheet } from './PhotoSheet';
 import { PlayerAvatar } from './PlayerAvatar';
+import { SyncStatusLine } from './SyncStatusLine';
 
 interface Props {
   onBack: () => void;
@@ -78,7 +79,7 @@ export function SavedPlayersScreen({ onBack }: Props) {
           Signed in as {authEmail}
         </p>
       )}
-      {(authStatus === 'signedOut' || authStatus === 'linkSent') && <p className="muted">Signed out</p>}
+      <SyncStatusLine />
 
       {error && (
         <p className="error" role="alert">
