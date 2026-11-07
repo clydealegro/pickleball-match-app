@@ -1,4 +1,5 @@
 import { expect } from 'vitest';
+import { lineupIds } from './lineup';
 import { availablePlayers, onCourtIds } from './pool';
 import type { Session } from './types';
 
@@ -15,15 +16,27 @@ export function assertInvariants(s: Session): void {
   expect(new Set(gameIds).size).toBe(gameIds.length);
   expect(onCourtIds(s).size).toBe(gameIds.length);
 
-  // Every player appears at most once across the queue and the courts.
-  const everywhere = [...s.queueOrder, ...gameIds];
+  // A Ready court holds four players and no game; a playing court holds a game and no lineup.
+  const lineupPlayers = s.courts.flatMap((c) => lineupIds(c));
+  for (const c of s.courts) {
+    if (c.status === 'ready') {
+      expect(c.game).toBeUndefined();
+      expect(lineupIds(c)).toHaveLength(4);
+    } else {
+      expect(c.lineup).toBeUndefined();
+    }
+  }
+
+  // Every player appears at most once across the queue, the running games and the Ready lineups.
+  const everywhere = [...s.queueOrder, ...gameIds, ...lineupPlayers];
   expect(new Set(everywhere).size).toBe(everywhere.length);
 
-  // Players on break or who left are neither waiting nor playing.
+  // Players on break or who left are neither waiting, playing nor held in a lineup.
   for (const p of s.players) {
     if (p.status === 'break' || p.status === 'left') {
       expect(s.queueOrder).not.toContain(p.id);
       expect(gameIds).not.toContain(p.id);
+      expect(lineupPlayers).not.toContain(p.id);
     }
   }
 

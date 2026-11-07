@@ -26,13 +26,21 @@ export interface Game {
   startedAt: number;
 }
 
+/** Four players proposed for a court, waiting for the organizer to press Start. No clock runs yet. */
+export interface Lineup {
+  team1: Team;
+  team2: Team;
+}
+
 export interface Court {
   id: string;
   number: number;
-  status: 'empty' | 'playing';
+  /** `ready` holds a `lineup` that has not started; `playing` holds a `game`. */
+  status: 'empty' | 'ready' | 'playing';
   /** Remove this court when its current game ends. */
   closing: boolean;
   game?: Game;
+  lineup?: Lineup;
 }
 
 export interface FinishedGame {
@@ -56,6 +64,11 @@ export interface Session {
   gameSeq: number;
   createdAt: number;
   endedAt?: number;
+  /**
+   * False means every game waits for the organizer's Start. Missing or true means games start by themselves, which is
+   * how sessions saved before the Ready step behave.
+   */
+  autoStart?: boolean;
 }
 
 /** Everything non-deterministic is injected so tests can control it. */
@@ -75,4 +88,5 @@ export interface NewSessionInput {
   mode: Mode;
   courtCount: number;
   players: NewPlayerInput[];
+  autoStart?: boolean;
 }

@@ -1,4 +1,5 @@
 import { EngineError } from './errors';
+import { lineupIds } from './lineup';
 import type { Player, PlayerId, Session } from './types';
 
 export function playerById(s: Session, id: PlayerId): Player {
@@ -17,10 +18,18 @@ export function onCourtIds(s: Session): Set<PlayerId> {
   return ids;
 }
 
-/** Active players who are not currently on a court. */
+/** Players held back in a Ready lineup. They are not waiting and not yet playing. */
+export function reservedIds(s: Session): Set<PlayerId> {
+  const ids = new Set<PlayerId>();
+  for (const court of s.courts) for (const id of lineupIds(court)) ids.add(id);
+  return ids;
+}
+
+/** Active players who are neither in a running game nor held in a Ready lineup. */
 export function availablePlayers(s: Session): Player[] {
   const busy = onCourtIds(s);
-  return s.players.filter((p) => p.status === 'active' && !busy.has(p.id));
+  const reserved = reservedIds(s);
+  return s.players.filter((p) => p.status === 'active' && !busy.has(p.id) && !reserved.has(p.id));
 }
 
 /** Fewest games first, then waited longest, then the stable random tie key. */

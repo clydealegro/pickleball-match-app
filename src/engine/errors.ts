@@ -5,6 +5,7 @@ export type EngineErrorCode =
   | 'LAST_COURT'
   | 'NOT_FOUND'
   | 'NOT_PLAYING'
+  | 'NOT_READY'
   | 'CANNOT_RETURN';
 
 export class EngineError extends Error {

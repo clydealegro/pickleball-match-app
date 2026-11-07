@@ -8,7 +8,7 @@ export { makeCtx, mkPlayer, mkSession } from './fixtures';
 
 export function newTestSession(
   names: string[],
-  opts: { courts?: number; mode?: Mode } = {},
+  opts: { courts?: number; mode?: Mode; autoStart?: boolean } = {},
   ctx: Ctx = makeCtx(),
 ): Session {
   return createSession(
@@ -17,6 +17,7 @@ export function newTestSession(
       mode: opts.mode ?? 'fairness',
       courtCount: opts.courts ?? 1,
       players: names.map((name) => ({ name })),
+      autoStart: opts.autoStart,
     },
     ctx,
   );

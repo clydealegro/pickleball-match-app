@@ -46,6 +46,7 @@ export function createSession(input: NewSessionInput, ctx: Ctx): Session {
     history: [],
     gameSeq: 0,
     createdAt: ctx.now,
+    ...(input.autoStart === undefined ? {} : { autoStart: input.autoStart }),
   };
   // Players are inserted first and courts filled once, so a whole group starts together.
   for (const p of input.players) insertPlayer(s, p, ctx);
