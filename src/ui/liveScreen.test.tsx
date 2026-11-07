@@ -99,6 +99,7 @@ describe('court tabs', () => {
     expect(panel.querySelectorAll('.tile')).toHaveLength(4);
     expect(within(panel).getByText('vs')).toBeInTheDocument();
     await user.click(within(panel).getByRole('button', { name: /game finished/i }));
+    await user.click(await screen.findByRole('button', { name: 'Skip result' }));
     expect(screen.getByText('1 game played')).toBeInTheDocument();
   });
 });
@@ -328,6 +329,7 @@ describe('the waiting sheet', () => {
     await startSession(user, FIVE);
     const panel = screen.getByRole('tabpanel', { name: 'Court 1' });
     await user.click(within(panel).getByRole('button', { name: /game finished/i }));
+    await user.click(await screen.findByRole('button', { name: 'Skip result' }));
     expect(screen.getByRole('list', { name: 'Next game players' })).toBeInTheDocument();
   });
 

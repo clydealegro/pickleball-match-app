@@ -5,6 +5,11 @@ export const KEEP_AWAKE_KEY = 'pickleball.keepAwake';
 export const VIBRATE_KEY = 'pickleball.vibrate';
 export const COURTS_KEY = 'pickleball.courts';
 export const AUTO_START_KEY = 'pickleball.autoStart';
+export const PLAY_TO_KEY = 'pickleball.playTo';
+
+/** The scores a game can be played to. */
+export const PLAY_TO_CHOICES = [11, 15, 21] as const;
+export type PlayTo = (typeof PLAY_TO_CHOICES)[number];
 
 const listeners = new Set<() => void>();
 const memory = new Map<string, string>();
@@ -60,4 +65,19 @@ export function getNumPref(key: string, fallback: number, min: number, max: numb
 
 export function setNumPref(key: string, value: number): void {
   write(key, String(value));
+}
+
+/** What a game is played to: 11 unless the organizer chose 15 or 21. Anything else in storage means 11. */
+export function getPlayTo(): PlayTo {
+  const n = getNumPref(PLAY_TO_KEY, 11, 1, 99);
+  return (PLAY_TO_CHOICES as readonly number[]).includes(n) ? (n as PlayTo) : 11;
+}
+
+export function usePlayTo(): [PlayTo, (value: PlayTo) => void] {
+  const value = useSyncExternalStore(
+    subscribe,
+    () => getPlayTo(),
+    () => 11 as PlayTo,
+  );
+  return [value, (v) => setNumPref(PLAY_TO_KEY, v)];
 }

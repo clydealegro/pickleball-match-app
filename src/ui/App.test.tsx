@@ -75,6 +75,8 @@ describe('App', () => {
 
     await user.click(within(court).getByRole('button', { name: /game finished/i }));
 
+    await user.click(await screen.findByRole('button', { name: 'Skip result' }));
+
     const courtAfter = screen.getByRole('tabpanel', { name: 'Court 1' });
     expect(within(courtAfter).getByText(waiterName)).toBeInTheDocument();
     expect(screen.getByText('1 game played')).toBeInTheDocument();
@@ -109,6 +111,8 @@ describe('App', () => {
     expect(within(screen.getByRole('tabpanel', { name: 'Court 1' })).getByText('Break next')).toBeInTheDocument();
 
     await user.click(within(screen.getByRole('tabpanel', { name: 'Court 1' })).getByRole('button', { name: /game finished/i }));
+
+    await user.click(await screen.findByRole('button', { name: 'Skip result' }));
 
     const breakList = await screen.findByRole('list', { name: 'On break' });
     expect(within(breakList).getByText(playerName)).toBeInTheDocument();

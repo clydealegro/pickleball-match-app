@@ -90,6 +90,7 @@ describe('finishing a game', () => {
     await user.click(startButton());
     const startedAt = court(1).game!.startedAt;
     await user.click(within(panel()).getByRole('button', { name: /^Game finished/ }));
+    await user.click(await screen.findByRole('button', { name: 'Skip result' }));
     expect(court(1).status).toBe('ready');
     expect(undoBar()!.textContent).toBe('Game finished on Court 1Undo');
     expect(startButton()).toBeInTheDocument();

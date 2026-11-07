@@ -46,6 +46,7 @@ describe('one Undo, where the mistake happens', () => {
     await user.click(screen.getByRole('button', { name: /^Start game/ }));
     expect(bar()!.textContent).toBe('Started Court 1Undo');
     await user.click(screen.getByRole('button', { name: /^Game finished/ }));
+    await user.click(await screen.findByRole('button', { name: 'Skip result' }));
     expect(bar()!.textContent).toBe('Game finished on Court 1Undo');
     expect(document.querySelectorAll('.undo-bar')).toHaveLength(1);
     await user.click(within(bar()!).getByRole('button', { name: 'Undo' }));

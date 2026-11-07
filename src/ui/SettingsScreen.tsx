@@ -4,7 +4,7 @@ import { clearThisDevice, deleteAllMyData, type DataResult } from '../sync/dataA
 import { useSyncStore } from '../sync/syncStore';
 import { SyncStatusLine } from './SyncStatusLine';
 import { useDefaultMode } from './matchmaking';
-import { AUTO_START_KEY, KEEP_AWAKE_KEY, useBoolPref, VIBRATE_KEY } from './prefs';
+import { AUTO_START_KEY, KEEP_AWAKE_KEY, PLAY_TO_CHOICES, useBoolPref, usePlayTo, VIBRATE_KEY } from './prefs';
 import { useTheme } from './useTheme';
 
 interface Props {
@@ -21,6 +21,7 @@ export function SettingsScreen({ onBack, onManage }: Props) {
   const [keepAwake, setKeepAwake] = useBoolPref(KEEP_AWAKE_KEY, true);
   const [vibrate, setVibrate] = useBoolPref(VIBRATE_KEY, true);
   const [autoStart, setAutoStart] = useBoolPref(AUTO_START_KEY, false);
+  const [playTo, setPlayTo] = usePlayTo();
   const [working, setWorking] = useState(false);
   const [outcome, setOutcome] = useState<{ result: DataResult; done: string } | null>(null);
 
@@ -99,6 +100,18 @@ export function SettingsScreen({ onBack, onManage }: Props) {
           <input type="checkbox" role="switch" checked={autoStart} onChange={(e) => setAutoStart(e.target.checked)} />
         </label>
         <p className="muted">Off: you press Start for each game, so players have time to reach the court. On: a game starts the moment the last one finishes. It applies to new sessions.</p>
+        <p className="label" id="play-to-label">
+          Play to
+        </p>
+        <div className="options" role="radiogroup" aria-labelledby="play-to-label">
+          {PLAY_TO_CHOICES.map((n) => (
+            <label key={n} className="option">
+              <input type="radio" name="play-to" checked={playTo === n} onChange={() => setPlayTo(n)} />
+              <span>{n}</span>
+            </label>
+          ))}
+        </div>
+        <p className="muted">Where the winning score starts when you record a result.</p>
       </section>
 
       <section className="card stack" aria-labelledby="players-title">

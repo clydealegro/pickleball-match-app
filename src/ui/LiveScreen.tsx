@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import * as engine from '../engine';
-import type { Session } from '../engine';
+import type { GameResult, Session } from '../engine';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore, type SessionAction } from '../store/sessionStore';
 import { AccountButton } from './AccountButton';
@@ -9,7 +9,8 @@ import { CourtCard } from './CourtCard';
 import { CourtTabs } from './CourtTabs';
 import { LiveMenu } from './LiveMenu';
 import { PlayerSheet } from './PlayerSheet';
-import { getBoolPref, VIBRATE_KEY } from './prefs';
+import { ResultSheet } from './ResultSheet';
+import { getBoolPref, getPlayTo, VIBRATE_KEY } from './prefs';
 import { UndoBar } from './UndoBar';
 import { useSwipe } from './useSwipe';
 import { WaitingSheet } from './WaitingSheet';
@@ -26,6 +27,8 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
   /** Which way the court on show last moved, so the next one slides in from that side. */
   const [slide, setSlide] = useState<'from-right' | 'from-left' | null>(null);
   const [adding, setAdding] = useState(false);
+  /** The court whose Game finished button was pressed, while the result sheet is open. */
+  const [finishing, setFinishing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const playersById = useMemo(
@@ -49,9 +52,20 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
     return res.ok;
   }
 
-  /** Finishes a game, with a way back, and buzzes where the device allows. */
-  function finishCourt(courtId: string, courtNumber: number) {
-    if (!run((s, ctx) => engine.finishGame(s, courtId, ctx), `Game finished on Court ${courtNumber}`)) return;
+  /** What the Undo bar says about a finished game: the result when there is one, else just that it finished. */
+  function finishLabel(courtNumber: number, game: { team1: string[]; team2: string[] }, result?: GameResult) {
+    if (!result) return `Game finished on Court ${courtNumber}`;
+    const names = (result.winner === 1 ? game.team1 : game.team2).join(' and ');
+    const score = result.score ? ` ${Math.max(...result.score)} to ${Math.min(...result.score)}` : '';
+    return `Court ${courtNumber}: ${names} won${score}`;
+  }
+
+  /** Finishes a game with the result the organizer gave, or none, with a way back, and buzzes where the device allows. */
+  function finishCourt(courtId: string, courtNumber: number, result?: GameResult) {
+    const game = session.courts.find((c) => c.id === courtId)?.game;
+    const nameOf = (id: string) => playersById.get(id)?.name ?? 'Unknown';
+    const label = finishLabel(courtNumber, { team1: game?.team1.map(nameOf) ?? [], team2: game?.team2.map(nameOf) ?? [] }, result);
+    if (!run((s, ctx) => engine.finishGame(s, courtId, ctx, result), label)) return;
     // A short buzz where the device can, so a glance away from the screen still knows it registered.
     if (getBoolPref(VIBRATE_KEY, true)) {
       try {
@@ -76,6 +90,7 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
 
   const sorted = [...session.courts].sort((a, b) => a.number - b.number);
   const readyCount = sorted.filter((c) => c.status === 'ready').length;
+  const finishingCourt = sorted.find((c) => c.id === finishing);
   // A court that is gone (removed once its game ended) falls back to the first one.
   const selected = sorted.find((c) => c.id === courtId) ?? sorted[0];
 
@@ -149,7 +164,7 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
                 <CourtCard
                   court={selected}
                   playersById={playersById}
-                  onFinish={() => finishCourt(selected.id, selected.number)}
+                  onFinish={() => setFinishing(selected.id)}
                   onStart={() => startCourt(selected.id, selected.number)}
                   onSelectPlayer={selectPlayer}
                 />
@@ -164,6 +179,20 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
 
       {selectedId && (
         <PlayerSheet session={session} playerId={selectedId} onClose={() => setSelectedId(null)} />
+      )}
+      {finishing && finishingCourt?.game && (
+        <ResultSheet
+          courtNumber={finishingCourt.number}
+          team1={finishingCourt.game.team1.map((id) => playersById.get(id)?.name ?? 'Unknown')}
+          team2={finishingCourt.game.team2.map((id) => playersById.get(id)?.name ?? 'Unknown')}
+          playTo={getPlayTo()}
+          onClose={() => setFinishing(null)}
+          onSave={(result) => {
+            const { id, number } = finishingCourt;
+            setFinishing(null);
+            finishCourt(id, number, result);
+          }}
+        />
       )}
       {adding && <AddPlayerSheet session={session} onClose={() => setAdding(false)} />}
     </div>
