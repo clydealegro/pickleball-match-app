@@ -52,9 +52,9 @@ export function WaitingSheet({ session, onSelect, onAdd }: Props) {
           <button type="button" className="sheet-handle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen(!open)}>
             <span className="sheet-grip" aria-hidden="true" />
             <span className="sheet-handle-title">{title}</span>
-            <span className="sheet-chevron" aria-hidden="true">
-              {open ? '⌄' : '⌃'}
-            </span>
+            <svg className="sheet-chevron" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="m6 15 6-6 6 6" />
+            </svg>
           </button>
           <button type="button" className="btn btn-ghost icon-btn sheet-add" aria-label="Add player" onClick={onAdd}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">

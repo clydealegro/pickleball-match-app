@@ -854,8 +854,20 @@ legend {
 }
 
 .sheet-chevron {
-  font-size: 20px;
+  flex: none;
   color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+/* The chevron points up while the sheet is closed (it opens upward) and down once it is open. */
+.waiting-sheet.is-open .sheet-chevron {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-chevron {
+    transition: none;
+  }
 }
 
 .next-label {
