@@ -2,7 +2,7 @@ import { createStore } from 'zustand/vanilla';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { addRosterPlayer, resetRosterDbForTests } from '../store/rosterDb';
 import type { AuthStatus } from './auth';
-import { startSyncCoordinator, type CoordinatorDeps } from './coordinator';
+import { pauseSync, startSyncCoordinator, syncNow, type CoordinatorDeps } from './coordinator';
 import type { Remote } from './remote';
 import { useSyncStore } from './syncStore';
 
@@ -161,6 +161,60 @@ describe('the sync coordinator', () => {
     document.dispatchEvent(new Event('visibilitychange'));
     await vi.waitFor(() => expect(stub.pulls()).toBe(before + 3));
     vi.restoreAllMocks();
+  });
+
+  it('can be paused, waits for a round in flight, and starts again when resumed', async () => {
+    signIn('u1');
+    start();
+    await vi.waitFor(() => expect(useSyncStore.getState().status).toBe('synced'));
+    let finishRound: (() => void) | undefined;
+    stub.remote.pull = () => new Promise<unknown[]>((resolve) => (finishRound = () => resolve([])));
+    syncNow();
+    await vi.waitFor(() => expect(finishRound).toBeDefined());
+
+    let paused = false;
+    const resume = await Promise.race([
+      pauseSync().then((r) => {
+        paused = true;
+        return r;
+      }),
+      new Promise<undefined>((r) => setTimeout(() => r(undefined), 30)),
+    ]);
+    expect(resume).toBeUndefined(); // still waiting for the round
+    expect(paused).toBe(false);
+    finishRound?.();
+    await vi.waitFor(() => expect(paused).toBe(true));
+    expect(useSyncStore.getState().status).toBe('off');
+
+    const pullsBefore = stub.pulls();
+    await addRosterPlayer('Zed');
+    signIn('u1'); // a sign-in change while paused does not start anything
+    await new Promise((r) => setTimeout(r, 40));
+    expect(stub.pulls()).toBe(pullsBefore);
+    expect(stub.upserts).not.toContain('Zed');
+
+    stub.remote.pull = async () => [];
+    const again = await pauseSync(); // pausing twice is harmless
+    again();
+    await vi.waitFor(() => expect(useSyncStore.getState().status).toBe('synced'));
+    expect(stub.upserts).toContain('Zed');
+  });
+
+  it('does nothing to pause, resume or nudge when it is not running, even after it has run', async () => {
+    const resume = await pauseSync();
+    resume();
+    syncNow();
+    expect(useSyncStore.getState().status).toBe('off');
+
+    start();
+    stop?.();
+    stop = undefined;
+    signIn('u1');
+    (await pauseSync())();
+    syncNow();
+    await new Promise((r) => setTimeout(r, 40));
+    expect(makeRemote).not.toHaveBeenCalled();
+    expect(useSyncStore.getState().status).toBe('off');
   });
 
   it('takes back every listener it added when it is stopped', () => {

@@ -223,6 +223,21 @@ describe('the sync runner', () => {
     expect(results).toHaveLength(1);
   });
 
+  it('says when the round in flight has finished, even after a stop', async () => {
+    const { runner, release } = setup([ok()], { hold: true });
+    await runner.idle(); // nothing running yet
+    runner.start();
+    await vi.advanceTimersByTimeAsync(0);
+    runner.stop();
+    let finished = false;
+    void runner.idle().then(() => (finished = true));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(finished).toBe(false);
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(finished).toBe(true);
+  });
+
   it('cancels a round that was planned but has not started when it stops', async () => {
     const { runner, run } = setup([ok()]);
     runner.start();

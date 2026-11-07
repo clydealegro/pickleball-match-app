@@ -20,6 +20,8 @@ export interface Runner {
   stop(): void;
   /** Asks for a round soon: after `delayMs`, and straight away when the connection comes back. */
   poke(delayMs?: number): void;
+  /** Resolves when no round is running, straight away if none is. A stopped runner's last round still finishes. */
+  idle(): Promise<void>;
 }
 
 const INTERVAL_MS = 5 * 60 * 1000;
@@ -43,6 +45,7 @@ export function createRunner(options: RunnerOptions): Runner {
   let dueAt = Infinity;
   /** Raised by every stop, so the result of a round that was running at the time is thrown away. */
   let generation = 0;
+  let inFlight: Promise<void> = Promise.resolve();
 
   function schedule(delayMs: number) {
     const at = Date.now() + delayMs;
@@ -65,7 +68,12 @@ export function createRunner(options: RunnerOptions): Runner {
     onStart();
     let result: RoundResult;
     try {
-      result = await run();
+      const call = run();
+      inFlight = call.then(
+        () => undefined,
+        () => undefined,
+      );
+      result = await call;
     } catch (error) {
       console.error('Sync stopped by an unexpected error.', error);
       result = { ok: false, reason: 'error', pending: 0 };
@@ -114,5 +122,6 @@ export function createRunner(options: RunnerOptions): Runner {
       if (running) again = true;
       else schedule(delayMs);
     },
+    idle: () => inFlight,
   };
 }

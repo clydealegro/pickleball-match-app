@@ -34,6 +34,25 @@ const defaultDeps: CoordinatorDeps = {
   },
 };
 
+/** What the running coordinator offers the rest of the app. Null when none is running. */
+let control: { pause(): Promise<void>; resume(): void; syncNow(): void } | null = null;
+
+/**
+ * Stops syncing and waits for a round already running to finish, so nothing is pushed or pulled while something else
+ * (deleting all data) changes the account or the device. Call the function it returns to start syncing again.
+ */
+export async function pauseSync(): Promise<() => void> {
+  const current = control;
+  if (!current) return () => undefined;
+  await current.pause();
+  return () => current.resume();
+}
+
+/** Asks for a round straight away (after the device was cleared, say). Does nothing when not signed in. */
+export function syncNow(): void {
+  control?.syncNow();
+}
+
 /**
  * Keeps one sync runner going while an organizer is signed in, and none otherwise. A saved session that could not be
  * checked (`unknown`) neither syncs nor clears anything. Returns a function that stops it all.
@@ -42,8 +61,10 @@ export function startSyncCoordinator(deps: CoordinatorDeps = defaultDeps): () =>
   let runner: Runner | null = null;
   let runnerUser: string | null = null;
   let lastRoundAt = 0;
+  let paused = false;
 
   function follow() {
+    if (paused) return;
     const { status, userId } = deps.auth.getState();
     const wanted = status === 'signedIn' && userId ? userId : null;
     if (wanted === runnerUser) return;
@@ -73,6 +94,22 @@ export function startSyncCoordinator(deps: CoordinatorDeps = defaultDeps): () =>
     runner.start();
   }
 
+  control = {
+    async pause() {
+      paused = true;
+      const stopping = runner;
+      stopping?.stop();
+      runner = null;
+      runnerUser = null;
+      useSyncStore.setState({ status: 'off', pending: 0 });
+      await stopping?.idle();
+    },
+    resume() {
+      paused = false;
+      follow();
+    },
+    syncNow: () => runner?.poke(0),
+  };
   const stopFollowing = deps.auth.subscribe(follow);
   const stopHearing = subscribeRosterChanges(() => runner?.poke());
   const back = () => {
@@ -88,6 +125,7 @@ export function startSyncCoordinator(deps: CoordinatorDeps = defaultDeps): () =>
   follow();
 
   return () => {
+    control = null;
     stopFollowing();
     stopHearing();
     window.removeEventListener('online', onOnline);
