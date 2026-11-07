@@ -9,13 +9,23 @@ export const MAX_UNDO = 50;
 export type SessionAction = (s: Session, ctx: Ctx) => Session;
 export type ApplyResult = { ok: true } | { ok: false; error: string };
 
+/** The most recent action that can be undone, in words, kept in memory only. */
+export interface LastAction {
+  id: number;
+  label: string;
+  at: number;
+}
+
 interface SessionState {
   session: Session | null;
   undoStack: Session[];
   /** True when the last attempt to save to the browser failed. */
   saveFailed: boolean;
+  /** What the last action was, for an Undo that says what it will undo. Null after Undo, a reset or a reload. */
+  lastAction: LastAction | null;
   start: (input: NewSessionInput) => ApplyResult;
-  apply: (action: SessionAction) => ApplyResult;
+  /** `label` says what the action did ("Game finished on Court 1"), and is shown beside Undo. */
+  apply: (action: SessionAction, label?: string) => ApplyResult;
   undo: () => void;
   reset: () => void;
 }
@@ -31,17 +41,19 @@ function toResult(e: unknown): ApplyResult {
 }
 
 const initial = loadPersisted();
+let actionSeq = 0;
 
 export const useSessionStore = create<SessionState>()((set, get) => {
   const commit = (session: Session | null, undoStack: Session[]) => {
     const saved = savePersisted({ session, undoStack });
-    set({ session, undoStack, saveFailed: !saved });
+    set({ session, undoStack, saveFailed: !saved, lastAction: null });
   };
 
   return {
     session: initial?.session ?? null,
     undoStack: initial?.undoStack ?? [],
     saveFailed: false,
+    lastAction: null,
 
     start(input) {
       try {
@@ -52,12 +64,13 @@ export const useSessionStore = create<SessionState>()((set, get) => {
       }
     },
 
-    apply(action) {
+    apply(action, label) {
       const { session, undoStack } = get();
       if (!session) return { ok: false, error: 'There is no active session.' };
       try {
         const next = action(session, liveCtx());
         commit(next, [...undoStack, session].slice(-MAX_UNDO));
+        if (label) set({ lastAction: { id: ++actionSeq, label, at: Date.now() } });
         return { ok: true };
       } catch (e) {
         return toResult(e);

@@ -121,3 +121,51 @@ describe('sessionStore', () => {
     expect(fresh.useSessionStore.getState().undoStack).toEqual([prev]);
   });
 });
+
+describe('what the last action was', () => {
+  const noop = (s: ReturnType<typeof useSessionStore.getState>['session']) => s!;
+
+  it('is remembered with the action, and is empty for an action with no label', () => {
+    start();
+    expect(useSessionStore.getState().lastAction).toBeNull();
+    useSessionStore.getState().apply((s) => noop(s), 'Game finished on Court 1');
+    const last = useSessionStore.getState().lastAction!;
+    expect(last.label).toBe('Game finished on Court 1');
+    expect(last.at).toBeGreaterThan(0);
+    useSessionStore.getState().apply((s) => noop(s));
+    expect(useSessionStore.getState().lastAction).toBeNull();
+  });
+
+  it('gets a new id for every labelled action, even in the same millisecond', () => {
+    start();
+    const { apply } = useSessionStore.getState();
+    apply((s) => noop(s), 'one');
+    const first = useSessionStore.getState().lastAction!.id;
+    apply((s) => noop(s), 'two');
+    expect(useSessionStore.getState().lastAction!.id).toBeGreaterThan(first);
+  });
+
+  it('is cleared by Undo, a new session and a reset, and not set when the action fails', () => {
+    start();
+    const { apply, undo, reset } = useSessionStore.getState();
+    apply((s) => noop(s), 'something');
+    undo();
+    expect(useSessionStore.getState().lastAction).toBeNull();
+    apply((s) => noop(s), 'something');
+    reset();
+    expect(useSessionStore.getState().lastAction).toBeNull();
+    start();
+    apply((s) => noop(s), 'something');
+    const failed = apply(() => {
+      throw new engine.EngineError('NOT_FOUND', 'nope');
+    }, 'will not happen');
+    expect(failed.ok).toBe(false);
+    expect(useSessionStore.getState().lastAction!.label).toBe('something');
+  });
+
+  it('is not saved with the session, so it is gone after a reload', () => {
+    start();
+    useSessionStore.getState().apply((s) => noop(s), 'something');
+    expect(localStorage.getItem(STORAGE_KEY)!).not.toContain('something');
+  });
+});
