@@ -14,6 +14,7 @@ const NAMES = /^(Ann|Ben|Cy|Dee|Eve)$/;
 
 beforeEach(async () => {
   localStorage.clear();
+  localStorage.setItem('pickleball.autoStart', 'true'); // these tests are about the live screen, not the Ready step
   delete document.documentElement.dataset.theme;
   useSessionStore.setState({ session: null, undoStack: [], saveFailed: false });
   useUpdateStore.setState({ ready: false, apply: null });

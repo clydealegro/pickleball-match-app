@@ -27,10 +27,15 @@ export function WaitingSheet({ session, onSelect, onAdd }: Props) {
   const next = engine.previewNext(session);
   const byId = new Map(session.players.map((p) => [p.id, p]));
   const peek = next ? next.playerIds.flatMap((id) => (byId.get(id) ? [byId.get(id)!] : [])) : waiting.slice(0, 4);
+  // Every open court holding a lineup that has not started: the reason there is no court for the next four.
+  const openCourts = session.courts.filter((c) => !c.closing);
+  const allReady = openCourts.length > 0 && openCourts.every((c) => c.status === 'ready');
   const nextLabel = next
     ? `Next game, court ${next.courtNumber}`
     : waiting.length >= 4
-      ? 'No open court to play on'
+      ? allReady
+        ? 'Courts are ready. Press Start.'
+        : 'No open court to play on'
       : `Need ${4 - waiting.length} more waiting to fill the next game`;
 
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {

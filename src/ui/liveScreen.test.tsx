@@ -13,6 +13,7 @@ type User = ReturnType<typeof userEvent.setup>;
 
 beforeEach(async () => {
   localStorage.clear();
+  localStorage.setItem('pickleball.autoStart', 'true'); // these tests are about the live screen, not the Ready step
   useSessionStore.setState({ session: null, undoStack: [], saveFailed: false });
   useUpdateStore.setState({ ready: false, apply: null });
   await resetRosterDbForTests();

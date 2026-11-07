@@ -44,11 +44,15 @@ export function CourtTabs({ courts, selectedId, onSelect }: Props) {
             aria-selected={selected}
             aria-controls={courtPanelId(court.id)}
             tabIndex={selected ? 0 : -1}
-            className={`court-tab${selected ? ' is-selected' : ''}${court.game ? ' is-live' : ''}`}
+            className={`court-tab${selected ? ' is-selected' : ''}${court.game ? ' is-live' : ''}${court.status === 'ready' ? ' is-ready' : ''}`}
             onClick={() => onSelect(court.id)}
           >
             <span className="court-tab-name">Court {court.number}</span>
-            {court.game ? <Timer startedAt={court.game.startedAt} labelled={false} /> : <span className="court-tab-state">Open</span>}
+            {court.game ? (
+              <Timer startedAt={court.game.startedAt} labelled={false} />
+            ) : (
+              <span className="court-tab-state">{court.status === 'ready' ? 'Ready' : 'Open'}</span>
+            )}
           </button>
         );
       })}

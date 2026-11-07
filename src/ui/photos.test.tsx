@@ -20,6 +20,7 @@ const file = new File(['x'], 'me.jpg', { type: 'image/jpeg' });
 
 beforeEach(async () => {
   localStorage.clear();
+  localStorage.setItem('pickleball.autoStart', 'true'); // these tests are about the live screen, not the Ready step
   useSessionStore.setState({ session: null, undoStack: [], saveFailed: false });
   useUpdateStore.setState({ ready: false, apply: null });
   await resetRosterDbForTests();

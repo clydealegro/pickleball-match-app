@@ -4,7 +4,7 @@ import { clearThisDevice, deleteAllMyData, type DataResult } from '../sync/dataA
 import { useSyncStore } from '../sync/syncStore';
 import { SyncStatusLine } from './SyncStatusLine';
 import { useDefaultMode } from './matchmaking';
-import { KEEP_AWAKE_KEY, useBoolPref, VIBRATE_KEY } from './prefs';
+import { AUTO_START_KEY, KEEP_AWAKE_KEY, useBoolPref, VIBRATE_KEY } from './prefs';
 import { useTheme } from './useTheme';
 
 interface Props {
@@ -20,6 +20,7 @@ export function SettingsScreen({ onBack, onManage }: Props) {
   const [mode, setMode] = useDefaultMode();
   const [keepAwake, setKeepAwake] = useBoolPref(KEEP_AWAKE_KEY, true);
   const [vibrate, setVibrate] = useBoolPref(VIBRATE_KEY, true);
+  const [autoStart, setAutoStart] = useBoolPref(AUTO_START_KEY, false);
   const [working, setWorking] = useState(false);
   const [outcome, setOutcome] = useState<{ result: DataResult; done: string } | null>(null);
 
@@ -93,6 +94,11 @@ export function SettingsScreen({ onBack, onManage }: Props) {
           <input type="checkbox" role="switch" checked={vibrate} onChange={(e) => setVibrate(e.target.checked)} />
         </label>
         <p className="muted">The buzz only works on phones and browsers that allow it.</p>
+        <label className="switch-row">
+          <span>Start the next game by itself</span>
+          <input type="checkbox" role="switch" checked={autoStart} onChange={(e) => setAutoStart(e.target.checked)} />
+        </label>
+        <p className="muted">Off: you press Start for each game, so players have time to reach the court. On: a game starts the moment the last one finishes. It applies to new sessions.</p>
       </section>
 
       <section className="card stack" aria-labelledby="players-title">

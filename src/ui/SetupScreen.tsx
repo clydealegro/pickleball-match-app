@@ -3,7 +3,7 @@ import { lastSessionIds } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
 import { getDefaultMode, useDefaultMode } from './matchmaking';
-import { COURTS_KEY, getNumPref, setNumPref } from './prefs';
+import { AUTO_START_KEY, COURTS_KEY, getBoolPref, getNumPref, setNumPref } from './prefs';
 import { PlayerAvatar } from './PlayerAvatar';
 
 const MIN_PLAYERS = 4;
@@ -88,6 +88,7 @@ export function SetupScreen({ onManage }: Props) {
       name: defaultSessionName(),
       mode: getDefaultMode(),
       courtCount,
+      autoStart: getBoolPref(AUTO_START_KEY, false),
       players: chosen.map((p) => ({ name: p.name, rosterId: p.id })),
     });
     if (res.ok) setNumPref(COURTS_KEY, courtCount);

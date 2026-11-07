@@ -66,6 +66,10 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
     }
   }
 
+  function startCourt(courtId: string) {
+    run((s, ctx) => engine.startCourt(s, courtId, ctx));
+  }
+
   function undoLast() {
     undo();
     setToast(null);
@@ -80,6 +84,7 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
   }
 
   const sorted = [...session.courts].sort((a, b) => a.number - b.number);
+  const readyCount = sorted.filter((c) => c.status === 'ready').length;
   // A court that is gone (removed once its game ended) falls back to the first one.
   const selected = sorted.find((c) => c.id === courtId) ?? sorted[0];
 
@@ -119,6 +124,7 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
           <LiveMenu
             items={[
               { label: 'Add player', onSelect: openAdd },
+              ...(readyCount >= 2 ? [{ label: 'Start all ready courts', onSelect: () => run((s, ctx) => engine.startAllReady(s, ctx)) }] : []),
               { label: 'Add court', onSelect: () => run((s, ctx) => engine.addCourt(s, ctx)) },
               ...(selected
                 ? [
@@ -150,6 +156,7 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
                   court={selected}
                   playersById={playersById}
                   onFinish={() => finishCourt(selected.id, selected.number)}
+                  onStart={() => startCourt(selected.id)}
                   onSelectPlayer={selectPlayer}
                 />
               </div>

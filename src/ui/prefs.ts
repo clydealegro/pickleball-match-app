@@ -4,6 +4,7 @@ import { useSyncExternalStore } from 'react';
 export const KEEP_AWAKE_KEY = 'pickleball.keepAwake';
 export const VIBRATE_KEY = 'pickleball.vibrate';
 export const COURTS_KEY = 'pickleball.courts';
+export const AUTO_START_KEY = 'pickleball.autoStart';
 
 const listeners = new Set<() => void>();
 const memory = new Map<string, string>();

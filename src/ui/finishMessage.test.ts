@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { finishGame } from '../engine/game';
+import { startCourt } from '../engine/start';
 import { makeCtx, mkPlayer, mkSession, newTestSession } from '../engine/testing';
 import { finishMessage } from './finishMessage';
 
@@ -28,5 +29,16 @@ describe('finishMessage', () => {
     const four = mkSession([mkPlayer('a'), mkPlayer('b'), mkPlayer('c'), mkPlayer('d')], { courts: [idle] });
     expect(finishMessage(four, 1)).toBe('Court 1 finished.');
     expect(finishMessage(four, 7)).toBe('Court 7 closed.');
+  });
+});
+
+describe('finishMessage for a court that waits for Start', () => {
+  it('names the lineup as ready, not as playing', () => {
+    const ctx = makeCtx();
+    let s = newTestSession(['Ann', 'Ben', 'Cy', 'Dee', 'Eve'], { courts: 1, autoStart: false }, ctx);
+    s = startCourt(s, s.courts[0].id, ctx);
+    s = finishGame(s, s.courts[0].id, ctx);
+    expect(s.courts[0].status).toBe('ready');
+    expect(finishMessage(s, 1)).toMatch(/^Court 1 is ready: \w+ and \w+ vs \w+ and \w+$/);
   });
 });

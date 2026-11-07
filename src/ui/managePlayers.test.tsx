@@ -8,6 +8,7 @@ import App from './App';
 
 beforeEach(async () => {
   localStorage.clear();
+  localStorage.setItem('pickleball.autoStart', 'true'); // these tests are about the live screen, not the Ready step
   useSessionStore.setState({ session: null, undoStack: [], saveFailed: false });
   await resetRosterDbForTests();
   useRosterStore.setState({ players: [], loaded: false });
