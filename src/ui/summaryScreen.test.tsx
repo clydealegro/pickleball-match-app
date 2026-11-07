@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { finishGame } from '../engine/game';
 import { makeCtx, newTestSession } from '../engine/testing';
+import { resetHistoryDbForTests } from '../store/historyDb';
+import { useHistoryStore } from '../store/historyStore';
 import { resetRosterDbForTests } from '../store/rosterDb';
 import { useSessionStore } from '../store/sessionStore';
 import { SummaryScreen } from './SummaryScreen';
@@ -10,6 +12,8 @@ import { SummaryScreen } from './SummaryScreen';
 beforeEach(async () => {
   localStorage.clear();
   await resetRosterDbForTests();
+  await resetHistoryDbForTests();
+  useHistoryStore.setState({ ...useHistoryStore.getInitialState(), entries: [], loaded: false });
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -89,6 +93,8 @@ describe('session summary screen', () => {
     const user = userEvent.setup();
     const reset = vi.fn();
     useSessionStore.setState({ reset });
+    // History could not keep it, so the summary is the only copy.
+    useHistoryStore.setState({ save: vi.fn().mockResolvedValue(undefined) });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValue(true);
     const share = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', Object.assign(Object.create(navigator), { share }));
@@ -100,6 +106,28 @@ describe('session summary screen', () => {
     await user.click(screen.getByRole('button', { name: 'Start new session' }));
     expect(confirm).toHaveBeenCalledTimes(1);
     expect(reset).toHaveBeenCalledOnce();
+  });
+
+  it('does not ask once the session is kept in Past sessions', async () => {
+    const user = userEvent.setup();
+    const reset = vi.fn();
+    useSessionStore.setState({ reset });
+    const confirm = vi.spyOn(window, 'confirm');
+    render(<SummaryScreen session={finished()} />);
+    await vi.waitFor(() => expect(useHistoryStore.getState().entries).toHaveLength(1));
+    await user.click(screen.getByRole('button', { name: 'Start new session' }));
+    expect(confirm).not.toHaveBeenCalled();
+    expect(reset).toHaveBeenCalledOnce();
+  });
+
+  it('shows a past session read-only: no save, no Start new, a Back button', async () => {
+    const user = userEvent.setup();
+    const back = vi.fn();
+    render(<SummaryScreen session={finished()} onBack={back} />);
+    expect(screen.queryByRole('button', { name: 'Start new session' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    expect(back).toHaveBeenCalledOnce();
+    expect(useHistoryStore.getState().entries).toHaveLength(0);
   });
 
   it('does not ask when no game was played', async () => {

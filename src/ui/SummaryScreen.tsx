@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import * as engine from '../engine';
 import type { PlayerSummary, Session } from '../engine';
+import { useHistoryStore } from '../store/historyStore';
 import { useSessionStore } from '../store/sessionStore';
 import { PlayerAvatar } from './PlayerAvatar';
 
@@ -63,8 +64,12 @@ function PlayerRow({ row, maxGames }: { row: PlayerSummary; maxGames: number }) 
   );
 }
 
-export function SummaryScreen({ session }: { session: Session }) {
+/** `onBack` makes it a read-only look at a past session: nothing is saved again and there is no Start new. */
+export function SummaryScreen({ session, onBack }: { session: Session; onBack?: () => void }) {
   const reset = useSessionStore((s) => s.reset);
+  const saveToHistory = useHistoryStore((s) => s.save);
+  const kept = useHistoryStore((s) => s.entries.some((e) => e.id === session.id));
+  const readOnly = onBack !== undefined;
   const [message, setMessage] = useState('');
   const [shared, setShared] = useState(false);
   // Win records can sting in a friendly group, so they only go into the shared text when switched on, each time.
@@ -74,6 +79,10 @@ export function SummaryScreen({ session }: { session: Session }) {
   const log = engine.gameLog(session);
   const fairness = engine.fairnessLine(stats);
   const anyResults = engine.hasResults(session);
+  // A session that has ended is kept for the Past sessions list. Saving twice just replaces the same entry.
+  useEffect(() => {
+    if (!readOnly) void saveToHistory(session);
+  }, [readOnly, saveToHistory, session]);
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
   async function share() {
@@ -101,15 +110,23 @@ export function SummaryScreen({ session }: { session: Session }) {
   }
 
   function startNew() {
-    if (!shared && stats.games > 0 && !window.confirm('Start a new session? This summary will be cleared, and you have not shared it yet.')) return;
+    // Once it is in Past sessions, starting a new one loses nothing, so there is nothing to warn about.
+    if (!kept && !shared && stats.games > 0 && !window.confirm('Start a new session? This summary will be cleared, and you have not shared it yet.')) return;
     reset();
   }
 
   return (
     <div className="stack">
-      <div>
-        <h1 className="screen-title">Session summary</h1>
-        <p className="muted">{session.name}</p>
+      <div className="row-flex spread">
+        <div>
+          <h1 className="screen-title">Session summary</h1>
+          <p className="muted">{session.name}</p>
+        </div>
+        {readOnly && (
+          <button type="button" className="btn" onClick={onBack}>
+            Back
+          </button>
+        )}
       </div>
 
       <dl className="sum-stats">
@@ -178,9 +195,11 @@ export function SummaryScreen({ session }: { session: Session }) {
         <button type="button" className="btn btn-primary btn-block" onClick={() => void share()}>
           {canShare ? 'Share results' : 'Copy results'}
         </button>
-        <button type="button" className="btn btn-ghost btn-block" onClick={startNew}>
-          Start new session
-        </button>
+        {!readOnly && (
+          <button type="button" className="btn btn-ghost btn-block" onClick={startNew}>
+            Start new session
+          </button>
+        )}
       </div>
     </div>
   );
