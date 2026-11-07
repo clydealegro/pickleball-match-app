@@ -224,8 +224,13 @@ describe('Settings: your data', () => {
     const { user, sync } = await startApp({ client: fakeClient(true) });
     await openSettings(user);
     await screen.findByText('ann@example.com');
-    act(() => sync.setState({ status: 'otherAccount' }));
-    const alert = await screen.findByRole('alert');
+    // The fake client has no tables, so the real sync round reports an error a moment later and can overwrite this
+    // state. Setting it again until it holds is what makes the test steady.
+    await vi.waitFor(() => {
+      act(() => sync.setState({ status: 'otherAccount' }));
+      expect(screen.getByRole('alert')).toHaveTextContent(/different account/i);
+    });
+    const alert = screen.getByRole('alert');
     expect(within(alert).getByText(/different account/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /clear saved players on this device/i })).toBeInTheDocument();
   });
