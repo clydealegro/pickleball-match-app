@@ -68,12 +68,12 @@ Goal: remove the daily annoyances. No engine changes, except one small read-only
 **Problem.** Tapping Game finished instantly starts the next game. Nothing on screen says so apart from names changing, and Undo is a small icon in the corner.
 
 **Behaviour.**
-- After Game finished (and after any action that changes a court: Phase 2 swaps, substitutions), show a toast at the bottom, above the Waiting sheet: **"Court 1: Ann and Ben vs Cy and Dee"** with an **Undo** button.
+- After Game finished (and after any action that changes a court: Phase 2 swaps, substitutions), show a toast in the page directly under the court card: **"Court 1: Ann and Ben vs Cy and Dee"** with an **Undo** button. It is part of the page flow, not floating, so it cannot cover the Game finished button.
 - If no new game could start, it reads **"Court 1 finished. Waiting for 2 more players."**
 - It stays 8 seconds, or until the next action. A new toast replaces the old one (two courts finishing close together is normal).
 - `role="status"` with polite announcement. The Undo button is a real button.
 - One short vibration (`navigator.vibrate(25)`) on Game finished when supported and when "Vibrate on finish" is on (Settings, on by default).
-- Tapping the toast body does nothing. It must never cover the Game finished button. The plan checks this at 412 by 850 and at 360 by 640, where the Waiting sheet sits in the page after the court and a fixed toast could otherwise overlap it.
+- Tapping the toast body does nothing. Because it sits in the page flow under the court card, it never covers the Game finished button or the Waiting sheet. It is checked at 360 by 780.
 
 **Acceptance.** Finishing a game shows the new lineup in names, with a working Undo that restores the previous state and closes the toast. Two quick finishes show only the latest. The toast text matches the lineup now on the court.
 
@@ -102,14 +102,13 @@ Goal: remove the daily annoyances. No engine changes, except one small read-only
 
 **Behaviour.**
 - New read-only engine helper `explainWaiting(session, playerId)` returns `{ position, reason }` for a waiting player.
-- Reasons, in this order of precedence, in plain words:
-  - Pinned (Phase 2): "You are playing next."
-  - Fairness mode, fewest games: "Fewest games so far (2)."
-  - Fairness mode, tie broken by waiting: "Waiting the longest among players with 2 games."
-  - Fairness mode, still tied on games and wait: "Tied with others, so the order is a fixed random pick." (`compareByPriority` ends on the random `tieKey`.)
-  - Queue mode: "Next in the order people arrived."
-  - Fewer than four waiting: "Waiting for 2 more players."
-- Shown as one muted line in the player sheet for a waiting player, under the games count, with the queue position ("3rd in line").
+- The reason is written for where the player stands, in plain words:
+  - Fewer than four waiting (any mode): "Waiting for 2 more players to start a game."
+  - Queue mode: "Next in the order people arrived." for the first, "In the order people arrived." for the rest.
+  - Fairness mode, first in line: "Fewest games so far (2).", or "Waiting the longest among players with 2 games.", or "Tied with others, so the order is a fixed random pick." (the three rules of `compareByPriority`, in order).
+  - Fairness mode, later in line, compared with the player directly ahead: "Played 2 games. Players with fewer games go first.", or "Same games as the player ahead, who has waited longer.", or "Tied with the player ahead, so the order is a fixed random pick."
+  - Pinned players ("You are playing next.") arrive with `playNext` in Phase 2.
+- Shown as one line in the player sheet for a waiting player, under the games count, with the queue position ("3rd in line"). It is not greyed out, because it is the answer the player asked for.
 
 **Acceptance.** The helper's position matches `orderedWaiting`. The reason text for each case above is pinned by a test.
 
