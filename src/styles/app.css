@@ -806,8 +806,8 @@ legend {
   margin: auto -16px 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 4px 16px calc(10px + env(safe-area-inset-bottom));
+  gap: 0;
+  padding: 0 16px calc(12px + env(safe-area-inset-bottom));
   border-radius: 22px 22px 0 0;
   border-bottom: 0;
   box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.14);
@@ -828,24 +828,23 @@ legend {
 .sheet-handle {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   width: 100%;
-  min-height: 52px;
-  padding: 14px 0 6px;
+  min-height: 44px;
+  padding: 0;
   border: 0;
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 800;
   cursor: pointer;
-  position: relative;
 }
 
 .sheet-grip {
   position: absolute;
   left: 50%;
-  top: 6px;
+  top: 8px;
   width: 40px;
   height: 4px;
   margin-left: -20px;
@@ -856,8 +855,10 @@ legend {
 .next-label {
   margin: 0;
   color: var(--muted);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .peek {
@@ -897,7 +898,7 @@ legend {
   display: flex;
 }
 
-.waiting-sheet.is-open .peek,
+.waiting-sheet.is-open .peek-row,
 .waiting-sheet.is-open .next-label {
   display: none;
 }
@@ -1413,13 +1414,18 @@ caption {
 }
 
 .sheet-top {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 22px;
   cursor: pointer;
 }
 
 .sheet-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .sheet-bar .sheet-head,
@@ -1432,13 +1438,19 @@ caption {
   margin: 0;
 }
 
+/* Add player is a quiet, tinted pill: it is always there, but the title and the faces are what the eye should find. */
 .sheet-add {
   display: inline-flex;
   flex: none;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin-top: 8px;
+  min-height: 40px;
+  padding: 0 14px 0 10px;
+  border: 0;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .peek-row {
@@ -1448,12 +1460,13 @@ caption {
 }
 
 .peek-more {
-  align-self: center;
-  padding: 6px 12px;
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 4px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
 }

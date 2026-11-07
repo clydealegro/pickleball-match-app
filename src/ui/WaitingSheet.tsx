@@ -48,7 +48,7 @@ export function WaitingSheet({ session, onSelect, onAdd }: Props) {
         onAdd();
       }}
     >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
         <path d="M12 5v14M5 12h14" />
       </svg>
       Add player
@@ -70,10 +70,11 @@ export function WaitingSheet({ session, onSelect, onAdd }: Props) {
         // The whole top of the sheet opens and closes it. The real button inside is what keyboards and screen readers
         // use; a tap anywhere on the grip, the title, the label or the faces reaches it through this handler.
         <div className="sheet-top" onClick={() => setOpen(!open)} {...swipe}>
+          {/* The grip belongs to the whole sheet, so it sits in the middle of it, not of the title button. */}
+          <span className="sheet-grip" aria-hidden="true" />
           <div className="sheet-bar">
             <h2 className="sheet-head">
               <button type="button" className="sheet-handle" aria-expanded={open} aria-controls={bodyId}>
-                <span className="sheet-grip" aria-hidden="true" />
                 <span className="sheet-handle-title">{title}</span>
               </button>
             </h2>

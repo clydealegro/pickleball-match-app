@@ -44,6 +44,15 @@ describe('the top of the Waiting sheet', () => {
     expect(within(handle()).queryByRole('img')).toBeNull();
   });
 
+  it('puts the grip in the middle of the whole sheet, not inside the title button', async () => {
+    const user = userEvent.setup();
+    await startSession(user, 5);
+    const grip = top().querySelector('.sheet-grip')!;
+    expect(grip.parentElement).toBe(top());
+    expect(handle().contains(grip)).toBe(false);
+    expect(top().firstElementChild).toBe(grip);
+  });
+
   it('opens and closes from a tap anywhere on the top: title, label, faces or the empty space', async () => {
     const user = userEvent.setup();
     await startSession(user, 5);
@@ -183,5 +192,18 @@ describe('on a wide screen', () => {
     expect(screen.getByRole('heading', { name: 'Waiting (1)' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Add player' }));
     expect(await screen.findByRole('dialog', { name: 'Add player' })).toBeInTheDocument();
+  });
+});
+
+describe('the preview row of the Waiting sheet', () => {
+  // jsdom does not load the stylesheet, so the rule that hides the row when the sheet is open is checked by eye. What a
+  // test can pin is that the label stays outside the row and the faces and the "+N more" chip are both inside it, so
+  // hiding the row hides them together.
+  it('keeps the faces and the +N more chip together in one row', async () => {
+    const user = userEvent.setup();
+    await startSession(user, 14);
+    expect(top().querySelector('.peek-row .peek-more')).not.toBeNull();
+    expect(top().querySelector('.peek-row .peek')).not.toBeNull();
+    expect(top().querySelector('.peek-row .next-label')).toBeNull();
   });
 });
