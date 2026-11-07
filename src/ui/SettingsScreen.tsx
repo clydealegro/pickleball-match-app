@@ -4,6 +4,7 @@ import { clearThisDevice, deleteAllMyData, type DataResult } from '../sync/dataA
 import { useSyncStore } from '../sync/syncStore';
 import { SyncStatusLine } from './SyncStatusLine';
 import { useDefaultMode } from './matchmaking';
+import { KEEP_AWAKE_KEY, useBoolPref, VIBRATE_KEY } from './prefs';
 import { useTheme } from './useTheme';
 
 interface Props {
@@ -17,6 +18,8 @@ export function SettingsScreen({ onBack, onManage }: Props) {
   const syncStatus = useSyncStore((s) => s.status);
   const [theme, toggleTheme] = useTheme();
   const [mode, setMode] = useDefaultMode();
+  const [keepAwake, setKeepAwake] = useBoolPref(KEEP_AWAKE_KEY, true);
+  const [vibrate, setVibrate] = useBoolPref(VIBRATE_KEY, true);
   const [working, setWorking] = useState(false);
   const [outcome, setOutcome] = useState<{ result: DataResult; done: string } | null>(null);
 
@@ -75,6 +78,21 @@ export function SettingsScreen({ onBack, onManage }: Props) {
           </label>
         </div>
         <p className="muted">Applies to new sessions. Fairness gives the players with the fewest games the next court. Simple queue goes in the order people arrive.</p>
+      </section>
+
+      <section className="card stack" aria-labelledby="during-title">
+        <h2 id="during-title" className="section-title">
+          During a session
+        </h2>
+        <label className="switch-row">
+          <span>Keep the screen on</span>
+          <input type="checkbox" role="switch" checked={keepAwake} onChange={(e) => setKeepAwake(e.target.checked)} />
+        </label>
+        <label className="switch-row">
+          <span>Buzz when a game finishes</span>
+          <input type="checkbox" role="switch" checked={vibrate} onChange={(e) => setVibrate(e.target.checked)} />
+        </label>
+        <p className="muted">The buzz only works on phones and browsers that allow it.</p>
       </section>
 
       <section className="card stack" aria-labelledby="players-title">

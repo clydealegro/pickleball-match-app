@@ -12,6 +12,8 @@ import { SavedPlayersScreen } from './SavedPlayersScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { SetupScreen } from './SetupScreen';
 import { SummaryScreen } from './SummaryScreen';
+import { KEEP_AWAKE_KEY, useBoolPref } from './prefs';
+import { useWakeLock } from './useWakeLock';
 
 export default function App() {
   const session = useSessionStore((s) => s.session);
@@ -22,6 +24,7 @@ export default function App() {
   const rosterBlocked = useRosterStore((s) => s.blocked);
   const loadRoster = useRosterStore((s) => s.load);
   const initAuth = useAuthStore((s) => s.init);
+  const [keepAwake] = useBoolPref(KEEP_AWAKE_KEY, true);
   const [view, setView] = useState<'setup' | 'saved' | 'settings'>('setup');
   // Saved players can be opened from Setup or from Settings; Back returns to whichever it came from.
   const [savedFrom, setSavedFrom] = useState<'setup' | 'settings'>('setup');
@@ -38,6 +41,9 @@ export default function App() {
   useEffect(() => {
     void initAuth();
   }, [initAuth]);
+
+  // The screen stays on for as long as a session is running, however many screens the organizer visits.
+  useWakeLock(!!session && !session.endedAt && keepAwake);
 
   // Keeps saved players backed up while signed in. It does nothing without a backend or a signed-in organizer.
   useEffect(() => startSyncCoordinator(), []);

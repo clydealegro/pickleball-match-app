@@ -3,6 +3,7 @@ import { lastSessionIds } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
 import { getDefaultMode, useDefaultMode } from './matchmaking';
+import { COURTS_KEY, getNumPref, setNumPref } from './prefs';
 import { PlayerAvatar } from './PlayerAvatar';
 
 const MIN_PLAYERS = 4;
@@ -25,7 +26,7 @@ export function SetupScreen({ onManage }: Props) {
   const start = useSessionStore((s) => s.start);
   const [mode] = useDefaultMode();
 
-  const [courtCount, setCourtCount] = useState(2);
+  const [courtCount, setCourtCount] = useState(() => getNumPref(COURTS_KEY, 2, 1, MAX_COURTS));
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +90,8 @@ export function SetupScreen({ onManage }: Props) {
       courtCount,
       players: chosen.map((p) => ({ name: p.name, rosterId: p.id })),
     });
-    if (!res.ok) setStartError(res.error);
+    if (res.ok) setNumPref(COURTS_KEY, courtCount);
+    else setStartError(res.error);
   }
 
   return (

@@ -1400,3 +1400,19 @@ caption {
   flex: 1;
   min-width: 0;
 }
+
+/* ---------- Phase 1: toast, add button, switches ---------- */
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.switch-row input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--ink);
+}
