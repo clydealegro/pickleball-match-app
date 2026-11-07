@@ -1045,3 +1045,135 @@ caption {
   flex: 1;
   min-width: 0;
 }
+
+/* ---------- Session summary ---------- */
+.sum-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0;
+}
+
+.sum-stats > div {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.sum-stats dt {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.sum-stats dd {
+  margin: 2px 0 0;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.sum-fairness {
+  margin: 0;
+  font-weight: 600;
+}
+
+.sum-list,
+.sum-log ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sum-list > li + li {
+  border-top: 1px solid var(--line);
+}
+
+.sum-player > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 6px 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.sum-player > summary::-webkit-details-marker {
+  display: none;
+}
+
+.sum-name {
+  flex: 0 1 38%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sum-name .row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sum-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.sum-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--ink);
+}
+
+.sum-count {
+  min-width: 2ch;
+  text-align: right;
+  font-weight: 800;
+}
+
+.sum-detail {
+  margin: 0 0 10px 42px;
+  font-size: 14px;
+}
+
+.sum-detail dt {
+  font-weight: 700;
+}
+
+.sum-detail dd {
+  margin: 0 0 6px;
+  opacity: 0.85;
+}
+
+.sum-hint {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+.sum-log > summary {
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 24px;
+}
+
+.sum-log ol {
+  margin-top: 8px;
+}
+
+.sum-log li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.sum-log-meta {
+  font-size: 13px;
+  opacity: 0.75;
+}
