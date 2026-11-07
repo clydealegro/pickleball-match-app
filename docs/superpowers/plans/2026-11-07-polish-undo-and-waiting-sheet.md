@@ -10,7 +10,7 @@
 
 Origin: the 7 Nov 2026 design evaluation of the live screen (owner's screenshot and questions about Undo and the Waiting sheet).
 
-**How the code in this plan was proved.** Every file and diff below was built once in a scratch copy of the repository at commit `2879037`, with the full suite passing (657 tests, up from 626, four runs in a row) and mutation-checked (13 deliberate breakages: 11 caught, 2 equivalent, noted in the self-review). The screens were looked at in a browser at 360 by 780 in the light theme. Apply a diff from the project root with `patch -p1 < the-diff-file`, or by hand: each hunk shows its context.
+**How the code in this plan was proved.** Every file and diff below was built once in a scratch copy of the repository at commit `2879037`, with the full suite passing (657 tests, up from 637, four runs in a row) and mutation-checked (13 deliberate breakages: 11 caught, 2 equivalent, noted in the self-review). The screens were looked at in a browser at 360 by 780 in the light theme. Apply a diff from the project root with `patch -p1 < the-diff-file`, or by hand: each hunk shows its context.
 
 **Conventions.** Run commands from `pickleball-match-app/` (the folder with `package.json`). Stage files by name, never with `git add -A`. No AI attribution lines in commit messages. After the last task, run the Ralph loop before merging.
 
