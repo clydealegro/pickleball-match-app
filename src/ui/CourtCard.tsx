@@ -1,8 +1,6 @@
-import { useId } from 'react';
 import type { Court, Player } from '../engine';
 import { courtPanelId } from './CourtTabs';
 import { PlayerTile } from './PlayerTile';
-import { Timer } from './Timer';
 
 interface Props {
   court: Court;
@@ -11,10 +9,9 @@ interface Props {
   onSelectPlayer: (id: string) => void;
 }
 
-/** The court in focus: who is playing, the game clock, and the one thing you do every game, finish it. */
+/** The court in focus: who is playing, and the one thing you do every game, finish it. */
 export function CourtCard({ court, playersById, onFinish, onSelectPlayer }: Props) {
   const game = court.game;
-  const titleId = useId();
 
   function team(ids: [string, string], number: 1 | 2) {
     const players = ids.flatMap((id) => playersById.get(id) ?? []);
@@ -31,16 +28,9 @@ export function CourtCard({ court, playersById, onFinish, onSelectPlayer }: Prop
     <section
       role="tabpanel"
       id={courtPanelId(court.id)}
-      aria-labelledby={titleId}
+      aria-label={`Court ${court.number}`}
       className="card court"
     >
-      <div className="row-flex spread">
-        <h2 id={titleId} className="court-title">
-          Court {court.number}
-        </h2>
-        {game && <Timer startedAt={game.startedAt} />}
-      </div>
-
       {game ? (
         <div className="match">
           {team(game.team1, 1)}
