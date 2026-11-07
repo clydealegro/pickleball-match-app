@@ -1620,7 +1620,7 @@ describe('pulling', () => {
   it('skips rows this app would not have written, counts them, and tidies names the way the app does', async () => {
     await server.db.query(
       `insert into public.players (owner_id, id, name) values ($1, $2, E'\\t'), ($1, $3, $4), ($1, $5, 'Cy')`,
-      [USER_A, '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002', 'Dee ', '00000000-0000-4000-8000-000000000003'],
+      [USER_A, '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002', 'Dee\u00a0', '00000000-0000-4000-8000-000000000003'],
     );
     expect(await syncB()).toMatchObject({ ok: true, pulled: 2, skippedRows: 1 });
     expect(await names(b)).toEqual(['Cy', 'Dee']);
