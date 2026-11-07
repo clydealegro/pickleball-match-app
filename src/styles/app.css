@@ -1177,3 +1177,87 @@ caption {
   font-size: 13px;
   opacity: 0.75;
 }
+
+/* ---------- New session ---------- */
+.setup-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: flex-end;
+}
+
+.setup-name {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.setup-note {
+  margin: 0;
+}
+
+.add-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.add-row .field {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+}
+
+.controls.quick {
+  margin-top: 0;
+}
+
+.pick-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pick {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.pick input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.pick .row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pick:has(input:checked) {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+
+.pick:has(input:checked) .row-name::before {
+  content: '✓ ';
+}
+
+.pick:has(input:focus-visible) {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}

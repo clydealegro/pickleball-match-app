@@ -4,6 +4,7 @@ import { useAuthStore } from '../sync/auth';
 import { startSyncCoordinator } from '../sync/coordinator';
 import { useUpdateStore } from '../pwa';
 import { useSessionStore } from '../store/sessionStore';
+import { AccountButton } from './AccountButton';
 import { ErrorBoundary } from './ErrorBoundary';
 import { SignInBanner } from './SignInBanner';
 import { LiveScreen } from './LiveScreen';
@@ -11,7 +12,6 @@ import { SavedPlayersScreen } from './SavedPlayersScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { SetupScreen } from './SetupScreen';
 import { SummaryScreen } from './SummaryScreen';
-import { ThemeToggle } from './ThemeToggle';
 
 export default function App() {
   const session = useSessionStore((s) => s.session);
@@ -43,7 +43,7 @@ export default function App() {
       <>
         <div hidden={view !== 'setup'}>
           <SignInBanner onSignIn={() => setView('settings')} />
-          <SetupScreen onManage={() => setView('saved')} onSettings={() => setView('settings')} />
+          <SetupScreen onManage={() => setView('saved')} />
         </div>
         {view === 'saved' && <SavedPlayersScreen onBack={() => setView('setup')} />}
         {view === 'settings' && <SettingsScreen onBack={() => setView('setup')} />}
@@ -64,8 +64,8 @@ export default function App() {
     <div className="app">
       {!live && (
         <header className="app-header">
-          <span className="app-title">Pickleball Matchmaker</span>
-          <ThemeToggle />
+          <span className="app-title">PIKLMatch</span>
+          {view !== 'settings' && <AccountButton onClick={() => setView('settings')} />}
         </header>
       )}
       {updateReady && (

@@ -3,6 +3,8 @@ import { useAuthStore } from '../sync/auth';
 import { clearThisDevice, deleteAllMyData, type DataResult } from '../sync/dataActions';
 import { useSyncStore } from '../sync/syncStore';
 import { SyncStatusLine } from './SyncStatusLine';
+import { useDefaultMode } from './matchmaking';
+import { useTheme } from './useTheme';
 
 interface Props {
   onBack: () => void;
@@ -12,6 +14,8 @@ export function SettingsScreen({ onBack }: Props) {
   const { status, email, error, busy, sendLink, changeEmail, signOut } = useAuthStore();
   const [emailInput, setEmailInput] = useState('');
   const syncStatus = useSyncStore((s) => s.status);
+  const [theme, toggleTheme] = useTheme();
+  const [mode, setMode] = useDefaultMode();
   const [working, setWorking] = useState(false);
   const [outcome, setOutcome] = useState<{ result: DataResult; done: string } | null>(null);
 
@@ -40,6 +44,37 @@ export function SettingsScreen({ onBack }: Props) {
           Back
         </button>
       </div>
+
+      <section className="card stack" aria-labelledby="look-title">
+        <h2 id="look-title" className="section-title">
+          Appearance
+        </h2>
+        <div className="options" role="radiogroup" aria-label="Theme">
+          {(['dark', 'light'] as const).map((t) => (
+            <label key={t} className="option">
+              <input type="radio" name="theme" checked={theme === t} onChange={() => theme !== t && toggleTheme()} />
+              <span>{t === 'dark' ? 'Dark' : 'Light'}</span>
+            </label>
+          ))}
+        </div>
+      </section>
+
+      <section className="card stack" aria-labelledby="mode-title">
+        <h2 id="mode-title" className="section-title">
+          Matchmaking
+        </h2>
+        <div className="options" role="radiogroup" aria-label="Matchmaking">
+          <label className="option">
+            <input type="radio" name="mode" checked={mode === 'fairness'} onChange={() => setMode('fairness')} />
+            <span>Fairness (recommended)</span>
+          </label>
+          <label className="option">
+            <input type="radio" name="mode" checked={mode === 'queue'} onChange={() => setMode('queue')} />
+            <span>Simple queue</span>
+          </label>
+        </div>
+        <p className="muted">Applies to new sessions. Fairness gives the players with the fewest games the next court. Simple queue goes in the order people arrive.</p>
+      </section>
 
       <section className="card stack" aria-labelledby="account-title">
         <h2 id="account-title" className="section-title">

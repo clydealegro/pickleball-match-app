@@ -1,32 +1,32 @@
-import { useEffect, useState } from 'react';
-import type { Mode } from '../engine';
+import { useEffect, useRef, useState } from 'react';
 import { lastSessionIds } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
-import { PhotoSheet } from './PhotoSheet';
+import { getDefaultMode, useDefaultMode } from './matchmaking';
 import { PlayerAvatar } from './PlayerAvatar';
 
 const MIN_PLAYERS = 4;
 const MAX_COURTS = 12;
+const MAX_ADD_ROWS = 5;
 
 interface Props {
   onManage: () => void;
-  onSettings: () => void;
 }
 
-export function SetupScreen({ onManage, onSettings }: Props) {
+export function SetupScreen({ onManage }: Props) {
   const roster = useRosterStore((s) => s.players);
   const addToRoster = useRosterStore((s) => s.add);
   const start = useSessionStore((s) => s.start);
 
   const [name, setName] = useState('');
   const [courtCount, setCourtCount] = useState(2);
-  const [mode, setMode] = useState<Mode>('fairness');
+  const [mode] = useDefaultMode();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
-  const [photoFor, setPhotoFor] = useState<{ id: string; name: string } | null>(null);
+  // Adds run one after another, so typing on while names are being saved cannot create doubles.
+  const adding = useRef<Promise<void>>(Promise.resolve());
 
   // A start error belongs to the selection it was raised for.
   useEffect(() => {
@@ -36,6 +36,7 @@ export function SetupScreen({ onManage, onSettings }: Props) {
   const lastIds = lastSessionIds(roster);
   const chosen = roster.filter((p) => selected.has(p.id));
   const canStart = chosen.length >= MIN_PLAYERS;
+  const addRows = Math.min(MAX_ADD_ROWS, Math.max(1, draft.split('\n').length));
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -46,30 +47,33 @@ export function SetupScreen({ onManage, onSettings }: Props) {
     });
   }
 
-  async function addPlayers() {
+  function addPlayers() {
     const lines = draft
       .split('\n')
       .map((l) => l.trim())
       .filter(Boolean);
     if (lines.length === 0) return;
-    const ids: string[] = [];
-    let failure: string | null = null;
-    for (const line of lines) {
-      try {
-        ids.push((await addToRoster(line)).id);
-      } catch (e) {
-        failure = e instanceof Error ? e.message : 'Could not add that player.';
-      }
-    }
-    setSelected((prev) => new Set([...prev, ...ids]));
+    // Clear the box at once so whatever is typed next starts a fresh entry.
     setDraft('');
-    setError(failure);
+    adding.current = adding.current.then(async () => {
+      const ids: string[] = [];
+      let failure: string | null = null;
+      for (const line of lines) {
+        try {
+          ids.push((await addToRoster(line)).id);
+        } catch (e) {
+          failure = e instanceof Error ? e.message : 'Could not add that player.';
+        }
+      }
+      setSelected((prev) => new Set([...prev, ...ids]));
+      setError(failure);
+    });
   }
 
   function startSession() {
     const res = start({
       name,
-      mode,
+      mode: getDefaultMode(),
       courtCount,
       players: chosen.map((p) => ({ name: p.name, rosterId: p.id })),
     });
@@ -78,77 +82,50 @@ export function SetupScreen({ onManage, onSettings }: Props) {
 
   return (
     <div className="stack">
-      <div className="row-flex spread">
-        <h1 className="screen-title">New session</h1>
-        <button type="button" className="btn btn-ghost btn-small" onClick={onSettings}>
-          Settings
-        </button>
-      </div>
+      <h1 className="screen-title">New session</h1>
 
       <section className="card stack">
-        <div>
-          <label className="label" htmlFor="session-name">
-            Session name
-          </label>
-          <input
-            id="session-name"
-            className="field"
-            value={name}
-            placeholder="Open play"
-            onChange={(e) => setName(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <span className="label" id="courts-label">
-            Courts
-          </span>
-          <div className="stepper" role="group" aria-labelledby="courts-label">
-            <button
-              type="button"
-              className="btn"
-              aria-label="Fewer courts"
-              disabled={courtCount <= 1}
-              onClick={() => setCourtCount((c) => c - 1)}
-            >
-              −
-            </button>
-            <output aria-live="polite">{courtCount}</output>
-            <button
-              type="button"
-              className="btn"
-              aria-label="More courts"
-              disabled={courtCount >= MAX_COURTS}
-              onClick={() => setCourtCount((c) => c + 1)}
-            >
-              +
-            </button>
+        <div className="setup-top">
+          <div className="setup-name">
+            <label className="label" htmlFor="session-name">
+              Session name
+            </label>
+            <input
+              id="session-name"
+              className="field"
+              value={name}
+              placeholder="Open play"
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div>
+            <span className="label" id="courts-label">
+              Courts
+            </span>
+            <div className="stepper" role="group" aria-labelledby="courts-label">
+              <button
+                type="button"
+                className="btn"
+                aria-label="Fewer courts"
+                disabled={courtCount <= 1}
+                onClick={() => setCourtCount((c) => c - 1)}
+              >
+                −
+              </button>
+              <output aria-live="polite">{courtCount}</output>
+              <button
+                type="button"
+                className="btn"
+                aria-label="More courts"
+                disabled={courtCount >= MAX_COURTS}
+                onClick={() => setCourtCount((c) => c + 1)}
+              >
+                +
+              </button>
+            </div>
           </div>
         </div>
-
-        <fieldset>
-          <legend className="label">Matchmaking</legend>
-          <div className="options">
-            <label className="option">
-              <input
-                type="radio"
-                name="mode"
-                checked={mode === 'fairness'}
-                onChange={() => setMode('fairness')}
-              />
-              <span>Fairness (recommended)</span>
-            </label>
-            <label className="option">
-              <input
-                type="radio"
-                name="mode"
-                checked={mode === 'queue'}
-                onChange={() => setMode('queue')}
-              />
-              <span>Simple queue</span>
-            </label>
-          </div>
-        </fieldset>
+        {mode === 'queue' && <p className="muted setup-note">Simple queue matchmaking. Change it in Settings.</p>}
       </section>
 
       <section className="card stack">
@@ -159,38 +136,41 @@ export function SetupScreen({ onManage, onSettings }: Props) {
           </button>
         </div>
 
-        <div className="stack">
-          <label className="label" htmlFor="add-players">
-            Add players
-          </label>
+        <form
+          className="add-row"
+          onSubmit={(e) => {
+            e.preventDefault();
+            addPlayers();
+          }}
+        >
           <textarea
-            id="add-players"
             className="field"
-            rows={3}
-            placeholder={'One name per line\nAnn\nBen'}
+            aria-label="Add players"
+            rows={addRows}
+            placeholder="Add a name, then Enter"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter adds the name; paste a list to add several at once.
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                addPlayers();
+              }
+            }}
           />
-          <button type="button" className="btn" onClick={() => void addPlayers()}>
+          <button type="submit" className="btn">
             Add
           </button>
-          {error && (
-            <p className="error" role="alert">
-              {error}
-            </p>
-          )}
-        </div>
+        </form>
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
 
         {roster.length > 0 && (
           <>
-            <div className="controls">
-              <button
-                type="button"
-                className="btn btn-small"
-                onClick={() => setSelected(new Set(roster.map((p) => p.id)))}
-              >
-                Select all
-              </button>
+            <div className="controls quick">
               <button
                 type="button"
                 className="btn btn-small"
@@ -202,30 +182,24 @@ export function SetupScreen({ onManage, onSettings }: Props) {
               <button
                 type="button"
                 className="btn btn-small"
-                disabled={selected.size === 0}
-                onClick={() => setSelected(new Set())}
+                onClick={() => setSelected(new Set(roster.map((p) => p.id)))}
               >
-                Clear
+                Select all
               </button>
+              {selected.size > 0 && (
+                <button type="button" className="btn btn-ghost btn-small" onClick={() => setSelected(new Set())}>
+                  Clear
+                </button>
+              )}
             </div>
-            <ul className="list" aria-label="Saved players">
+            <ul className="pick-grid" aria-label="Saved players">
               {roster.map((p) => (
-                <li key={p.id} className="has-action">
-                  <label className="check">
+                <li key={p.id}>
+                  <label className="pick">
                     <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} />
-                    <span>
-                      <PlayerAvatar name={p.name} rosterId={p.id} size="sm" />
-                      <span className="row-name">{p.name}</span>
-                    </span>
+                    <PlayerAvatar name={p.name} rosterId={p.id} size="sm" />
+                    <span className="row-name">{p.name}</span>
                   </label>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-small"
-                    aria-label={`${p.photoVersion > 0 ? 'Change' : 'Add'} photo for ${p.name}`}
-                    onClick={() => setPhotoFor({ id: p.id, name: p.name })}
-                  >
-                    {p.photoVersion > 0 ? 'Change photo' : 'Add photo'}
-                  </button>
                 </li>
               ))}
             </ul>
@@ -249,7 +223,6 @@ export function SetupScreen({ onManage, onSettings }: Props) {
         )}
         {!canStart && <p className="muted">Select at least {MIN_PLAYERS} players to start.</p>}
       </div>
-      {photoFor && <PhotoSheet rosterId={photoFor.id} name={photoFor.name} onClose={() => setPhotoFor(null)} />}
     </div>
   );
 }

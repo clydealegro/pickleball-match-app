@@ -15,8 +15,8 @@ export default defineConfig(({ mode }) => ({
         registerType: 'prompt',
         includeAssets: ['icons/*.png'],
         manifest: {
-          name: 'Pickleball Matchmaker',
-          short_name: 'Pickleball',
+          name: 'PIKLMatch',
+          short_name: 'PIKLMatch',
           description: 'Pickleball matchmaking for open play sessions.',
           theme_color: '#c8f03c',
           background_color: '#fafaf7',

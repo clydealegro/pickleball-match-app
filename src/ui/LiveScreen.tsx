@@ -10,7 +10,6 @@ import { CourtTabs } from './CourtTabs';
 import { LiveMenu } from './LiveMenu';
 import { PlayerSheet } from './PlayerSheet';
 import { useSwipe } from './useSwipe';
-import { useTheme } from './useTheme';
 import { WaitingSheet } from './WaitingSheet';
 
 export function LiveScreen({ session, onSettings }: { session: Session; onSettings: () => void }) {
@@ -23,7 +22,6 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
   const [courtId, setCourtId] = useState<string | null>(null);
   /** Which way the court on show last moved, so the next one slides in from that side. */
   const [slide, setSlide] = useState<'from-right' | 'from-left' | null>(null);
-  const [theme, toggleTheme] = useTheme();
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -104,7 +102,6 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
                     },
                   ]
                 : []),
-              { label: theme === 'dark' ? 'Use light theme' : 'Use dark theme', onSelect: toggleTheme },
               { label: 'End session', onSelect: endSession, danger: true },
             ]}
           />

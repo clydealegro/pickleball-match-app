@@ -45,10 +45,12 @@ const rowFor = (listName: string, text: string) =>
     .find((li) => within(li).queryByText(text))!;
 
 describe('photos in the app', () => {
-  it('adds a photo to a new player from the Setup list', async () => {
+  it('adds a photo to a new player from Saved players', async () => {
     const user = userEvent.setup();
     render(<App />);
     await addPlayers(user, 'Ann{enter}Ben');
+    expect(screen.queryByRole('button', { name: /photo for/i })).not.toBeInTheDocument(); // not on the New session page
+    await user.click(await screen.findByRole('button', { name: 'Manage saved players' }));
     await user.click(await screen.findByRole('button', { name: 'Add photo for Ann' }));
     expect(await screen.findByRole('dialog', { name: 'Photo for Ann' })).toBeInTheDocument();
 
@@ -58,7 +60,8 @@ describe('photos in the app', () => {
     await waitFor(() => expect(rowFor('Saved players', 'Ann').querySelector('img')).not.toBeNull());
     expect(screen.getByRole('button', { name: 'Change photo for Ann' })).toBeInTheDocument();
     expect(rowFor('Saved players', 'Ben').querySelector('img')).toBeNull();
-    expect(screen.getByRole('checkbox', { name: 'Ann' })).toBeInTheDocument(); // the row still toggles by name
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('checkbox', { name: 'Ann' })).toBeInTheDocument(); // the chip still toggles by name
   });
 
   it('changes and removes a photo on the Saved players screen', async () => {

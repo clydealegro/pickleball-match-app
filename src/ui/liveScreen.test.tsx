@@ -103,7 +103,7 @@ describe('court tabs', () => {
 });
 
 describe('the menu', () => {
-  it('opens, offers Add court, Remove court, the theme and End session, and closes on Escape with focus back on the button', async () => {
+  it('opens, offers Add court, Remove court and End session, and closes on Escape with focus back on the button', async () => {
     const user = userEvent.setup();
     await startSession(user, FIVE);
     const button = screen.getByRole('button', { name: 'Menu' });
@@ -111,7 +111,7 @@ describe('the menu', () => {
     await user.click(button);
     expect(button).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(
-      expect.arrayContaining(['Add court', 'Remove court 1', expect.stringMatching(/^Use (light|dark) theme$/), 'End session']),
+      expect.arrayContaining(['Add court', 'Remove court 1', 'End session']),
     );
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('button', { name: 'End session' })).not.toBeInTheDocument();
@@ -181,7 +181,7 @@ describe('the top bar', () => {
   it('is one slim row, with no separate title bar above it, and Undo as an icon button', async () => {
     const user = userEvent.setup();
     await startSession(user, FIVE);
-    expect(screen.queryByText('Pickleball Matchmaker')).not.toBeInTheDocument();
+    expect(screen.queryByText('PIKLMatch')).not.toBeInTheDocument();
     const bar = document.querySelector<HTMLElement>('.live-header')!;
     expect(within(bar).getByRole('button', { name: /^Settings/ })).toBeInTheDocument();
     expect(within(bar).getByRole('heading', { level: 1 })).toBeInTheDocument();
@@ -191,21 +191,14 @@ describe('the top bar', () => {
 
   it('brings the title bar back outside a live session', async () => {
     render(<App />);
-    expect(screen.getByText('Pickleball Matchmaker')).toBeInTheDocument();
+    expect(screen.getByText('PIKLMatch')).toBeInTheDocument();
   });
 
-  it('flips the theme from the menu, which now holds the theme switch', async () => {
+  it('no longer holds a theme switch', async () => {
     const user = userEvent.setup();
-    delete document.documentElement.dataset.theme;
     await startSession(user, FIVE);
     await user.click(screen.getByRole('button', { name: 'Menu' }));
-    const first = screen.getByRole('button', { name: /^Use (light|dark) theme$/ });
-    const before: string = document.documentElement.dataset.theme ?? 'light';
-    await user.click(first);
-    expect(document.documentElement.dataset.theme).toBe(before === 'dark' ? 'light' : 'dark');
-    await user.click(screen.getByRole('button', { name: 'Menu' }));
-    // The item now offers the way back.
-    expect(screen.getByRole('button', { name: before === 'dark' ? 'Use dark theme' : 'Use light theme' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /theme/i })).not.toBeInTheDocument();
   });
 });
 

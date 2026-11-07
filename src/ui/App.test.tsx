@@ -230,16 +230,28 @@ describe('App', () => {
     expect(apply).toHaveBeenCalledTimes(1);
   });
 
-  it('flips the theme and remembers the choice', async () => {
+  it('sets the theme in Settings and remembers the choice', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole('button', { name: 'Switch to dark theme' }));
+    await user.click(screen.getByRole('button', { name: /^Settings/ }));
+    const group = within(screen.getByRole('radiogroup', { name: 'Theme' }));
+    await user.click(group.getByRole('radio', { name: 'Dark' }));
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(localStorage.getItem('pickleball.theme')).toBe('dark');
 
-    await user.click(screen.getByRole('button', { name: 'Switch to light theme' }));
+    await user.click(group.getByRole('radio', { name: 'Light' }));
     expect(document.documentElement.dataset.theme).toBe('light');
     expect(localStorage.getItem('pickleball.theme')).toBe('light');
+    expect(group.getByRole('radio', { name: 'Light' })).toBeChecked();
+  });
+
+  it('has a PIKLMatch title bar with the account button, and no theme button there', () => {
+    render(<App />);
+    const bar = document.querySelector<HTMLElement>('.app-header')!;
+    expect(within(bar).getByText('PIKLMatch')).toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: /^Settings/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /theme/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^Settings/ })).toHaveLength(1);
   });
 
   it('Select all and Clear change the selection, and Simple queue starts a queue session', async () => {
@@ -253,7 +265,10 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Select all' }));
     expect(screen.getByText('Players (4 selected)')).toBeInTheDocument();
 
+    await user.click(screen.getByRole('button', { name: /^Settings/ }));
     await user.click(screen.getByRole('radio', { name: /simple queue/i }));
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText(/Simple queue matchmaking/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Start session (4 players)' }));
     expect(useSessionStore.getState().session?.mode).toBe('queue');
   });
