@@ -1,13 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { attendanceByRoster, regularsForWeekday, sortByAttendance } from '../store/attendance';
+import { useHistoryStore } from '../store/historyStore';
 import { lastSessionIds } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
 import { getDefaultMode, useDefaultMode } from './matchmaking';
-import { AUTO_START_KEY, COURTS_KEY, getBoolPref, getNumPref, setNumPref } from './prefs';
+import { AUTO_START_KEY, COURTS_KEY, getBoolPref, getNumPref, REGULARS_FIRST_KEY, setNumPref, useBoolPref } from './prefs';
 import { PlayerAvatar } from './PlayerAvatar';
 
 const MIN_PLAYERS = 4;
 const MAX_COURTS = 12;
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 interface Props {
   onManage: () => void;
@@ -21,7 +24,16 @@ function defaultSessionName(now = new Date()): string {
 }
 
 export function SetupScreen({ onManage }: Props) {
-  const roster = useRosterStore((s) => s.players);
+  const saved = useRosterStore((s) => s.players);
+  const history = useHistoryStore((s) => s.entries);
+  const [regularsFirst] = useBoolPref(REGULARS_FIRST_KEY, true);
+  // The people who come most often go first, so the usual crowd is at the top of a long list.
+  const roster = useMemo(() => (regularsFirst ? sortByAttendance(saved, attendanceByRoster(history)) : saved), [saved, history, regularsFirst]);
+  const weekday = new Date().getDay();
+  const weekdayIds = useMemo(() => {
+    const here = new Set(saved.map((p) => p.id));
+    return regularsForWeekday(history, weekday).filter((id) => here.has(id));
+  }, [saved, history, weekday]);
   const addToRoster = useRosterStore((s) => s.add);
   const start = useSessionStore((s) => s.start);
   const [mode] = useDefaultMode();
@@ -141,6 +153,11 @@ export function SetupScreen({ onManage }: Props) {
           {lastIds.length > 0 && (
             <button type="button" className="btn btn-small" onClick={() => setSelected(new Set(lastIds))}>
               Same as last time ({lastIds.length})
+            </button>
+          )}
+          {weekdayIds.length >= MIN_PLAYERS && (
+            <button type="button" className="btn btn-small" onClick={() => setSelected(new Set(weekdayIds))}>
+              {DAY_NAMES[weekday]} regulars ({weekdayIds.length})
             </button>
           )}
           <button type="button" className="btn btn-ghost btn-small" onClick={() => setSelected(new Set(roster.map((p) => p.id)))}>

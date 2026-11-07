@@ -1,4 +1,6 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { attendanceByRoster, attendanceLine } from '../store/attendance';
+import { useHistoryStore } from '../store/historyStore';
 import { useRosterStore } from '../store/rosterStore';
 import { PhotoSheet } from './PhotoSheet';
 import { PlayerAvatar } from './PlayerAvatar';
@@ -10,6 +12,8 @@ interface Props {
 
 export function SavedPlayersScreen({ onBack }: Props) {
   const roster = useRosterStore((s) => s.players);
+  const history = useHistoryStore((s) => s.entries);
+  const attendance = useMemo(() => attendanceByRoster(history), [history]);
   const rename = useRosterStore((s) => s.rename);
   const remove = useRosterStore((s) => s.remove);
   const add = useRosterStore((s) => s.add);
@@ -170,7 +174,10 @@ export function SavedPlayersScreen({ onBack }: Props) {
                         </span>
                       )}
                     </button>
-                    <span className="row-name">{p.name}</span>
+                    <span className="saved-name">
+                      <span className="row-name">{p.name}</span>
+                      <span className="muted saved-att">{attendanceLine(attendance.get(p.id))}</span>
+                    </span>
                   </span>
                   <span className="saved-actions">
                     <button
