@@ -51,8 +51,10 @@ export default function App() {
     );
   } else if (session.endedAt) {
     screen = <SummaryScreen session={session} />;
+  } else if (view === 'settings') {
+    screen = <SettingsScreen onBack={() => setView('setup')} />;
   } else {
-    screen = <LiveScreen session={session} />;
+    screen = <LiveScreen session={session} onSettings={() => setView('settings')} />;
   }
 
   return (

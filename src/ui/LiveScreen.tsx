@@ -3,19 +3,22 @@ import * as engine from '../engine';
 import type { Session } from '../engine';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore, type SessionAction } from '../store/sessionStore';
+import { AccountButton } from './AccountButton';
 import { AddPlayerSheet } from './AddPlayerSheet';
 import { CourtCard } from './CourtCard';
+import { CourtTabs } from './CourtTabs';
+import { LiveMenu } from './LiveMenu';
 import { PlayerSheet } from './PlayerSheet';
-import { UpNextCard } from './UpNextCard';
-import { WaitingList } from './WaitingList';
+import { WaitingSheet } from './WaitingSheet';
 
-export function LiveScreen({ session }: { session: Session }) {
+export function LiveScreen({ session, onSettings }: { session: Session; onSettings: () => void }) {
   const apply = useSessionStore((s) => s.apply);
   const undo = useSessionStore((s) => s.undo);
   const undoCount = useSessionStore((s) => s.undoStack.length);
   const markPlayed = useRosterStore((s) => s.markPlayed);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [courtId, setCourtId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,14 +52,31 @@ export function LiveScreen({ session }: { session: Session }) {
   }
 
   const sorted = [...session.courts].sort((a, b) => a.number - b.number);
+  // A court that is gone (removed once its game ended) falls back to the first one.
+  const selected = sorted.find((c) => c.id === courtId) ?? sorted[0];
 
   return (
-    <div>
-      <div className="row-flex spread">
-        <h1 className="screen-title">{session.name}</h1>
-        <span className="muted">
-          {session.history.length} {session.history.length === 1 ? 'game' : 'games'} played
-        </span>
+    <div className="live-screen">
+      <div className="live-header">
+        <AccountButton onClick={onSettings} />
+        <div className="live-title">
+          <h1 className="screen-title">{session.name}</h1>
+          <span className="muted">
+            {session.history.length} {session.history.length === 1 ? 'game' : 'games'} played
+          </span>
+        </div>
+        <div className="live-actions">
+          <button type="button" className="btn btn-small" disabled={undoCount === 0} onClick={undo}>
+            Undo
+          </button>
+          <LiveMenu
+            items={[
+              { label: 'Add court', onSelect: () => run((s, ctx) => engine.addCourt(s, ctx)) },
+              { label: 'Settings', onSelect: onSettings },
+              { label: 'End session', onSelect: endSession, danger: true },
+            ]}
+          />
+        </div>
       </div>
 
       {error && (
@@ -66,35 +86,23 @@ export function LiveScreen({ session }: { session: Session }) {
       )}
 
       <div className="live-grid">
-        <div className="courts">
-          {sorted.map((court) => (
-            <CourtCard
-              key={court.id}
-              court={court}
-              playersById={playersById}
-              onFinish={() => run((s, ctx) => engine.finishGame(s, court.id, ctx))}
-              onToggleClosing={() => run((s) => engine.removeCourt(s, court.id))}
-              onSelectPlayer={selectPlayer}
-            />
-          ))}
-        </div>
-
         <div className="stack">
-          <UpNextCard session={session} />
-          <WaitingList session={session} onSelect={selectPlayer} onAdd={openAdd} />
+          {selected && (
+            <>
+              <CourtTabs courts={sorted} selectedId={selected.id} onSelect={setCourtId} />
+              <CourtCard
+                key={selected.id}
+                court={selected}
+                playersById={playersById}
+                onFinish={() => run((s, ctx) => engine.finishGame(s, selected.id, ctx))}
+                onToggleClosing={() => run((s) => engine.removeCourt(s, selected.id))}
+                onSelectPlayer={selectPlayer}
+              />
+            </>
+          )}
         </div>
-      </div>
 
-      <div className="controls">
-        <button type="button" className="btn" disabled={undoCount === 0} onClick={undo}>
-          Undo
-        </button>
-        <button type="button" className="btn" onClick={() => run((s, ctx) => engine.addCourt(s, ctx))}>
-          Add court
-        </button>
-        <button type="button" className="btn btn-danger" onClick={endSession}>
-          End session
-        </button>
+        <WaitingSheet session={session} onSelect={selectPlayer} onAdd={openAdd} />
       </div>
 
       {selectedId && (

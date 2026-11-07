@@ -147,9 +147,9 @@ describe('photos in the app', () => {
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}Eve');
     await user.click(await screen.findByRole('button', { name: 'Start session (5 players)' }));
 
-    const court = screen.getByRole('region', { name: 'Court 1' });
+    const court = screen.getByRole('tabpanel', { name: 'Court 1' });
     const name = within(court).getAllByText(/^(Ann|Ben|Cy|Dee|Eve)$/)[0].textContent!;
-    const chip = () => within(court).getByText(name).closest('.chip')!;
+    const chip = () => within(court).getByText(name).closest('.tile')!;
     expect(chip().querySelector('img')).toBeNull(); // initials until there is a photo
 
     const saved = useRosterStore.getState().players.find((p) => p.name === name)!;

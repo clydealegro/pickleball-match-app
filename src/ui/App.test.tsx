@@ -36,6 +36,11 @@ async function startFivePlayerSession(user: User) {
   await user.click(await screen.findByRole('button', { name: 'Start session (5 players)' }));
 }
 
+async function endSessionFromMenu(user: User) {
+  await user.click(screen.getByRole('button', { name: 'Menu' }));
+  await user.click(screen.getByRole('button', { name: 'End session' }));
+}
+
 /** The name of the single player waiting after startFivePlayerSession. */
 function waitingName(): string {
   const item = within(screen.getByRole('list', { name: 'Waiting' })).getAllByRole('listitem')[0];
@@ -56,7 +61,7 @@ describe('App', () => {
     const user = userEvent.setup();
     await startFivePlayerSession(user);
 
-    const court = screen.getByRole('region', { name: 'Court 1' });
+    const court = screen.getByRole('tabpanel', { name: 'Court 1' });
     expect(within(court).getAllByText(NAMES)).toHaveLength(4);
 
     expect(within(screen.getByRole('list', { name: 'Waiting' })).getAllByRole('listitem')).toHaveLength(1);
@@ -64,7 +69,7 @@ describe('App', () => {
 
     await user.click(within(court).getByRole('button', { name: /game finished/i }));
 
-    const courtAfter = screen.getByRole('region', { name: 'Court 1' });
+    const courtAfter = screen.getByRole('tabpanel', { name: 'Court 1' });
     expect(within(courtAfter).getByText(waiterName)).toBeInTheDocument();
     expect(screen.getByText('1 game played')).toBeInTheDocument();
   });
@@ -90,14 +95,14 @@ describe('App', () => {
     const user = userEvent.setup();
     await startFivePlayerSession(user);
 
-    const court = screen.getByRole('region', { name: 'Court 1' });
+    const court = screen.getByRole('tabpanel', { name: 'Court 1' });
     const playerName = within(court).getAllByText(NAMES)[0].textContent!;
     await user.click(within(court).getByRole('button', { name: new RegExp(playerName) }));
     await user.click(await screen.findByRole('button', { name: 'Take a break' }));
 
-    expect(within(screen.getByRole('region', { name: 'Court 1' })).getByText('Break next')).toBeInTheDocument();
+    expect(within(screen.getByRole('tabpanel', { name: 'Court 1' })).getByText('Break next')).toBeInTheDocument();
 
-    await user.click(within(screen.getByRole('region', { name: 'Court 1' })).getByRole('button', { name: /game finished/i }));
+    await user.click(within(screen.getByRole('tabpanel', { name: 'Court 1' })).getByRole('button', { name: /game finished/i }));
 
     const breakList = await screen.findByRole('list', { name: 'On break' });
     expect(within(breakList).getByText(playerName)).toBeInTheDocument();
@@ -107,7 +112,7 @@ describe('App', () => {
     const user = userEvent.setup();
     await startFivePlayerSession(user);
 
-    const court = () => screen.getByRole('region', { name: 'Court 1' });
+    const court = () => screen.getByRole('tabpanel', { name: 'Court 1' });
     await user.click(within(court()).getByRole('button', { name: /remove court/i }));
     expect(within(court()).getByText('Closing after this game')).toBeInTheDocument();
 
@@ -142,8 +147,9 @@ describe('App', () => {
     const user = userEvent.setup();
     await startFivePlayerSession(user);
 
-    // The setup default is two courts: remove the idle one, then try to remove the last one.
-    await user.click(screen.getAllByRole('button', { name: /remove court/i })[1]);
+    // The setup default is two courts: remove the idle one (Court 2), then try to remove the last one.
+    await user.click(screen.getByRole('tab', { name: /court 2/i }));
+    await user.click(screen.getByRole('button', { name: /remove court/i }));
     await user.click(screen.getByRole('button', { name: /remove court/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent('At least one court must stay open.');
 
@@ -157,7 +163,7 @@ describe('App', () => {
     const user = userEvent.setup();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     await startFivePlayerSession(user);
-    await user.click(screen.getByRole('button', { name: 'End session' }));
+    await endSessionFromMenu(user);
     await user.click(await screen.findByRole('button', { name: 'Start new session' }));
 
     for (const name of ['Ann', 'Ben', 'Cy', 'Dee']) {
@@ -181,7 +187,7 @@ describe('App', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     await startFivePlayerSession(user);
 
-    await user.click(screen.getByRole('button', { name: 'End session' }));
+    await endSessionFromMenu(user);
     expect(await screen.findByRole('heading', { name: 'Session summary' })).toBeInTheDocument();
     expect(screen.getByRole('table')).toBeInTheDocument();
     // The roster is told who played in the background, so wait for that before asking for "Same as last session".
