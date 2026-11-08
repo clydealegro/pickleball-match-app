@@ -43,11 +43,12 @@ async function openSheet(user: User, button: HTMLElement) {
 }
 
 describe('the player sheet for a waiting player', () => {
-  it('offers Play next, Skip this turn and Swap onto a court, and not Not here', async () => {
+  it('offers Play next up front, Skip this turn and Swap onto a court under More, and not Not here', async () => {
     const user = userEvent.setup();
     await startSession(user, 6);
     const dialog = within(await openSheet(user, waitingRows()[0]));
     expect(dialog.getByRole('button', { name: 'Play next' })).toBeInTheDocument();
+    await user.click(dialog.getByRole('button', { name: 'More' }));
     expect(dialog.getByRole('button', { name: 'Skip this turn' })).toBeInTheDocument();
     expect(dialog.getByRole('button', { name: 'Swap onto a court…' })).toBeInTheDocument();
     expect(dialog.queryByRole('button', { name: 'Not here' })).not.toBeInTheDocument();
@@ -87,6 +88,7 @@ describe('the player sheet for a waiting player', () => {
     await startSession(user, 12);
     const first = waitingNames()[0];
     await user.click(waitingRows()[0]);
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'More' }));
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Skip this turn' }));
     expect(bar()!.textContent).toBe(`${first} skipped a turnUndo`);
     expect(waitingNames().at(-1)).toBe(first);
@@ -201,6 +203,7 @@ describe('the swap picker', () => {
     const me = waitingNames()[1];
     const swapOut = lineup()[0];
     await user.click(waitingRows()[1]);
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'More' }));
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Swap onto a court…' }));
     const dialog = within(screen.getByRole('dialog', { name: `Swap ${me}` }));
     expect(dialog.queryByRole('list', { name: 'Swap with a waiting player' })).not.toBeInTheDocument();
@@ -217,6 +220,7 @@ describe('the swap picker', () => {
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Play next' }));
     const chosen = waitingNames()[0];
     await user.click(waitingRows()[0]);
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'More' }));
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Swap onto a court…' }));
     const target = lineup()[0];
     await user.click(within(screen.getByRole('list', { name: 'Swap with a player on a court' })).getByRole('button', { name: new RegExp(target) }));

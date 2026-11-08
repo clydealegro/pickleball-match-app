@@ -142,6 +142,7 @@ describe('photos in the app', () => {
     const dialog = await screen.findByRole('dialog', { name });
     expect(within(dialog).queryByRole('button', { name: /photo/i })).not.toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Take a break' })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'More' }));
     expect(within(dialog).getByRole('button', { name: 'Leave session' })).toBeInTheDocument();
   });
 

@@ -49,19 +49,6 @@ function Action({
   );
 }
 
-/** A labelled set of actions. */
-function Group({ label, children }: { label: string; children: ReactNode }) {
-  const id = useId();
-  return (
-    <div className="psheet-group" role="group" aria-labelledby={id}>
-      <p id={id} className="psheet-label">
-        {label}
-      </p>
-      {children}
-    </div>
-  );
-}
-
 interface Props {
   session: Session;
   playerId: string;
@@ -73,6 +60,8 @@ export function PlayerSheet({ session, playerId, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [photoOpen, setPhotoOpen] = useState(false);
   const [swapping, setSwapping] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreId = useId();
   const player = session.players.find((p) => p.id === playerId);
   const saved = useRosterStore((s) => s.players.find((p) => p.id === player?.rosterId));
   if (!player) return null;
@@ -127,12 +116,96 @@ export function PlayerSheet({ session, playerId, onClose }: Props) {
 
   const next = onCourt ? engine.orderedWaiting(session)[0] : undefined;
   const avatar = <PlayerAvatar name={player.name} rosterId={player.rosterId} size="lg" />;
+  const nameOf = (id: string) => session.players.find((p) => p.id === id)?.name ?? 'Player';
+
+  // Who they play with and against, in names the organizer can see on the court card.
+  let around: string | null = null;
+  if (place.kind === 'lineup' || place.kind === 'game') {
+    const court = session.courts.find((c) => c.number === place.courtNumber);
+    const group = court?.game ?? court?.lineup;
+    if (group) {
+      const mine = place.team === 1 ? group.team1 : group.team2;
+      const theirs = place.team === 1 ? group.team2 : group.team1;
+      const partner = mine.find((id) => id !== playerId);
+      around = `${partner ? `With ${nameOf(partner)}, a` : 'A'}gainst ${theirs.map(nameOf).join(' and ')}`;
+    }
+  }
   const where =
     place.kind === 'lineup' || place.kind === 'game'
-      ? `Court ${place.courtNumber}, team ${place.team}, ${place.kind === 'lineup' ? 'ready to start' : 'playing now'}`
+      ? `Court ${place.courtNumber}, ${place.kind === 'lineup' ? 'ready to start' : 'playing now'}`
       : player.status === 'break'
         ? 'On a break'
         : null;
+
+  const onBreak = player.status === 'break' && !player.pendingStatus;
+  const leave = !player.pendingStatus && <Action key="leave" variant="danger" label="Leave session" onClick={() => setStatus('left')} />;
+  const swap = (label: string) => <Action key="swap" label={label} onClick={() => setSwapping(true)} />;
+
+  // The two things most worth a tap sit up front. Everything else waits under More.
+  const upFront: ReactNode[] = [];
+  const more: ReactNode[] = [];
+  if (player.pendingStatus) {
+    upFront.push(
+      <Action
+        key="cancel"
+        label={player.pendingStatus === 'break' ? 'Cancel break' : 'Cancel leaving'}
+        onClick={() => setStatus('active')}
+      />,
+    );
+  }
+  if (onCourt) {
+    upFront.unshift(
+      <Action
+        key="nothere"
+        variant="primary"
+        label="Not here"
+        hint={next ? `${next.name} steps in and ${player.name} goes on a break.` : 'Nobody is waiting to take their place.'}
+        onClick={() =>
+          control((s, ctx) => engine.notHere(s, playerId, ctx), `${player.name} not here, the next player steps in`)
+        }
+      />,
+      swap('Swap places…'),
+    );
+    if (!player.pendingStatus && place.kind === 'game') {
+      more.push(<Action key="brk" label="Break after this game" hint="They finish this game first." onClick={() => setStatus('break')} />);
+    }
+    if (!player.pendingStatus && place.kind === 'lineup' && !next) {
+      more.push(
+        <Action
+          key="brk"
+          label="Take a break"
+          hint="Takes them off the court. The court waits for another player."
+          onClick={() => setStatus('break')}
+        />,
+      );
+    }
+  } else if (place.kind === 'waiting') {
+    if (pinned) upFront.push(<p key="pinned" className="why-waiting">Playing next.</p>);
+    else {
+      upFront.push(
+        <Action
+          key="next"
+          variant="primary"
+          label="Play next"
+          hint="First in line for the next game."
+          onClick={() => control((s) => engine.playNext(s, playerId), `${player.name} plays next`)}
+        />,
+      );
+    }
+    if (!player.pendingStatus) upFront.push(<Action key="brk" label="Take a break" onClick={() => setStatus('break')} />);
+    more.push(
+      <Action
+        key="skip"
+        label="Skip this turn"
+        hint="Moves to the back of the line."
+        onClick={() => control((s) => engine.skipTurn(s, playerId), `${player.name} skipped a turn`)}
+      />,
+      swap('Swap onto a court…'),
+    );
+  } else if (onBreak) {
+    upFront.push(<Action key="back" variant="primary" label="Return to play" onClick={() => setStatus('active')} />);
+  }
+  if (leave) more.push(leave);
 
   return (
     <Sheet title={player.name} onClose={onClose}>
@@ -157,14 +230,17 @@ export function PlayerSheet({ session, playerId, onClose }: Props) {
         )}
         <div className="psheet-who">
           {where && <p className="psheet-where">{where}</p>}
+          {around && <p className="psheet-around">{around}</p>}
           {why && (
             <p className="why-waiting">
               {ordinal(why.position)} in line. {why.reason}
             </p>
           )}
-          <p className="psheet-chip">
-            {player.gamesPlayed} {player.gamesPlayed === 1 ? 'game' : 'games'}
-          </p>
+          {place.kind === 'waiting' && (
+            <p className="psheet-chip">
+              {player.gamesPlayed} {player.gamesPlayed === 1 ? 'game' : 'games'}
+            </p>
+          )}
         </div>
       </div>
 
@@ -180,73 +256,26 @@ export function PlayerSheet({ session, playerId, onClose }: Props) {
         </p>
       )}
 
-      {onCourt && (
-        <Group label="Right now">
-          <Action
-            variant="primary"
-            label="Swap places…"
-            hint="Trade with someone waiting or on another court."
-            onClick={() => setSwapping(true)}
-          />
-          <Action
-            label="Not here"
-            hint={
-              next
-                ? `${next.name} steps in and ${player.name} goes on a break.`
-                : 'Nobody is waiting to take their place.'
-            }
-            onClick={() =>
-              control((s, ctx) => engine.notHere(s, playerId, ctx), `${player.name} not here, the next player steps in`)
-            }
-          />
-        </Group>
-      )}
+      <div className="psheet-actions">{upFront}</div>
 
-      {place.kind === 'waiting' && (
-        <Group label="Right now">
-          {pinned ? (
-            <p className="why-waiting">Playing next.</p>
-          ) : (
-            <Action
-              variant="primary"
-              label="Play next"
-              hint="First in line for the next game."
-              onClick={() => control((s) => engine.playNext(s, playerId), `${player.name} plays next`)}
-            />
+      {more.length > 0 && (
+        <div className="psheet-more">
+          <button
+            type="button"
+            className="psheet-more-toggle"
+            aria-expanded={moreOpen}
+            aria-controls={moreId}
+            onClick={() => setMoreOpen((open) => !open)}
+          >
+            More <span aria-hidden="true">{moreOpen ? '▴' : '▾'}</span>
+          </button>
+          {moreOpen && (
+            <div id={moreId} className="psheet-actions">
+              {more}
+            </div>
           )}
-          <Action
-            label="Skip this turn"
-            hint="Moves to the back of the line."
-            onClick={() => control((s) => engine.skipTurn(s, playerId), `${player.name} skipped a turn`)}
-          />
-          <Action label="Swap onto a court…" onClick={() => setSwapping(true)} />
-        </Group>
+        </div>
       )}
-
-      {player.status === 'break' && !player.pendingStatus && (
-        <Group label="Right now">
-          <Action variant="primary" label="Return to play" onClick={() => setStatus('active')} />
-        </Group>
-      )}
-
-      <Group label={player.status === 'break' ? 'Leave' : 'Break or leave'}>
-        {player.pendingStatus ? (
-          <Action label={player.pendingStatus === 'break' ? 'Cancel break' : 'Cancel leaving'} onClick={() => setStatus('active')} />
-        ) : player.status !== 'break' && place.kind === 'game' ? (
-          <Action label="Break after this game" hint="They finish this game first." onClick={() => setStatus('break')} />
-        ) : player.status !== 'break' && place.kind === 'lineup' && !next ? (
-          <Action
-            label="Take a break"
-            hint="Takes them off the court. The court waits for another player."
-            onClick={() => setStatus('break')}
-          />
-        ) : player.status !== 'break' && place.kind === 'waiting' ? (
-          <Action label="Take a break" hint="Out until you bring them back." onClick={() => setStatus('break')} />
-        ) : null}
-        {!player.pendingStatus && (
-          <Action variant="danger" label="Leave session" hint="For the rest of this session." onClick={() => setStatus('left')} />
-        )}
-      </Group>
     </Sheet>
   );
 }

@@ -106,6 +106,7 @@ describe('App', () => {
     const court = screen.getByRole('tabpanel', { name: 'Court 1' });
     const playerName = within(court).getAllByText(NAMES)[0].textContent!;
     await user.click(within(court).getByRole('button', { name: new RegExp(playerName) }));
+    await user.click(await screen.findByRole('button', { name: 'More' }));
     await user.click(await screen.findByRole('button', { name: 'Break after this game' }));
 
     expect(within(screen.getByRole('tabpanel', { name: 'Court 1' })).getByText('Break next')).toBeInTheDocument();
