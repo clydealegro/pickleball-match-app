@@ -184,8 +184,8 @@ describe('the header on a narrow screen', () => {
 });
 
 describe('the waiting strip', () => {
-  it('centres the circles, so a short queue leaves no one-sided gap', () => {
-    expect(rule('.board-wstrip')).toMatch(/justify-content:\s*center/);
+  it('starts the circles right after the label, so there is no gap between them', () => {
+    expect(rule('.board-wstrip')).toMatch(/justify-content:\s*flex-start/);
   });
 
   it('gives the strip a quarter of a landscape screen and a larger label', () => {
