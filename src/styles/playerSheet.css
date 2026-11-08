@@ -1,0 +1,88 @@
+/* ---------- Player sheet ---------- */
+.psheet-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.psheet-avatar {
+  position: relative;
+  flex: none;
+}
+.psheet-who {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.psheet-who p {
+  margin: 0;
+}
+.psheet-where {
+  font-weight: 700;
+}
+.psheet-chip {
+  justify-self: start;
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.psheet-group {
+  display: grid;
+  gap: 8px;
+}
+.psheet-group + .psheet-group {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.psheet-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.psheet-action {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.psheet-action-label {
+  font-weight: 700;
+}
+.psheet-action-hint {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 400;
+}
+.psheet-primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+.psheet-primary .psheet-action-hint {
+  color: inherit;
+  opacity: 0.75;
+}
+.psheet-danger {
+  border-color: transparent;
+  background: transparent;
+  color: var(--danger);
+}
+.psheet-danger .psheet-action-hint {
+  color: var(--muted);
+}

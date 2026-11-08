@@ -135,14 +135,14 @@ describe('Start all ready courts', () => {
 });
 
 describe('fixing a no-show before the game starts', () => {
-  it('a break on a Ready player takes effect at once and the waiting player steps in', async () => {
+  it('Not here on a Ready player takes effect at once and the waiting player steps in', async () => {
     const user = userEvent.setup();
     await startSession(user, 5);
     const waitingName = within(screen.getByRole('list', { name: 'Waiting' })).getAllByRole('button')[0].textContent!.match(/P[A-Z]/)![0];
     const tile = within(panel()).getAllByRole('button', { name: /^P/ })[0];
     const outName = tile.textContent!.match(/P[A-Z]/)![0];
     await user.click(tile);
-    await user.click(await screen.findByRole('button', { name: 'Take a break' }));
+    await user.click(await screen.findByRole('button', { name: 'Not here' }));
     const names = within(panel()).getAllByRole('button', { name: /^P/ }).map((b) => b.textContent!.match(/P[A-Z]/)![0]);
     expect(names).toContain(waitingName);
     expect(names).not.toContain(outName);
