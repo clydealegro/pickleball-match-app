@@ -307,8 +307,20 @@ Phase 4 ships in three parts: 4a Summary (4.1, 4.2 and the summary line from 4.6
 - **Highlight lines:** at most three, in this order: unbeaten (only with results on, two wins and no loss), most games, longest game, most partners (two or more), shortest game (only when it differs from the longest). A games or partners line that would name every player is dropped. Total playing time is not a line, because the Time tile and the summary line already say it.
 - **Summary line:** "12 games, 3 hours, everyone got at least 3", with the last part left out when someone did not play.
 
+### 4.7 Home: the club's recurring sessions (settled 2026-11-08, plan in `docs/superpowers/plans/2026-11-08-organizer-home.md`)
+
+Goal: the app opens on the club's own sessions instead of a blank player list. The club plays Tuesday, Thursday and Saturday; the time and the venue sometimes change, and sessions sometimes run late.
+
+- **Home** is the first screen when no session is running. A running session still opens on the live screen. Today's slot (or the next weekday that has one) is a big card with a Start button; the others are small cards. "Start a one-off session" opens Who's playing as before. Any slot can start on any day.
+- **A slot** is a weekday with an optional start time, end time and venue. Slots ship with the weekday only: no time or venue is invented. The data is a list, but this phase edits time and venue only (no add, remove or change-day).
+- **Editing** is one sheet, "when and where", with a saved list of venues. "Just this time" is the default and lives in memory until the session starts; "Always for the weekday" writes to the slot. Slots stay on the device. Syncing them needs a new table and a migration (Phase 5, like named groups).
+- **Starting from a slot** names the session "{Weekday} open play", carries the venue and the planned end onto the session, and makes the "{weekday} regulars" shortcut follow the slot's weekday, not today's.
+- **Extend:** when a session has a planned end, the live header shows "Ends 9:00 pm". Tapping it offers +15 min, +30 min and +1 hour, with Undo. It changes only that session's end. Nothing ends a session by itself.
+- **The venue** shows on the summary, in Past sessions, and on the shared picture.
+- **Later:** a quiet "15 minutes left" prompt (as restrained as 4.4), a "planned 7 to 9, ran to 9:30" line, syncing slots, courts per venue.
+
 ### Acceptance
-Highlights are tested with fixed sessions including ties and the under-three-games case. The canvas card is tested for dimensions and for the text it draws (through a canvas stub). The board view renders the same data as the live screen. Reminders fire once per game. Sunlight meets WCAG AA contrast for every text and control colour, with the ratios computed by a script and listed in the plan.
+Highlights are tested with fixed sessions including ties and the under-three-games case. The canvas card is tested for dimensions and for the text it draws (through a canvas stub). The board view renders the same data as the live screen. Reminders fire once per game. Sunlight meets WCAG AA contrast for every text and control colour, with the ratios computed by a script and listed in the plan. Home shows the right slot for a given date, saves a slot's time and venue (this time only, or for good), starts a session that carries the slot's venue and end, and Extend moves only that session's end; each is tested with fixed dates.
 
 ---
 
