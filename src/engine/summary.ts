@@ -146,7 +146,7 @@ export function gameLog(s: Session): GameLogEntry[] {
   }));
 }
 
-function plural(n: number, word: string): string {
+export function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`;
 }
 
