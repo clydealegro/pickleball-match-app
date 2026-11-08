@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PIKLMatch">
+  <title>PIKLMatch</title>
+  <rect width="512" height="512" fill="#111111"/>
+  <!-- Court: 20 x 44 ft, kitchen 7 ft each side of the net, leaned. Sized to sit inside a circular maskable safe zone. -->
+  <g transform="translate(256 256) skewX(-12) scale(1.05) translate(-256 -256)">
+    <g fill="none" stroke="#fafaf7" stroke-width="10" stroke-linejoin="miter">
+      <rect x="188" y="106" width="136" height="300"/>
+      <path d="M188 208H324M188 304H324"/>
+      <path d="M256 106V208M256 304V406"/>
+    </g>
+    <!-- Net -->
+    <path d="M164 256H348" stroke="#c8f03c" stroke-width="16"/>
+  </g>
+  <!-- Ball at the point of play, drawn outside the lean so it stays round -->
+  <circle cx="314" cy="153" r="22" fill="#c8f03c"/>
+</svg>

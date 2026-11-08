@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PIKLMatch">
+  <title>PIKLMatch</title>
+  <rect width="512" height="512" rx="112" fill="#111111"/>
+  <g transform="translate(256 256) skewX(-12) scale(1.05) translate(-256 -256)">
+    <g fill="none" stroke="#fafaf7" stroke-width="10" stroke-linejoin="miter">
+      <rect x="188" y="106" width="136" height="300"/>
+      <path d="M188 208H324M188 304H324"/>
+      <path d="M256 106V208M256 304V406"/>
+    </g>
+    <path d="M164 256H348" stroke="#c8f03c" stroke-width="16"/>
+  </g>
+  <circle cx="314" cy="153" r="22" fill="#c8f03c"/>
+</svg>

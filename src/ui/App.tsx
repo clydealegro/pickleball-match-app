@@ -220,7 +220,7 @@ export default function App() {
     <div className="app">
       {!live && (
         <header className="app-header">
-          <span className="app-title">PIKLMatch</span>
+          <img className="app-logo" src={`${import.meta.env.BASE_URL}brand/logo.svg`} alt="PIKLMatch" width={36} height={36} />
           {view !== 'settings' && view !== 'history' && view !== 'summary' && <AccountButton onClick={openSettings} />}
         </header>
       )}
