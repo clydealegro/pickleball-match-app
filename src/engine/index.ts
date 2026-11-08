@@ -1,7 +1,7 @@
 export * from './types';
 export { EngineError } from './errors';
 export type { EngineErrorCode } from './errors';
-export { createSession, addPlayer, endSession } from './session';
+export { createSession, addPlayer, endSession, extendSession } from './session';
 export { finishGame } from './game';
 export { startCourt, startAllReady } from './start';
 export { setPlayerStatus } from './status';

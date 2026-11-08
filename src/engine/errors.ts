@@ -10,7 +10,9 @@ export type EngineErrorCode =
   | 'NOT_WAITING'
   | 'INVALID_SWAP'
   | 'NO_REPLACEMENT'
-  | 'CANNOT_RETURN';
+  | 'CANNOT_RETURN'
+  | 'SESSION_ENDED'
+  | 'INVALID_EXTENSION';
 
 export class EngineError extends Error {
   readonly code: EngineErrorCode;

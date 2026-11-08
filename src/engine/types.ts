@@ -87,6 +87,10 @@ export interface Session {
   autoStart?: boolean;
   /** Waiting players the organizer asked to play next, in the order they were asked. Always players who are waiting. */
   pinned?: PlayerId[];
+  /** Where the session is played. */
+  venue?: string;
+  /** When the session is planned to end, as a ms timestamp. Nothing ends the session by itself. */
+  plannedEndAt?: number;
 }
 
 /** Everything non-deterministic is injected so tests can control it. */
@@ -109,4 +113,6 @@ export interface NewSessionInput {
   courtCount: number;
   players: NewPlayerInput[];
   autoStart?: boolean;
+  venue?: string;
+  plannedEndAt?: number;
 }

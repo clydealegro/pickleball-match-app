@@ -181,4 +181,23 @@ describe('a session with players asked to play next', () => {
       expect(loadPersisted()).toBeNull();
     }
   });
+
+  it('keeps a venue and a planned end across a reload, and rejects wrong types', () => {
+    const s = newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }, makeCtx());
+    s.venue = 'Tacloban Sports Hall';
+    s.plannedEndAt = 5_000_000;
+    savePersisted({ session: s, undoStack: [] });
+    expect(loadPersisted()?.session).toEqual(s);
+    for (const [field, bad] of [
+      ['venue', 5],
+      ['venue', null],
+      ['plannedEndAt', '5'],
+      ['plannedEndAt', null],
+    ] as const) {
+      const broken = JSON.parse(JSON.stringify(s));
+      broken[field] = bad;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, session: broken, undoStack: [] }));
+      expect(loadPersisted()).toBeNull();
+    }
+  });
 });

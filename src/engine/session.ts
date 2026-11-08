@@ -43,6 +43,7 @@ export function createSession(input: NewSessionInput, ctx: Ctx): Session {
   if (!Number.isInteger(input.courtCount) || input.courtCount < 1) {
     throw new EngineError('INVALID_COURTS', 'A session needs at least one court.');
   }
+  const venue = input.venue?.trim();
   const s: Session = {
     id: ctx.newId(),
     name: input.name.trim() || 'Pickleball session',
@@ -54,6 +55,8 @@ export function createSession(input: NewSessionInput, ctx: Ctx): Session {
     gameSeq: 0,
     createdAt: ctx.now,
     ...(input.autoStart === undefined ? {} : { autoStart: input.autoStart }),
+    ...(venue ? { venue } : {}),
+    ...(input.plannedEndAt === undefined ? {} : { plannedEndAt: input.plannedEndAt }),
   };
   // Players are inserted first and courts filled once, so a whole group starts together.
   for (const p of input.players) insertPlayer(s, p, ctx);
@@ -71,5 +74,16 @@ export function addPlayer(s: Session, input: NewPlayerInput, ctx: Ctx): Session 
 export function endSession(s: Session, ctx: Ctx): Session {
   const next = cloneSession(s);
   next.endedAt = ctx.now;
+  return next;
+}
+
+/** Moves the planned end later. Starts from now when no end was planned. */
+export function extendSession(s: Session, minutes: number, ctx: Ctx): Session {
+  if (s.endedAt !== undefined) throw new EngineError('SESSION_ENDED', 'This session has already ended.');
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 240) {
+    throw new EngineError('INVALID_EXTENSION', 'Extend by 1 to 240 minutes.');
+  }
+  const next = cloneSession(s);
+  next.plannedEndAt = (s.plannedEndAt ?? ctx.now) + minutes * 60_000;
   return next;
 }
