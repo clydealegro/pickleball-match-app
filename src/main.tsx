@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import './styles/app.css';
 import './styles/playerSheet.css';
+import './styles/editSlot.css';
 import { useUpdateStore } from './pwa';
 import App from './ui/App';
 import { applyTheme, getInitialTheme } from './ui/theme';

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { MAX_COURTS, useSlotsStore, type Slot } from '../store/slots';
 import { COURTS_KEY, getNumPref } from './prefs';
 import { Sheet } from './Sheet';
@@ -57,28 +57,41 @@ export function EditSlotSheet({ slot, effective, venues, onSave, onClose }: Prop
     onSave({ startMin, endMin, venue, courts }, scope);
   }
 
+  const whenId = useId();
+  const whereId = useId();
+
   return (
     <Sheet title={`${day}: when and where`} onClose={onClose}>
-      <div className="time-row">
-        <label className="stack slot-field">
-          <span className="muted">Start time</span>
-          <input className="field" type="time" aria-label="Start time" value={start} onChange={(e) => setStart(e.target.value)} />
-        </label>
-        <label className="stack slot-field">
-          <span className="muted">End time</span>
-          <input className="field" type="time" aria-label="End time" value={end} onChange={(e) => setEnd(e.target.value)} />
-        </label>
+      <div className="slot-card" role="group" aria-labelledby={whenId}>
+        <p id={whenId} className="slot-label">
+          When
+        </p>
+        <div className="slot-times">
+          <label className="slot-time">
+            <span className="slot-time-label">Starts</span>
+            <input className="field" type="time" aria-label="Start time" value={start} onChange={(e) => setStart(e.target.value)} />
+          </label>
+          <span className="slot-arrow" aria-hidden="true">
+            →
+          </span>
+          <label className="slot-time">
+            <span className="slot-time-label">Ends</span>
+            <input className="field" type="time" aria-label="End time" value={end} onChange={(e) => setEnd(e.target.value)} />
+          </label>
+        </div>
       </div>
 
-      <div className="stack">
-        <h3 className="section-title">Venue</h3>
+      <div className="slot-card" role="group" aria-labelledby={whereId}>
+        <p id={whereId} className="slot-label">
+          Where
+        </p>
         {chips.length > 0 && (
-          <div className="options">
+          <div className="slot-chips">
             {chips.map((v) => (
               <button
                 key={v}
                 type="button"
-                className={`btn venue-chip${venue === v ? ' is-on' : ''}`}
+                className={`slot-chip${venue === v ? ' is-on' : ''}`}
                 aria-pressed={venue === v}
                 onClick={() => setVenue(venue === v ? undefined : v)}
               >
@@ -87,12 +100,12 @@ export function EditSlotSheet({ slot, effective, venues, onSave, onClose }: Prop
             ))}
           </div>
         )}
-        <div className="row-flex">
+        <div className="slot-add">
           <input
             className="field"
             type="text"
             aria-label="New venue"
-            placeholder="+ New venue"
+            placeholder="Add a venue"
             maxLength={40}
             autoComplete="off"
             value={newVenue}
@@ -104,45 +117,50 @@ export function EditSlotSheet({ slot, effective, venues, onSave, onClose }: Prop
               }
             }}
           />
-          <button type="button" className="btn" onClick={add}>
-            Add venue
+          <button type="button" className="slot-add-btn" aria-label="Add venue" onClick={add}>
+            <span aria-hidden="true">+</span>
           </button>
         </div>
       </div>
 
-      <div className="stack">
-        <h3 className="section-title">Courts</h3>
-        <div className="stepper" role="group" aria-label="Courts">
-          <button
-            type="button"
-            className="btn"
-            aria-label="Fewer courts"
-            disabled={courts === undefined}
-            // Minus at 1 goes back to not set.
-            onClick={() => setCourts((c) => (c === undefined || c <= 1 ? undefined : c - 1))}
-          >
-            −
-          </button>
-          <output aria-live="polite">{courts === undefined ? 'Not set' : `${courts} ${courts === 1 ? 'court' : 'courts'}`}</output>
-          <button
-            type="button"
-            className="btn"
-            aria-label="More courts"
-            disabled={courts !== undefined && courts >= MAX_COURTS}
-            // The first plus starts from the courts the organizer used last.
-            onClick={() => setCourts((c) => (c === undefined ? getNumPref(COURTS_KEY, 2, 1, MAX_COURTS) : c + 1))}
-          >
-            +
-          </button>
+      <div className="slot-card slot-courts">
+        <div className="slot-courts-row">
+          <p className="slot-label">Courts</p>
+          <div className="stepper" role="group" aria-label="Courts">
+            <button
+              type="button"
+              className="btn"
+              aria-label="Fewer courts"
+              disabled={courts === undefined}
+              // Minus at 1 goes back to not set.
+              onClick={() => setCourts((c) => (c === undefined || c <= 1 ? undefined : c - 1))}
+            >
+              −
+            </button>
+            <output aria-live="polite" className={courts === undefined ? 'is-unset' : undefined}>
+              {courts === undefined ? 'Not set' : `${courts} ${courts === 1 ? 'court' : 'courts'}`}
+            </output>
+            <button
+              type="button"
+              className="btn"
+              aria-label="More courts"
+              disabled={courts !== undefined && courts >= MAX_COURTS}
+              // The first plus starts from the courts the organizer used last.
+              onClick={() => setCourts((c) => (c === undefined ? getNumPref(COURTS_KEY, 2, 1, MAX_COURTS) : c + 1))}
+            >
+              +
+            </button>
+          </div>
         </div>
+        {courts === undefined && <p className="muted slot-hint">You choose when you start.</p>}
       </div>
 
-      <div className="options" role="radiogroup" aria-label="Apply to">
-        <label className="option">
+      <div className="slot-seg" role="radiogroup" aria-label="Apply to">
+        <label>
           <input type="radio" name="slot-scope" checked={scope === 'this-time'} onChange={() => setScope('this-time')} />
           <span>Just this time</span>
         </label>
-        <label className="option">
+        <label>
           <input type="radio" name="slot-scope" checked={scope === 'always'} onChange={() => setScope('always')} />
           <span>Always for {day}</span>
         </label>
