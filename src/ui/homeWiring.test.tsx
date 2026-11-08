@@ -206,24 +206,24 @@ describe('Home is the landing screen', () => {
     expect(screen.getByRole('radiogroup', { name: 'Sessions' })).toBeInTheDocument();
   });
 
-  it('lands on Home after Start new session on the summary', async () => {
+  it('lands on Home after Done on the summary', async () => {
     const ended = { ...newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }), endedAt: Date.now() };
     useSessionStore.setState({ session: ended });
     const user = setup();
     render(<App />);
-    await click(user, 'Start new session');
+    await click(user, 'Done');
     await waitFor(() => expect(screen.getByRole('radiogroup', { name: 'Sessions' })).toBeInTheDocument());
     expect(screen.queryByRole('heading', { name: 'Who’s playing?' })).not.toBeInTheDocument();
   });
 
-  it('lands on Home after Start new session even if Who’s playing was open before', async () => {
+  it('lands on Home after Done even if Who’s playing was open before', async () => {
     const user = setup();
     render(<App />);
     await startOneOff(user);
     await user.type(box(), four);
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
     act(() => useSessionStore.setState((st) => ({ session: { ...st.session!, endedAt: Date.now() } })));
-    await user.click(await screen.findByRole('button', { name: 'Start new session' }));
+    await user.click(await screen.findByRole('button', { name: 'Done' }));
     expect(await screen.findByRole('radiogroup', { name: 'Sessions' })).toBeInTheDocument();
   });
 });

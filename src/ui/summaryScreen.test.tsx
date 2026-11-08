@@ -29,6 +29,14 @@ function finished(games = 1) {
   return { ...s, endedAt: ctx.now + 99 };
 }
 
+/** Opens the Share sheet from the bar. */
+async function openShare(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: 'Share' }));
+  return screen.getByRole('dialog', { name: 'Share this session' });
+}
+
+const CONFIRM = 'Close this summary? It could not be saved to Past sessions and you have not shared it yet.';
+
 describe('summary venue', () => {
   it('shows the venue as a muted line under the session name when set', () => {
     render(<SummaryScreen session={{ ...finished(1), venue: 'Tacloban Sports Hall' }} />);
@@ -111,22 +119,64 @@ describe('session summary screen', () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
     render(<SummaryScreen session={finished()} />);
-    await user.click(screen.getByRole('button', { name: 'Copy results' }));
+    const sheet = await openShare(user);
+    expect(within(sheet).getByText('Copies it to the clipboard')).toBeInTheDocument();
+    await user.click(within(sheet).getByRole('button', { name: 'Copy as text' }));
     expect(writeText).toHaveBeenCalledOnce();
     expect(writeText.mock.calls[0][0]).not.toContain('partner');
     expect(await screen.findByText('Copied to clipboard.')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('uses the share sheet when there is one, and does not complain when it is closed', async () => {
+  it('says could not copy, and closes the sheet, when the clipboard refuses', async () => {
     const user = userEvent.setup();
-    const share = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new DOMException('closed', 'AbortError'));
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('no')) } });
+    render(<SummaryScreen session={finished()} />);
+    await openShare(user);
+    await user.click(screen.getByRole('button', { name: 'Copy as text' }));
+    expect(await screen.findByText('Could not copy automatically.')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('uses the share sheet when there is one, and closes the Share sheet after', async () => {
+    const user = userEvent.setup();
+    const share = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', Object.assign(Object.create(navigator), { share }));
     render(<SummaryScreen session={finished()} />);
-    await user.click(screen.getByRole('button', { name: 'Share results' }));
+    const sheet = await openShare(user);
+    expect(within(sheet).getByText('For a group chat')).toBeInTheDocument();
+    await user.click(within(sheet).getByRole('button', { name: 'As text' }));
     expect(share).toHaveBeenCalledWith({ title: 'Test', text: expect.stringContaining('Ann: ') });
-    await user.click(screen.getByRole('button', { name: 'Share results' }));
-    expect(share).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('does not complain, and does not count it as shared, when the share sheet is closed', async () => {
+    const user = userEvent.setup();
+    const share = vi.fn().mockRejectedValue(new DOMException('closed', 'AbortError'));
+    vi.stubGlobal('navigator', Object.assign(Object.create(navigator), { share }));
+    // Not kept in Past sessions, so only having shared can switch the Done warning off.
+    useHistoryStore.setState({ save: vi.fn().mockResolvedValue(undefined) });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<SummaryScreen session={finished()} />);
+    await openShare(user);
+    await user.click(screen.getByRole('button', { name: 'As text' }));
+    expect(share).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    expect(confirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to the clipboard when the share sheet fails for another reason', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { share: vi.fn().mockRejectedValue(new Error('nope')), clipboard: { writeText } });
+    render(<SummaryScreen session={finished()} />);
+    await openShare(user);
+    await user.click(screen.getByRole('button', { name: 'As text' }));
+    expect(writeText).toHaveBeenCalledOnce();
+    expect(await screen.findByText('Copied to clipboard.')).toBeInTheDocument();
   });
 
   it('asks before clearing a summary that was never shared, and not after sharing', async () => {
@@ -139,11 +189,13 @@ describe('session summary screen', () => {
     const share = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', Object.assign(Object.create(navigator), { share }));
     render(<SummaryScreen session={finished()} />);
-    await user.click(screen.getByRole('button', { name: 'Start new session' }));
+    await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(confirm).toHaveBeenCalledTimes(1);
+    expect(confirm).toHaveBeenCalledWith(CONFIRM);
     expect(reset).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: 'Share results' }));
-    await user.click(screen.getByRole('button', { name: 'Start new session' }));
+    await openShare(user);
+    await user.click(screen.getByRole('button', { name: 'As text' }));
+    await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(confirm).toHaveBeenCalledTimes(1);
     expect(reset).toHaveBeenCalledOnce();
   });
@@ -155,16 +207,17 @@ describe('session summary screen', () => {
     const confirm = vi.spyOn(window, 'confirm');
     render(<SummaryScreen session={finished()} />);
     await vi.waitFor(() => expect(useHistoryStore.getState().entries).toHaveLength(1));
-    await user.click(screen.getByRole('button', { name: 'Start new session' }));
+    await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(confirm).not.toHaveBeenCalled();
     expect(reset).toHaveBeenCalledOnce();
   });
 
-  it('shows a past session read-only: no save, no Start new, a Back button', async () => {
+  it('shows a past session read-only: no save, no Done, only Share in the bar, a Back button', async () => {
     const user = userEvent.setup();
     const back = vi.fn();
     render(<SummaryScreen session={finished()} onBack={back} />);
-    expect(screen.queryByRole('button', { name: 'Start new session' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Done' })).not.toBeInTheDocument();
+    expect(within(document.querySelector<HTMLElement>('.sum-actions')!).getAllByRole('button').map((b) => b.textContent)).toEqual(['Share']);
     await user.click(screen.getByRole('button', { name: 'Back' }));
     expect(back).toHaveBeenCalledOnce();
     expect(useHistoryStore.getState().entries).toHaveLength(0);
@@ -176,9 +229,66 @@ describe('session summary screen', () => {
     useSessionStore.setState({ reset });
     const confirm = vi.spyOn(window, 'confirm');
     render(<SummaryScreen session={{ ...newTestSession(['Ann', 'Ben', 'Cy', 'Dee'], { courts: 1 }, makeCtx()), endedAt: 1 }} />);
-    await user.click(screen.getByRole('button', { name: 'Start new session' }));
+    await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(confirm).not.toHaveBeenCalled();
     expect(reset).toHaveBeenCalledOnce();
+  });
+
+  it('does not reset when the confirm is declined, and resets when it is accepted', async () => {
+    const user = userEvent.setup();
+    const reset = vi.fn();
+    useSessionStore.setState({ reset });
+    useHistoryStore.setState({ save: vi.fn().mockResolvedValue(undefined) });
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    render(<SummaryScreen session={finished()} />);
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    expect(reset).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    expect(reset).toHaveBeenCalledOnce();
+  });
+
+  it('has Share and Done side by side in one bar, Share first, and no other button in it', () => {
+    render(<SummaryScreen session={finished()} />);
+    const bar = document.querySelector<HTMLElement>('.sum-actions')!;
+    expect(bar).toHaveClass('sticky-bar');
+    expect(within(bar).getAllByRole('button').map((b) => b.textContent)).toEqual(['Share', 'Done']);
+    expect(within(bar).getByRole('button', { name: 'Share' })).toHaveAttribute('aria-haspopup', 'dialog');
+  });
+
+  it('retires the three old buttons and the old switch', () => {
+    render(<SummaryScreen session={withResults()} />);
+    for (const name of ['Share results', 'Copy results', 'Share as picture', 'Start new session']) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+  });
+});
+
+describe('the share sheet', () => {
+  it('opens from Share with the two options, and closes with its own close button without sharing anything', async () => {
+    const user = userEvent.setup();
+    const share = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', Object.assign(Object.create(navigator), { share }));
+    render(<SummaryScreen session={finished()} />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const sheet = await openShare(user);
+    expect(within(sheet).getByRole('button', { name: 'As a picture' })).toBeEnabled();
+    expect(within(sheet).getByText('The card with highlights and photos')).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'As text' })).toBeEnabled();
+    await user.click(within(sheet).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(share).not.toHaveBeenCalled();
+  });
+
+  it('shows messages as a status above the bar', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+    render(<SummaryScreen session={finished()} />);
+    await openShare(user);
+    await user.click(screen.getByRole('button', { name: 'Copy as text' }));
+    const status = await screen.findByRole('status');
+    const bar = document.querySelector('.sum-actions')!;
+    expect(status.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 
@@ -233,12 +343,26 @@ describe('results on the summary', () => {
     expect(log.querySelectorAll('.sum-log-result')).toHaveLength(2); // the third game had no result
   });
 
-  it('offers to include results in the shared text only when there are some, off by default', () => {
+  it('offers to include wins and losses in the sheet only when there are some, off by default', async () => {
+    const user = userEvent.setup();
     const { unmount } = render(<SummaryScreen session={withResults()} />);
-    expect(screen.getByRole('switch', { name: 'Include results when sharing' })).not.toBeChecked();
+    const sheet = await openShare(user);
+    expect(within(sheet).getByRole('switch', { name: 'Include wins and losses' })).not.toBeChecked();
     unmount();
     render(<SummaryScreen session={finished(2)} />);
-    expect(screen.queryByRole('switch', { name: 'Include results when sharing' })).not.toBeInTheDocument();
+    const plain = await openShare(user);
+    expect(within(plain).queryByRole('switch')).not.toBeInTheDocument();
+  });
+
+  it('turns the switch off again every time the sheet opens', async () => {
+    const user = userEvent.setup();
+    render(<SummaryScreen session={withResults()} />);
+    let sheet = await openShare(user);
+    await user.click(within(sheet).getByRole('switch', { name: 'Include wins and losses' }));
+    expect(within(sheet).getByRole('switch')).toBeChecked();
+    await user.click(within(sheet).getByRole('button', { name: 'Close' }));
+    sheet = await openShare(user);
+    expect(within(sheet).getByRole('switch')).not.toBeChecked();
   });
 
   it('leaves results out of the shared text by default, and adds them when switched on', async () => {
@@ -246,10 +370,12 @@ describe('results on the summary', () => {
     const share = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', Object.assign(Object.create(navigator), { share }));
     render(<SummaryScreen session={withResults()} />);
-    await user.click(screen.getByRole('button', { name: 'Share results' }));
+    await openShare(user);
+    await user.click(screen.getByRole('button', { name: 'As text' }));
     expect(share.mock.calls[0][0].text).not.toMatch(/\dW \dL/);
-    await user.click(screen.getByRole('switch', { name: 'Include results when sharing' }));
-    await user.click(screen.getByRole('button', { name: 'Share results' }));
+    await openShare(user);
+    await user.click(screen.getByRole('switch', { name: 'Include wins and losses' }));
+    await user.click(screen.getByRole('button', { name: 'As text' }));
     expect(share.mock.calls[1][0].text).toMatch(/Ann: 3 · 1W 1L/);
   });
 });

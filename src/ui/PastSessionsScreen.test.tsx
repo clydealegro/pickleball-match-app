@@ -34,7 +34,7 @@ describe('PastSessionsScreen openId', () => {
     expect(screen.getByRole('heading', { name: 'Session summary' })).toBeInTheDocument();
     expect(screen.getByText('Older night')).toBeInTheDocument();
     expect(screen.queryByText('Newer night')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Start new session' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Done' })).not.toBeInTheDocument();
   });
 
   it('goes back to the list from the summary, and then back out with the list Back', async () => {

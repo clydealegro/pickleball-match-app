@@ -175,7 +175,7 @@ describe('App', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     await startFivePlayerSession(user);
     await endSessionFromMenu(user);
-    await user.click(await screen.findByRole('button', { name: 'Start new session' }));
+    await user.click(await screen.findByRole('button', { name: 'Done' }));
     await user.click(await screen.findByRole('radio', { name: 'One-off session' }));
     await user.click(await screen.findByRole('button', { name: 'Start a one-off session' }));
 
@@ -206,7 +206,7 @@ describe('App', () => {
     // The roster is told who played in the background, so wait for that before asking for "Same as last session".
     await waitFor(() => expect(useRosterStore.getState().players.filter((p) => p.lastPlayedAt !== undefined)).toHaveLength(5));
 
-    await user.click(screen.getByRole('button', { name: 'Start new session' }));
+    await user.click(screen.getByRole('button', { name: 'Done' }));
     await user.click(await screen.findByRole('radio', { name: 'One-off session' }));
     await user.click(await screen.findByRole('button', { name: 'Start a one-off session' }));
     await user.click(await screen.findByRole('button', { name: /^Same as last time/ }));

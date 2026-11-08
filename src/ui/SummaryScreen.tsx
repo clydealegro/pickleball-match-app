@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import * as engine from '../engine';
 import type { PlayerSummary, Session } from '../engine';
 import { useHistoryStore } from '../store/historyStore';
 import { useSessionStore } from '../store/sessionStore';
 import { PlayerAvatar } from './PlayerAvatar';
+import { Sheet } from './Sheet';
 import { sharePictureFor } from './sharePicture';
 
 function countList(items: { name: string; count: number }[]): string {
@@ -65,6 +66,48 @@ function PlayerRow({ row, maxGames }: { row: PlayerSummary; maxGames: number }) 
   );
 }
 
+/** Two ways to send the session on. The wins and losses switch starts off each time the sheet opens. */
+function ShareSheet({
+  canShare,
+  anyResults,
+  making,
+  onPick,
+  onClose,
+}: {
+  canShare: boolean;
+  anyResults: boolean;
+  making: boolean;
+  onPick: (how: 'picture' | 'text', withResults: boolean) => void;
+  onClose: () => void;
+}) {
+  const [withResults, setWithResults] = useState(false);
+  const pictureSub = useId();
+  const textSub = useId();
+  return (
+    <Sheet title="Share this session" onClose={onClose}>
+      <button type="button" className="share-option" disabled={making} aria-describedby={pictureSub} onClick={() => onPick('picture', withResults)}>
+        <span className="share-option-name">{making ? 'Making picture…' : 'As a picture'}</span>
+        <span id={pictureSub} aria-hidden="true" className="muted share-option-sub">
+          The card with highlights and photos
+        </span>
+      </button>
+      <button type="button" className="share-option" aria-describedby={textSub} onClick={() => onPick('text', withResults)}>
+        <span className="share-option-name">{canShare ? 'As text' : 'Copy as text'}</span>
+        <span id={textSub} aria-hidden="true" className="muted share-option-sub">
+          {canShare ? 'For a group chat' : 'Copies it to the clipboard'}
+        </span>
+      </button>
+      {anyResults && (
+        // Win records can sting in a friendly group, so they only go out when switched on, each time.
+        <label className="switch-row">
+          <span>Include wins and losses</span>
+          <input type="checkbox" role="switch" checked={withResults} onChange={(e) => setWithResults(e.target.checked)} />
+        </label>
+      )}
+    </Sheet>
+  );
+}
+
 /** `onBack` makes it a read-only look at a past session: nothing is saved again and there is no Start new. */
 export function SummaryScreen({ session, onBack }: { session: Session; onBack?: () => void }) {
   const reset = useSessionStore((s) => s.reset);
@@ -74,8 +117,7 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
   const [message, setMessage] = useState('');
   const [shared, setShared] = useState(false);
   const [making, setMaking] = useState(false);
-  // Win records can sting in a friendly group, so they only go into the shared text when switched on, each time.
-  const [withResults, setWithResults] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const rows = engine.summarize(session);
   const stats = engine.sessionStats(session);
   const log = engine.gameLog(session);
@@ -90,7 +132,7 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
   }, [readOnly, saveToHistory, session]);
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
-  async function share() {
+  async function shareText(withResults: boolean) {
     // Pass the device's UTC offset so the date in the text is the local date.
     const offsetMinutes = -new Date(session.createdAt).getTimezoneOffset();
     const text = engine.formatSummaryText(session, offsetMinutes, { results: withResults });
@@ -114,7 +156,7 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
     }
   }
 
-  async function sharePicture() {
+  async function sharePicture(withResults: boolean) {
     setMaking(true);
     setMessage('');
     try {
@@ -128,9 +170,15 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
     }
   }
 
-  function startNew() {
-    // Once it is in Past sessions, starting a new one loses nothing, so there is nothing to warn about.
-    if (!kept && !shared && stats.games > 0 && !window.confirm('Start a new session? This summary will be cleared, and you have not shared it yet.')) return;
+  async function pick(how: 'picture' | 'text', withResults: boolean) {
+    if (how === 'picture') await sharePicture(withResults);
+    else await shareText(withResults);
+    setSharing(false);
+  }
+
+  function done() {
+    // Once it is in Past sessions, leaving loses nothing, so there is nothing to warn about.
+    if (!kept && !shared && stats.games > 0 && !window.confirm('Close this summary? It could not be saved to Past sessions and you have not shared it yet.')) return;
     reset();
   }
 
@@ -206,32 +254,26 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
         </details>
       )}
 
-      {anyResults && (
-        <label className="switch-row">
-          <span>Include results when sharing</span>
-          <input type="checkbox" role="switch" checked={withResults} onChange={(e) => setWithResults(e.target.checked)} />
-        </label>
-      )}
-
       {message && (
         <p className="muted" role="status">
           {message}
         </p>
       )}
 
-      <div className="sticky-bar">
-        <button type="button" className="btn btn-primary btn-block" onClick={() => void share()}>
-          {canShare ? 'Share results' : 'Copy results'}
-        </button>
-        <button type="button" className="btn btn-block" disabled={making} onClick={() => void sharePicture()}>
-          {making ? 'Making picture…' : 'Share as picture'}
+      <div className="sticky-bar sum-actions">
+        <button type="button" className="btn sum-share" aria-haspopup="dialog" onClick={() => setSharing(true)}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+          </svg>
+          Share
         </button>
         {!readOnly && (
-          <button type="button" className="btn btn-ghost btn-block" onClick={startNew}>
-            Start new session
+          <button type="button" className="btn sum-done" onClick={done}>
+            Done
           </button>
         )}
       </div>
+      {sharing && <ShareSheet canShare={canShare} anyResults={anyResults} making={making} onPick={(how, w) => void pick(how, w)} onClose={() => setSharing(false)} />}
     </div>
   );
 }

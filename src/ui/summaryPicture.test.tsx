@@ -40,14 +40,21 @@ function canShareFiles() {
   return share;
 }
 
-const button = () => screen.getByRole('button', { name: /share as picture|making picture/i });
+const button = () => screen.getByRole('button', { name: /as a picture|making picture/i });
+const sheetClosed = () => waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
-describe('Share as picture', () => {
-  it('sits next to Share results and hands the picture to the share sheet as a file', async () => {
+/** Opens the Share sheet from the bar. */
+async function openShare(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: 'Share' }));
+}
+
+describe('Share as a picture', () => {
+  it('sits next to As text in the share sheet and hands the picture to the share sheet as a file', async () => {
     const share = canShareFiles();
     const user = userEvent.setup();
     render(<SummaryScreen session={finished()} />);
-    expect(screen.getByRole('button', { name: /share results|copy results/i })).toBeInTheDocument();
+    await openShare(user);
+    expect(screen.getByRole('button', { name: /^as text$|^copy as text$/i })).toBeInTheDocument();
     await user.click(button());
     await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
     const data = share.mock.calls[0][0] as { files: File[] };
@@ -57,15 +64,18 @@ describe('Share as picture', () => {
     expect(model.players).toHaveLength(5);
   });
 
-  it('keeps win records off the picture until the results switch is turned on', async () => {
+  it('keeps win records off the picture until the wins and losses switch is turned on', async () => {
     canShareFiles();
     const user = userEvent.setup();
     render(<SummaryScreen session={finished(true)} />);
+    await openShare(user);
     await user.click(button());
     await waitFor(() => expect(draw.renderCardBlob).toHaveBeenCalledTimes(1));
     expect((draw.renderCardBlob.mock.calls[0][0] as CardModel).players.every((p) => p.record === undefined)).toBe(true);
+    await sheetClosed();
 
-    await user.click(screen.getByRole('switch', { name: 'Include results when sharing' }));
+    await openShare(user);
+    await user.click(screen.getByRole('switch', { name: 'Include wins and losses' }));
     await user.click(button());
     await waitFor(() => expect(draw.renderCardBlob).toHaveBeenCalledTimes(2));
     expect((draw.renderCardBlob.mock.calls[1][0] as CardModel).players.some((p) => p.record !== undefined)).toBe(true);
@@ -77,6 +87,7 @@ describe('Share as picture', () => {
     try {
       const user = userEvent.setup();
       render(<SummaryScreen session={finished()} />);
+      await openShare(user);
       await user.click(button());
       await waitFor(() => expect(draw.renderCardBlob).toHaveBeenCalled());
       expect((draw.renderCardBlob.mock.calls[0][0] as CardModel).palette.bg).toBe('#0f0f0e');
@@ -89,24 +100,27 @@ describe('Share as picture', () => {
     const clicks = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
     const user = userEvent.setup();
     render(<SummaryScreen session={finished()} />);
+    await openShare(user);
     await user.click(button());
     expect(await screen.findByText('Picture saved to this device.')).toBeInTheDocument();
     expect(clicks).toHaveBeenCalledTimes(1);
+    await sheetClosed();
   });
 
-  it('counts a shared picture as shared, so Start new session does not warn', async () => {
+  it('counts a shared picture as shared, so Done does not warn', async () => {
     canShareFiles();
     // Not kept in Past sessions, so only having shared can switch the warning off.
     useHistoryStore.setState({ save: vi.fn().mockResolvedValue(undefined) });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const user = userEvent.setup();
     render(<SummaryScreen session={finished()} />);
-    await user.click(screen.getByRole('button', { name: 'Start new session' }));
+    await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(confirm).toHaveBeenCalledTimes(1);
+    await openShare(user);
     await user.click(button());
     await waitFor(() => expect(draw.renderCardBlob).toHaveBeenCalled());
-    await waitFor(() => expect(button()).toBeEnabled());
-    await user.click(screen.getByRole('button', { name: 'Start new session' }));
+    await sheetClosed();
+    await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(confirm).toHaveBeenCalledTimes(1);
   });
 
@@ -119,10 +133,11 @@ describe('Share as picture', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const user = userEvent.setup();
     render(<SummaryScreen session={finished()} />);
+    await openShare(user);
     await user.click(button());
-    await waitFor(() => expect(button()).toBeEnabled());
+    await sheetClosed();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Start new session' }));
+    await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(confirm).toHaveBeenCalledTimes(1);
   });
 
@@ -130,8 +145,11 @@ describe('Share as picture', () => {
     draw.renderCardBlob.mockRejectedValue(new Error('no canvas'));
     const user = userEvent.setup();
     render(<SummaryScreen session={finished()} />);
+    await openShare(user);
     await user.click(button());
     expect(await screen.findByText('Could not make the picture.')).toBeInTheDocument();
+    await sheetClosed();
+    await openShare(user);
     expect(button()).toBeEnabled();
   });
 
@@ -141,11 +159,13 @@ describe('Share as picture', () => {
     canShareFiles();
     const user = userEvent.setup();
     render(<SummaryScreen session={finished()} />);
+    await openShare(user);
     await user.click(button());
     expect(button()).toBeDisabled();
     expect(button()).toHaveTextContent('Making picture…');
+    await user.click(button());
     await act(async () => finish(png));
-    await waitFor(() => expect(button()).toBeEnabled());
+    await sheetClosed();
     expect(draw.renderCardBlob).toHaveBeenCalledTimes(1);
   });
 
@@ -153,6 +173,7 @@ describe('Share as picture', () => {
     canShareFiles();
     const user = userEvent.setup();
     render(<SummaryScreen session={finished()} onBack={() => undefined} />);
+    await openShare(user);
     await user.click(button());
     await waitFor(() => expect(draw.renderCardBlob).toHaveBeenCalledTimes(1));
   });

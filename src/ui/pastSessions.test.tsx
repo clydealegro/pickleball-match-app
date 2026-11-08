@@ -51,7 +51,7 @@ describe('Past sessions', () => {
     expect(rows[0]).toHaveTextContent('Wed 4 Nov · 1 game · 5 players');
     await user.click(rows[0]);
     expect(screen.getByRole('heading', { name: 'Session summary' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Start new session' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Done' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByRole('heading', { name: 'Past sessions' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Back' }));
@@ -83,7 +83,7 @@ describe('Past sessions venue', () => {
 });
 
 describe('ending a session keeps it', () => {
-  it('shows an ended session in Past sessions after Start new', async () => {
+  it('shows an ended session in Past sessions after Done', async () => {
     const names = ['Ann', 'Ben', 'Cy', 'Dee'];
     const ids = await seed(names);
     const ctx = makeCtx(1, 1_000_000);
@@ -94,7 +94,7 @@ describe('ending a session keeps it', () => {
     const user = userEvent.setup();
     render(<App />);
     await waitFor(() => expect(useHistoryStore.getState().entries).toHaveLength(1));
-    await user.click(screen.getByRole('button', { name: 'Start new session' }));
+    await user.click(screen.getByRole('button', { name: 'Done' }));
     await openSettings(user);
     await user.click(screen.getByRole('button', { name: 'Past sessions' }));
     expect(await screen.findByRole('list', { name: 'Past sessions' })).toBeInTheDocument();

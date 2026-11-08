@@ -314,7 +314,7 @@ describe('an entry the app cannot show', () => {
   });
 });
 
-describe('Start new session', () => {
+describe('Done on the summary', () => {
   it('lands on Home and replaces the current entry with the root marker', async () => {
     const ended = { ...newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }), endedAt: Date.now() };
     useSessionStore.setState({ session: ended });
@@ -322,7 +322,7 @@ describe('Start new session', () => {
     render(<App />);
     expect(state()).toEqual({ pk: 0, view: 'live' });
     const length = window.history.length;
-    await click(user, 'Start new session');
+    await click(user, 'Done');
     await waitFor(() => expect(sessions()).toBeInTheDocument());
     expect(state()).toEqual({ pk: 0, view: 'home' });
     expect(window.history.length).toBe(length);
