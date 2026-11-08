@@ -1717,6 +1717,8 @@ caption {
   flex-direction: column;
   height: 100dvh;
   padding-bottom: 0;
+  /* The hero slides in from the side, which must not make the page scroll sideways. */
+  overflow-x: clip;
 }
 
 .app:has(.home) main {

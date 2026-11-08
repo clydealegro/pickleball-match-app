@@ -18,6 +18,10 @@ describe('Home styles', () => {
     expect(rule('.home-dashed')).toMatch(/min-height:\s*44px/);
   });
 
+  it('keeps the slide-in from scrolling the page sideways', () => {
+    expect(rule('.app:has(.home)')).toMatch(/overflow-x:\s*clip/);
+  });
+
   it('pulses the live dot', () => {
     expect(rule('.home-live-dot')).toMatch(/animation:[^;]*home-live-pulse/);
   });
