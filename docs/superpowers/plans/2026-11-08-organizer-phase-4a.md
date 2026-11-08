@@ -1477,7 +1477,7 @@ describe('Share as picture', () => {
 - [ ] **Step 2: Run them and watch them fail**
 
 Run: `npx vitest run src/ui/summaryPicture.test.tsx src/ui/summaryScreen.test.tsx`
-Expected: the picture tests fail because there is no Share as picture button, and the two switch tests in `summaryScreen.test.tsx` still look for the old label until Step 3 renames it.
+Expected: the nine picture tests fail because there is no Share as picture button. `summaryScreen.test.tsx` still passes here, because its switch tests look for the old label; Step 3 renames the label and updates those tests together.
 
 - [ ] **Step 3: Write the code**
 
