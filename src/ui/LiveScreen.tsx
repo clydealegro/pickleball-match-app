@@ -126,16 +126,18 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
         <AccountButton onClick={onSettings} />
         <div className="live-title">
           <h1 className="screen-title">{session.name}</h1>
-          <span className="muted">
-            {session.history.length} {session.history.length === 1 ? 'game' : 'games'} played
-          </span>
+          <div className="live-sub">
+            <span className="muted">
+              {session.history.length} {session.history.length === 1 ? 'game' : 'games'} played
+            </span>
+            {endsAt !== null && (
+              <button type="button" className="end-link" aria-label={`Ends ${endsAt}, extend the session`} onClick={() => setExtending(true)}>
+                Ends {endsAt}
+              </button>
+            )}
+          </div>
         </div>
         <div className="live-actions">
-          {endsAt !== null && (
-            <button type="button" className="chip end-chip" aria-label={`Ends ${endsAt}, extend the session`} onClick={() => setExtending(true)}>
-              Ends {endsAt}
-            </button>
-          )}
           <LiveMenu
             items={[
               ...(undoCount > 0 ? [{ label: lastAction ? `Undo: ${lastAction.label}` : 'Undo last action', onSelect: undo }] : []),

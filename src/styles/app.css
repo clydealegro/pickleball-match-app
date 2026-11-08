@@ -1711,4 +1711,6 @@ caption {
 .setup-plan { margin-top: -12px; }
 
 /* The planned end in the live header */
-.end-chip { padding: 4px 12px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.live-sub { display: flex; align-items: center; gap: 8px; }
+/* A text button with a 44 px tap area that does not make the header taller */
+.end-link { background: none; border: 0; color: inherit; font: inherit; font-size: 13px; font-weight: 600; text-decoration: underline; padding: 14px 4px; margin: -14px 0; white-space: nowrap; cursor: pointer; }
