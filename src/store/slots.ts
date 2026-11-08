@@ -130,17 +130,21 @@ function load(): SlotsData {
   }
 }
 
-function persist(data: SlotsData): void {
+/** Writes to storage. False when it throws (blocked or full): the choice still holds until the app closes. */
+function persist(data: SlotsData): boolean {
   try {
     localStorage.setItem(SLOTS_KEY, JSON.stringify({ slots: data.slots, venues: data.venues }));
+    return true;
   } catch {
-    // Storage is blocked or full. The choice still holds until the app closes.
+    return false;
   }
 }
 
 interface SlotsState extends SlotsData {
   /** This-time-only edits. Never written to storage. */
   tonight: Record<string, SlotEdit>;
+  /** False once a write to storage has thrown, until a later write works. */
+  persistent: boolean;
   saveSlot: (id: string, patch: SlotEdit) => void;
   setTonight: (id: string, patch: SlotEdit) => void;
   clearTonight: (id: string) => void;
@@ -151,6 +155,7 @@ interface SlotsState extends SlotsData {
 export const useSlotsStore = create<SlotsState>()((set, get) => ({
   ...load(),
   tonight: {},
+  persistent: true,
   saveSlot(id, patch) {
     const { slots, venues } = get();
     if (!slots.some((s) => s.id === id)) return;
@@ -160,8 +165,7 @@ export const useSlotsStore = create<SlotsState>()((set, get) => ({
       for (const k of Object.keys(merged)) if (merged[k] === undefined) delete merged[k];
       return merged as unknown as Slot;
     });
-    set({ slots: next });
-    persist({ slots: next, venues });
+    set({ slots: next, persistent: persist({ slots: next, venues }) });
   },
   setTonight(id, patch) {
     set((st) => ({ tonight: { ...st.tonight, [id]: { ...st.tonight[id], ...patch } } }));
@@ -180,8 +184,7 @@ export const useSlotsStore = create<SlotsState>()((set, get) => ({
     if (existing) return existing;
     if (venues.length >= MAX_VENUES) return '';
     const next = [...venues, clean];
-    set({ venues: next });
-    persist({ slots, venues: next });
+    set({ venues: next, persistent: persist({ slots, venues: next }) });
     return clean;
   },
 }));

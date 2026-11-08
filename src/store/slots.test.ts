@@ -17,6 +17,7 @@ const fresh = () =>
     slots: DEFAULT_SLOTS.slots.map((s) => ({ ...s })),
     venues: [],
     tonight: {},
+    persistent: true,
   });
 
 beforeEach(() => {
@@ -309,5 +310,56 @@ describe('useSlotsStore', () => {
     expect(useSlotsStore.getState().slots[0].startMin).toBe(600);
     expect(useSlotsStore.getState().addVenue('Hall')).toBe('Hall');
     expect(useSlotsStore.getState().venues).toEqual(['Hall']);
+  });
+
+  describe('persistent', () => {
+    const block = () =>
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('blocked');
+      });
+    const persistent = () => useSlotsStore.getState().persistent;
+
+    it('is true at the start and after a write that works', () => {
+      expect(persistent()).toBe(true);
+      useSlotsStore.getState().saveSlot('tue', { startMin: 600 });
+      expect(persistent()).toBe(true);
+    });
+
+    it('turns false when saving a slot throws', () => {
+      block();
+      useSlotsStore.getState().saveSlot('tue', { startMin: 600 });
+      expect(persistent()).toBe(false);
+    });
+
+    it('turns false when saving a venue throws', () => {
+      block();
+      useSlotsStore.getState().addVenue('Hall');
+      expect(persistent()).toBe(false);
+    });
+
+    it('turns true again after a later write works', () => {
+      const spy = block();
+      useSlotsStore.getState().saveSlot('tue', { startMin: 600 });
+      expect(persistent()).toBe(false);
+      spy.mockRestore();
+      useSlotsStore.getState().saveSlot('tue', { startMin: 700 });
+      expect(persistent()).toBe(true);
+      expect(stored().slots[0].startMin).toBe(700);
+    });
+
+    it('stays false across more failed writes', () => {
+      block();
+      useSlotsStore.getState().saveSlot('tue', { startMin: 600 });
+      useSlotsStore.getState().addVenue('Hall');
+      expect(persistent()).toBe(false);
+    });
+
+    it('does not change on writes that store nothing', () => {
+      block();
+      useSlotsStore.getState().setTonight('tue', { startMin: 600 });
+      useSlotsStore.getState().addVenue('   ');
+      useSlotsStore.getState().saveSlot('nope', { startMin: 5 });
+      expect(persistent()).toBe(true);
+    });
   });
 });
