@@ -161,6 +161,17 @@ describe('the phone’s Back button', () => {
     expect(await screen.findByRole('tablist', { name: 'Courts' })).toBeInTheDocument();
   });
 
+  it('unmounts Who’s playing once Back has left it for Home, as its own Back does', async () => {
+    const user = setup();
+    render(<App />);
+    await toSetup(user);
+    expect(screen.getByLabelText('Search or add players')).toBeInTheDocument();
+    phoneBack();
+    await waitFor(() => expect(sessions()).toBeInTheDocument());
+    expect(screen.queryByLabelText('Search or add players', { selector: 'input' })).not.toBeInTheDocument();
+    expect(document.querySelector('[hidden]')).toBeNull();
+  });
+
   it('keeps a half-filled Who’s playing while Settings is open on top of it', async () => {
     const user = setup();
     render(<App />);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRosterStore } from '../store/rosterStore';
 import { useAuthStore } from '../sync/auth';
 import { startSyncCoordinator } from '../sync/coordinator';
@@ -120,7 +120,13 @@ export default function App() {
   }
 
   // Start new session makes the current entry the first one again; a new session takes over the entry Who's playing held.
+  // The first run is skipped: the hook already wrote the root marker on load.
+  const loadedOnce = useRef(false);
   useEffect(() => {
+    if (!loadedOnce.current) {
+      loadedOnce.current = true;
+      return;
+    }
     if (!hadSession) screens.resetRoot('home');
     else screens.replace('live');
   }, [hadSession, screens]);
