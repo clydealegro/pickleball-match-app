@@ -266,6 +266,22 @@ describe('session summary screen', () => {
     expect(reset).toHaveBeenCalledOnce();
   });
 
+  it('does not ask after the text was copied to the clipboard either', async () => {
+    const user = userEvent.setup();
+    const reset = vi.fn();
+    useSessionStore.setState({ reset });
+    useHistoryStore.setState({ save: vi.fn().mockResolvedValue(undefined) });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+    render(<SummaryScreen session={finished()} />);
+    await openShare(user);
+    await user.click(screen.getByRole('button', { name: 'Copy as text' }));
+    await screen.findByText('Copied to clipboard.');
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    expect(confirm).not.toHaveBeenCalled();
+    expect(reset).toHaveBeenCalledOnce();
+  });
+
   it('does not ask once the session is kept in Past sessions', async () => {
     const user = userEvent.setup();
     const reset = vi.fn();
