@@ -5,7 +5,7 @@ import { resetRosterDbForTests } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useUpdateStore } from '../pwa';
 import { useSessionStore } from '../store/sessionStore';
-import App from './App';
+import { renderAtSetup } from '../test/renderAtSetup';
 import { ErrorBoundary } from './ErrorBoundary';
 
 type User = ReturnType<typeof userEvent.setup>;
@@ -32,7 +32,7 @@ async function addPlayers(user: User, text: string) {
 }
 
 async function startFivePlayerSession(user: User) {
-  render(<App />);
+  renderAtSetup();
   await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}Eve');
   await user.click(await screen.findByRole('button', { name: 'Start 5 players' }));
 }
@@ -56,7 +56,7 @@ function waitingName(): string {
 describe('App', () => {
   it('disables Start until four players are selected', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     expect(screen.getByRole('button', { name: 'Pick at least 4' })).toBeDisabled();
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy');
     await screen.findByText('3 selected');
@@ -175,6 +175,7 @@ describe('App', () => {
     await startFivePlayerSession(user);
     await endSessionFromMenu(user);
     await user.click(await screen.findByRole('button', { name: 'Start new session' }));
+    await user.click(await screen.findByRole('button', { name: 'Start a one-off session' }));
 
     for (const name of ['Ann', 'Ben', 'Cy', 'Dee']) {
       await user.click(await screen.findByRole('checkbox', { name }));
@@ -204,13 +205,14 @@ describe('App', () => {
     await waitFor(() => expect(useRosterStore.getState().players.filter((p) => p.lastPlayedAt !== undefined)).toHaveLength(5));
 
     await user.click(screen.getByRole('button', { name: 'Start new session' }));
+    await user.click(await screen.findByRole('button', { name: 'Start a one-off session' }));
     await user.click(await screen.findByRole('button', { name: /^Same as last time/ }));
     expect(await screen.findByRole('button', { name: 'Start 5 players' })).toBeEnabled();
   });
 
   it('keeps the half-filled setup form when visiting Saved players and coming back', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.type(screen.getByLabelText('Search or add players'), 'Ann{enter}Ben{enter}Cy{enter}Fri');
     await screen.findByText('3 selected');
     await user.click(screen.getByRole('button', { name: 'Edit players' }));
@@ -222,13 +224,13 @@ describe('App', () => {
 
   it('offers a new version only when ready, and reloads only after a click', async () => {
     const user = userEvent.setup();
-    const { unmount } = render(<App />);
+    const { unmount } = renderAtSetup();
     expect(screen.queryByText(/A new version is ready/)).not.toBeInTheDocument();
     unmount();
 
     const apply = vi.fn();
     useUpdateStore.setState({ ready: true, apply });
-    render(<App />);
+    renderAtSetup();
     const notice = screen.getByText(/A new version is ready\./);
     expect(notice).toBeVisible();
     expect(notice).toHaveAttribute('role', 'status');
@@ -239,7 +241,7 @@ describe('App', () => {
 
   it('sets the theme in Settings and remembers the choice', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.click(screen.getByRole('button', { name: /^Settings/ }));
     const group = within(screen.getByRole('radiogroup', { name: 'Theme' }));
     await user.click(group.getByRole('radio', { name: 'Dark' }));
@@ -253,7 +255,7 @@ describe('App', () => {
   });
 
   it('has a PIKLMatch title bar with the account button, and no theme button there', () => {
-    render(<App />);
+    renderAtSetup();
     const bar = document.querySelector<HTMLElement>('.app-header')!;
     expect(within(bar).getByText('PIKLMatch')).toBeInTheDocument();
     expect(within(bar).getByRole('button', { name: /^Settings/ })).toBeInTheDocument();
@@ -263,7 +265,7 @@ describe('App', () => {
 
   it('Select all and Clear change the selection, and Simple queue starts a queue session', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
     await screen.findByText('4 selected');
 
@@ -282,7 +284,7 @@ describe('App', () => {
 
   it('adds one saved player when the same name is pasted twice in different case', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await addPlayers(user, 'Ann{enter}ann');
     await screen.findByText('1 selected');
     const list = screen.getByRole('list', { name: 'Saved players' });
@@ -291,7 +293,7 @@ describe('App', () => {
 
   describe('Saved players screen', () => {
     async function openSavedPlayers(user: User) {
-      render(<App />);
+      renderAtSetup();
       await addPlayers(user, 'Ann{enter}Ben');
       await screen.findByText('2 selected');
       await user.click(screen.getByRole('button', { name: 'Edit players' }));

@@ -1,10 +1,10 @@
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetRosterDbForTests } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
-import App from './App';
+import { renderAtSetup } from '../test/renderAtSetup';
 
 type User = ReturnType<typeof userEvent.setup>;
 
@@ -25,7 +25,7 @@ afterEach(() => {
 const names = (n: number) => Array.from({ length: n }, (_, i) => `P${String.fromCharCode(65 + i)}`).join('{enter}');
 
 async function startSession(user: User, list: string) {
-  render(<App />);
+  renderAtSetup();
   await user.type(screen.getByLabelText('Search or add players'), list);
   await user.keyboard('{Enter}');
   const count = list.split('{enter}').length;

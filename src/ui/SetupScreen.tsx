@@ -4,32 +4,41 @@ import { useHistoryStore } from '../store/historyStore';
 import { lastSessionIds } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
+import { effectiveSlot, formatClock, formatRange, useSlotsStore } from '../store/slots';
 import { getDefaultMode, useDefaultMode } from './matchmaking';
 import { AUTO_START_KEY, COURTS_KEY, getBoolPref, getNumPref, REGULARS_FIRST_KEY, setNumPref, useBoolPref } from './prefs';
+import type { SessionPlan } from './HomeScreen';
 import { PlayerAvatar } from './PlayerAvatar';
+import { WEEKDAY_NAMES } from './weekdays';
 
 const MIN_PLAYERS = 4;
 const MAX_COURTS = 12;
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 interface Props {
   onManage: () => void;
+  /** The slot this session starts from. Without one it is a one-off session. */
+  plan?: SessionPlan;
+  /** Shows a Back button when given. */
+  onBack?: () => void;
 }
 
 const norm = (name: string) => name.trim().toLowerCase();
 
 /** "Saturday open play": enough to tell sessions apart without asking for a name. */
-function defaultSessionName(now = new Date()): string {
-  return `${now.toLocaleDateString('en', { weekday: 'long' })} open play`;
+function defaultSessionName(weekday: number): string {
+  return `${WEEKDAY_NAMES[weekday]} open play`;
 }
 
-export function SetupScreen({ onManage }: Props) {
+export function SetupScreen({ onManage, plan, onBack }: Props) {
   const saved = useRosterStore((s) => s.players);
   const history = useHistoryStore((s) => s.entries);
   const [regularsFirst] = useBoolPref(REGULARS_FIRST_KEY, true);
   // The people who come most often go first, so the usual crowd is at the top of a long list.
   const roster = useMemo(() => (regularsFirst ? sortByAttendance(saved, attendanceByRoster(history)) : saved), [saved, history, regularsFirst]);
-  const weekday = new Date().getDay();
+  const weekday = plan?.weekday ?? new Date().getDay();
+  const slot = useSlotsStore((s) => s.slots.find((x) => x.id === plan?.slotId));
+  const tonight = useSlotsStore((s) => s.tonight);
+  const clearTonight = useSlotsStore((s) => s.clearTonight);
   const weekdayIds = useMemo(() => {
     const here = new Set(saved.map((p) => p.id));
     return regularsForWeekday(history, weekday).filter((id) => here.has(id));
@@ -37,6 +46,17 @@ export function SetupScreen({ onManage }: Props) {
   const addToRoster = useRosterStore((s) => s.add);
   const start = useSessionStore((s) => s.start);
   const [mode] = useDefaultMode();
+
+  // What the plan says about where and when, for the line under the title.
+  const eff = slot ? effectiveSlot(slot, tonight) : undefined;
+  const plannedEnd = plan?.plannedEndAt === undefined ? undefined : new Date(plan.plannedEndAt);
+  const when =
+    eff && (eff.startMin !== undefined || eff.endMin !== undefined)
+      ? formatRange(eff.startMin, eff.endMin)
+      : plannedEnd
+        ? `Until ${formatClock(plannedEnd.getHours() * 60 + plannedEnd.getMinutes())}`
+        : undefined;
+  const planLine = [plan?.venue, when].filter(Boolean).join(' · ');
 
   const [courtCount, setCourtCount] = useState(() => getNumPref(COURTS_KEY, 2, 1, MAX_COURTS));
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -97,24 +117,37 @@ export function SetupScreen({ onManage }: Props) {
 
   function startSession() {
     const res = start({
-      name: defaultSessionName(),
+      name: defaultSessionName(weekday),
       mode: getDefaultMode(),
       courtCount,
       autoStart: getBoolPref(AUTO_START_KEY, false),
       players: chosen.map((p) => ({ name: p.name, rosterId: p.id })),
+      venue: plan?.venue,
+      plannedEndAt: plan?.plannedEndAt,
     });
-    if (res.ok) setNumPref(COURTS_KEY, courtCount);
-    else setStartError(res.error);
+    if (res.ok) {
+      setNumPref(COURTS_KEY, courtCount);
+      // The this-time-only edits were for this session, so they end with it.
+      if (plan) clearTonight(plan.slotId);
+    } else setStartError(res.error);
   }
 
   return (
     <div className="stack setup">
+      {onBack && (
+        <div>
+          <button type="button" className="btn" onClick={onBack}>
+            Back
+          </button>
+        </div>
+      )}
       <div className="setup-head">
         <h1 className="screen-title">Who’s playing?</h1>
         <span className="setup-count" aria-live="polite">
           {chosen.length} selected
         </span>
       </div>
+      {planLine && <p className="muted setup-plan">{planLine}</p>}
 
       <input
         className="field"
@@ -157,7 +190,7 @@ export function SetupScreen({ onManage }: Props) {
           )}
           {weekdayIds.length >= MIN_PLAYERS && (
             <button type="button" className="btn btn-small" onClick={() => setSelected(new Set(weekdayIds))}>
-              {DAY_NAMES[weekday]} regulars ({weekdayIds.length})
+              {WEEKDAY_NAMES[weekday]} regulars ({weekdayIds.length})
             </button>
           )}
           <button type="button" className="btn btn-ghost btn-small" onClick={() => setSelected(new Set(roster.map((p) => p.id)))}>

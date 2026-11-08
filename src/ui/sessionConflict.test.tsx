@@ -1,10 +1,10 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetRosterDbForTests } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
-import App from './App';
+import { renderAtSetup } from '../test/renderAtSetup';
 
 type User = ReturnType<typeof userEvent.setup>;
 
@@ -25,7 +25,7 @@ afterEach(() => {
 const names = (n: number) => Array.from({ length: n }, (_, i) => `P${String.fromCharCode(65 + i)}`).join('{enter}');
 
 async function startSession(user: User, list: string) {
-  render(<App />);
+  renderAtSetup();
   await user.type(screen.getByLabelText('Search or add players'), list);
   await user.keyboard('{Enter}');
   const count = list.split('{enter}').length;
@@ -36,7 +36,7 @@ describe('a second window', () => {
   const change = (init: StorageEventInit) => act(() => void window.dispatchEvent(new StorageEvent('storage', init)));
 
   it('raises a notice when another window saves the session, and never by itself reloads', () => {
-    render(<App />);
+    renderAtSetup();
     expect(screen.queryByText(/changed in another window/)).not.toBeInTheDocument();
     change({ key: 'pickleball.session.v1', newValue: '{}' });
     expect(screen.getByText(/This session was changed in another window\./)).toBeInTheDocument();
@@ -44,11 +44,11 @@ describe('a second window', () => {
   });
 
   it('also notices the other window clearing storage, but not unrelated keys', () => {
-    const { unmount } = render(<App />);
+    const { unmount } = renderAtSetup();
     change({ key: 'pickleball.theme', newValue: 'dark' });
     expect(screen.queryByText(/changed in another window/)).not.toBeInTheDocument();
     unmount();
-    render(<App />);
+    renderAtSetup();
     change({ key: null });
     expect(screen.getByText(/changed in another window/)).toBeInTheDocument();
   });

@@ -1708,3 +1708,4 @@ caption {
 .slot-title { font-size: 24px; font-weight: 700; overflow-wrap: anywhere; }
 .slot-card .row-flex { flex-wrap: wrap; }
 .slot-card .btn-start { flex: 1; }
+.setup-plan { margin-top: -12px; }

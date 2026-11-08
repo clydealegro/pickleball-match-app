@@ -1,10 +1,10 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetRosterDbForTests } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
-import App from './App';
+import { renderAtSetup } from '../test/renderAtSetup';
 
 beforeEach(async () => {
   localStorage.clear();
@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 async function openSaved(user: ReturnType<typeof userEvent.setup>, names: string) {
-  render(<App />);
+  renderAtSetup();
   await user.type(screen.getByLabelText('Search or add players'), names);
   await user.click(await screen.findByRole('button', { name: 'Edit players' }));
   await screen.findByRole('heading', { name: 'Saved players' });
@@ -87,7 +87,7 @@ describe('adding a player on Saved players', () => {
 
   it('works when nobody is saved yet, and ignores spaces only', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.click(screen.getByRole('button', { name: /^Settings/ }));
     await user.click(screen.getByRole('button', { name: 'Manage players' }));
     const box = await screen.findByLabelText('New player name');

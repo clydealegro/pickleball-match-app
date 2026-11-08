@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { processPhoto } from '../lib/photo';
@@ -6,7 +6,7 @@ import { getRosterPhoto, resetRosterDbForTests } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
 import { useUpdateStore } from '../pwa';
-import App from './App';
+import { renderAtSetup } from '../test/renderAtSetup';
 
 vi.mock('../lib/photo', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/photo')>()),
@@ -48,7 +48,7 @@ const rowFor = (listName: string, text: string) =>
 describe('photos in the app', () => {
   it('adds a photo to a new player from Saved players', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await addPlayers(user, 'Ann{enter}Ben');
     expect(screen.queryByRole('button', { name: /photo for/i })).not.toBeInTheDocument(); // not on the New session page
     await user.click(await screen.findByRole('button', { name: 'Edit players' }));
@@ -69,7 +69,7 @@ describe('photos in the app', () => {
     const user = userEvent.setup();
     const ann = await useRosterStore.getState().add('Ann');
     await useRosterStore.getState().setPhoto(ann.id, processed);
-    render(<App />);
+    renderAtSetup();
     await user.click(await screen.findByRole('button', { name: 'Edit players' }));
     await waitFor(() => expect(rowFor('Saved players', 'Ann').querySelector('img')).not.toBeNull());
 
@@ -82,7 +82,7 @@ describe('photos in the app', () => {
 
   it('changes a photo from the player sheet during a session, then returns to the sheet', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}Eve');
     await user.click(await screen.findByRole('button', { name: 'Start 5 players' }));
 
@@ -99,7 +99,7 @@ describe('photos in the app', () => {
 
   it('photographs a newcomer on the spot from the Add player sheet', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
 
@@ -114,7 +114,7 @@ describe('photos in the app', () => {
 
   it('adds the newcomer without a photo when the organizer skips it', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
 
@@ -130,7 +130,7 @@ describe('photos in the app', () => {
 
   it('keeps a session player usable after their saved entry is deleted', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}Eve');
     await user.click(await screen.findByRole('button', { name: 'Start 5 players' }));
     const waiting = within(screen.getByRole('list', { name: 'Waiting' })).getAllByRole('listitem')[0];
@@ -147,7 +147,7 @@ describe('photos in the app', () => {
 
   it('shows a player\'s photo on their court card', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}Eve');
     await user.click(await screen.findByRole('button', { name: 'Start 5 players' }));
 
@@ -164,7 +164,7 @@ describe('photos in the app', () => {
 
   it('refuses "Add with photo" for someone already in the session and leaves their photo alone', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
     await waitFor(() => expect(useRosterStore.getState().players).toHaveLength(4)); // the adds are async
     const ann = useRosterStore.getState().players.find((p) => p.name === 'Ann')!;
@@ -184,7 +184,7 @@ describe('photos in the app', () => {
 
   it('says the newcomer is saved when the photo step is closed without choosing', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await addPlayers(user, 'Ann{enter}Ben{enter}Cy{enter}Dee');
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
 

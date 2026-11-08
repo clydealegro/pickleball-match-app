@@ -1,10 +1,10 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetRosterDbForTests } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
-import App from './App';
+import { renderAtSetup } from '../test/renderAtSetup';
 
 type User = ReturnType<typeof userEvent.setup>;
 
@@ -22,7 +22,7 @@ afterEach(() => {
 const names = (n: number) => Array.from({ length: n }, (_, i) => `P${String.fromCharCode(65 + i)}`).join('{enter}');
 
 async function startSession(user: User, count: number) {
-  render(<App />);
+  renderAtSetup();
   await user.type(screen.getByLabelText('Search or add players'), names(count));
   await user.keyboard('{Enter}');
   await user.click(await screen.findByRole('button', { name: `Start ${count} players` }));
@@ -180,7 +180,7 @@ describe('removing a Ready court', () => {
 describe('Settings: Start the next game by itself', () => {
   it('is off by default, remembers a change, and makes new sessions start at once', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.click(screen.getByRole('button', { name: /^Settings/ }));
     const auto = screen.getByRole('switch', { name: 'Start the next game by itself' });
     expect(auto).not.toBeChecked();

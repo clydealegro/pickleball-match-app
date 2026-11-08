@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetRosterDbForTests } from '../store/rosterDb';
@@ -7,7 +7,7 @@ import { useAuthStore } from '../sync/auth';
 import { useSyncStore } from '../sync/syncStore';
 import { useUpdateStore } from '../pwa';
 import { useSessionStore } from '../store/sessionStore';
-import App from './App';
+import { renderAtSetup } from '../test/renderAtSetup';
 
 type User = ReturnType<typeof userEvent.setup>;
 
@@ -25,7 +25,7 @@ afterEach(() => {
 });
 
 async function startSession(user: User, names: string) {
-  render(<App />);
+  renderAtSetup();
   await user.type(screen.getByLabelText('Search or add players'), names);
   await user.keyboard('{Enter}');
   const count = names.split('{enter}').length;
@@ -192,7 +192,7 @@ describe('the top bar', () => {
   });
 
   it('brings the title bar back outside a live session', async () => {
-    render(<App />);
+    renderAtSetup();
     expect(screen.getByText('PIKLMatch')).toBeInTheDocument();
   });
 

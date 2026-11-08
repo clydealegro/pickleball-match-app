@@ -1,10 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetRosterDbForTests } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
-import App from './App';
+import { renderAtSetup } from '../test/renderAtSetup';
 
 beforeEach(async () => {
   localStorage.clear();
@@ -22,7 +22,7 @@ const settings = (user: ReturnType<typeof userEvent.setup>) => user.click(screen
 describe('Manage players in Settings', () => {
   it('opens Saved players even with nobody saved, and Back returns to Settings', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await settings(user);
     await user.click(screen.getByRole('button', { name: 'Manage players' }));
     expect(await screen.findByRole('heading', { name: 'Saved players' })).toBeInTheDocument();
@@ -34,7 +34,7 @@ describe('Manage players in Settings', () => {
 
   it('still returns to New session when Saved players was opened from there', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.type(screen.getByLabelText('Search or add players'), 'Ann{enter}');
     await user.click(await screen.findByRole('button', { name: 'Edit players' }));
     await user.click(await screen.findByRole('button', { name: 'Back' }));
@@ -43,7 +43,7 @@ describe('Manage players in Settings', () => {
 
   it('works during a live session, and Back returns to the courts', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.type(screen.getByLabelText('Search or add players'), 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}');
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
     await settings(user);
@@ -57,7 +57,7 @@ describe('Manage players in Settings', () => {
   it('is reachable from the summary too, where the account button now opens Settings', async () => {
     const user = userEvent.setup();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    render(<App />);
+    renderAtSetup();
     await user.type(screen.getByLabelText('Search or add players'), 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}');
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
     await user.click(screen.getByRole('button', { name: 'Menu' }));

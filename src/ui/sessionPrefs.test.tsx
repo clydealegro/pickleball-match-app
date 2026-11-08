@@ -1,10 +1,10 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetRosterDbForTests } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
-import App from './App';
+import { renderAtSetup } from '../test/renderAtSetup';
 
 beforeEach(async () => {
   localStorage.clear();
@@ -34,7 +34,7 @@ describe('the screen stays on during a session', () => {
     const user = userEvent.setup();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { request, release } = stubWakeLock();
-    render(<App />);
+    renderAtSetup();
     await act(async () => {});
     expect(request).not.toHaveBeenCalled(); // no session yet
     await user.type(screen.getByLabelText('Search or add players'), names(5));
@@ -53,7 +53,7 @@ describe('the screen stays on during a session', () => {
   it('asks for nothing when Keep the screen on is off in Settings', async () => {
     const user = userEvent.setup();
     const { request } = stubWakeLock();
-    render(<App />);
+    renderAtSetup();
     await user.click(screen.getByRole('button', { name: /^Settings/ }));
     const keep = screen.getByRole('switch', { name: 'Keep the screen on' });
     expect(keep).toBeChecked();
@@ -71,7 +71,7 @@ describe('the screen stays on during a session', () => {
 describe('Settings, During a session', () => {
   it('has two switches that start on and remember a change', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.click(screen.getByRole('button', { name: /^Settings/ }));
     const buzz = screen.getByRole('switch', { name: 'Buzz when a game finishes' });
     expect(buzz).toBeChecked();
@@ -86,7 +86,7 @@ describe('Settings, During a session', () => {
 describe('courts are remembered', () => {
   it('starts the next New session with the number last used', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     expect(screen.getByRole('group', { name: 'Courts' })).toHaveTextContent('2');
     await user.type(screen.getByLabelText('Search or add players'), names(4));
     await user.keyboard('{Enter}');
@@ -95,12 +95,14 @@ describe('courts are remembered', () => {
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
     expect(localStorage.getItem('pickleball.courts')).toBe('4');
     act(() => useSessionStore.getState().reset());
+    // Resetting lands on Home, so open Who's playing again.
+    await user.click(screen.getByRole('button', { name: 'Start a one-off session' }));
     expect(screen.getByRole('group', { name: 'Courts' })).toHaveTextContent('4');
   });
 
   it('ignores a bad stored value', () => {
     localStorage.setItem('pickleball.courts', 'lots');
-    render(<App />);
+    renderAtSetup();
     expect(screen.getByRole('group', { name: 'Courts' })).toHaveTextContent('2');
   });
 });

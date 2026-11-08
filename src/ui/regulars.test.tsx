@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetHistoryDbForTests } from '../store/historyDb';
@@ -7,7 +7,7 @@ import { resetRosterDbForTests } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
 import { pastSession, seed } from '../test/historyFixtures';
-import App from './App';
+import { renderAtSetup } from '../test/renderAtSetup';
 import { setDefaultMode } from './matchmaking';
 
 beforeEach(async () => {
@@ -34,7 +34,7 @@ describe('Saved players shows who comes', () => {
     await pastSession(names, ids, 2026, 10, 4);
     await pastSession(names.slice(0, 2).concat(['Cy', 'Dee']), ids, 2026, 10, 11);
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.click(await screen.findByRole('button', { name: /edit players/i }));
     expect(await screen.findAllByText('2 sessions, last Wed 11 Nov')).toHaveLength(4);
     const rows = screen.getAllByRole('listitem');
@@ -45,7 +45,7 @@ describe('Saved players shows who comes', () => {
 describe('Setup puts regulars first', () => {
   async function names() {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await waitFor(() => expect(useHistoryStore.getState().loaded).toBe(true));
     await waitFor(() => expect(useRosterStore.getState().loaded).toBe(true));
     return { user, order: () => within(screen.getByRole('list', { name: 'Saved players' })).getAllByRole('listitem').map((li) => li.querySelector('.row-name')?.textContent) };
@@ -73,7 +73,7 @@ describe('Setup puts regulars first', () => {
 
   it('has the switch in Settings, on by default', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await openSettings(user);
     const sw = screen.getByRole('switch', { name: 'Show regulars first' });
     expect(sw).toBeChecked();
@@ -91,7 +91,7 @@ describe('the weekday chip', () => {
     await pastSession(group, ids, 2026, 10, 4);
     await pastSession(group, ids, 2026, 10, 11);
     await pastSession(['Eve', 'Ann', 'Ben', 'Cy'], ids, 2026, 10, 12); // a Thursday
-    render(<App />);
+    renderAtSetup();
     const chip = await screen.findByRole('button', { name: 'Wednesday regulars (4)' });
     vi.useRealTimers();
     await userEvent.setup().click(chip);
@@ -105,7 +105,7 @@ describe('the weekday chip', () => {
     const ids = await seed([...group, 'Eve']);
     await pastSession(group, ids, 2026, 10, 4);
     await pastSession(['Ann', 'Ben', 'Cy', 'Eve'], ids, 2026, 10, 11);
-    render(<App />);
+    renderAtSetup();
     await waitFor(() => expect(useHistoryStore.getState().loaded).toBe(true));
     expect(screen.queryByRole('button', { name: /regulars \(/ })).not.toBeInTheDocument();
   });
@@ -116,7 +116,7 @@ describe('the weekday chip', () => {
     const ids = await seed(group);
     await pastSession(group, ids, 2026, 10, 4);
     await pastSession(group, ids, 2026, 10, 11);
-    render(<App />);
+    renderAtSetup();
     await waitFor(() => expect(useHistoryStore.getState().loaded).toBe(true));
     expect(screen.queryByRole('button', { name: /regulars \(/ })).not.toBeInTheDocument();
   });

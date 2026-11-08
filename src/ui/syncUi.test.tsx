@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetRosterDbForTests } from '../store/rosterDb';
@@ -34,6 +34,8 @@ async function startApp(options: { client: ReturnType<typeof fakeClient> | null 
   const { useSyncStore } = await import('../sync/syncStore');
   const { useRosterStore } = await import('../store/rosterStore');
   render(<App />);
+  // These tests are about Who's playing, so they open it from Home first.
+  fireEvent.click(screen.getByRole('button', { name: 'Start a one-off session' }));
   return { user: userEvent.setup(), auth: useAuthStore, sync: useSyncStore, roster: useRosterStore };
 }
 

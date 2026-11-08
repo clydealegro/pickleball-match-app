@@ -1,10 +1,10 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetRosterDbForTests } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
-import App from './App';
+import { renderAtSetup } from '../test/renderAtSetup';
 import { getDefaultMode, setDefaultMode } from './matchmaking';
 
 beforeEach(async () => {
@@ -23,7 +23,7 @@ const four = 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}';
 
 describe('the New session page', () => {
   it('asks who is playing first, with no name field, no cards and no matchmaking choice', () => {
-    render(<App />);
+    renderAtSetup();
     expect(screen.getByRole('heading', { level: 1, name: 'Who’s playing?' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Session name')).not.toBeInTheDocument();
     expect(screen.queryByRole('radio')).not.toBeInTheDocument();
@@ -33,7 +33,7 @@ describe('the New session page', () => {
 
   it('helps a first-time organizer, then drops the hint and shows the shortcuts once players exist', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     expect(screen.getByText(/Add the people who play regularly/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Select all' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Edit players' })).not.toBeInTheDocument();
@@ -46,7 +46,7 @@ describe('the New session page', () => {
 
   it('adds a name when Enter is pressed and clears the box', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.type(box(), 'Ann{enter}');
     await screen.findByRole('checkbox', { name: 'Ann' });
     expect(box()).toHaveValue('');
@@ -56,7 +56,7 @@ describe('the New session page', () => {
 
   it('adds every name of a pasted list', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.click(box());
     await user.paste('Ann\nBen\nCy\nDee');
     await screen.findByText('4 selected');
@@ -65,7 +65,7 @@ describe('the New session page', () => {
 
   it('does nothing for an empty box', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.type(box(), '{enter}');
     expect(screen.getByText('0 selected')).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Saved players' })).not.toBeInTheDocument();
@@ -73,7 +73,7 @@ describe('the New session page', () => {
 
   it('filters the chips as you type, and offers to add a name that is not there', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.type(box(), 'Ann{enter}Ben{enter}Anna{enter}');
     await screen.findByText('3 selected');
     await user.type(box(), 'an');
@@ -90,7 +90,7 @@ describe('the New session page', () => {
 
   it('Enter on a name that already exists just picks that player, whatever the case', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.type(box(), 'Ann{enter}');
     await screen.findByRole('checkbox', { name: 'Ann' });
     await user.click(screen.getByRole('button', { name: 'Clear' }));
@@ -104,7 +104,7 @@ describe('the New session page', () => {
 
   it('shows saved players as tappable chips with no photo buttons, and a tap toggles the player', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.type(box(), four);
     await screen.findByText('4 selected');
     expect(screen.queryByRole('button', { name: /photo/i })).not.toBeInTheDocument();
@@ -116,7 +116,7 @@ describe('the New session page', () => {
 
   it('only offers Clear once something is selected', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.type(box(), 'Ann{enter}Ben{enter}');
     await screen.findByText('2 selected');
     await user.click(screen.getByRole('button', { name: 'Clear' }));
@@ -127,7 +127,7 @@ describe('the New session page', () => {
 
   it('puts courts beside Start, and Start says what is missing, then how many are playing', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     const bar = document.querySelector<HTMLElement>('.start-bar')!;
     expect(within(bar).getByRole('group', { name: 'Courts' })).toBeInTheDocument();
     expect(within(bar).getByText('2')).toBeInTheDocument();
@@ -146,7 +146,7 @@ describe('the New session page', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(2026, 10, 7, 12));
     const user = userEvent.setup({ advanceTimers: () => {} });
-    render(<App />);
+    renderAtSetup();
     await user.type(box(), four);
     await user.click(screen.getByRole('button', { name: 'More courts' }));
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
@@ -158,7 +158,7 @@ describe('the New session page', () => {
 
   it('starts new sessions in the mode chosen in Settings, and says so only for the queue', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.type(box(), four);
     await screen.findByText('4 selected');
     await user.click(screen.getByRole('button', { name: /^Settings/ }));
@@ -173,7 +173,7 @@ describe('the New session page', () => {
 
   it('starts in fairness by default', async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderAtSetup();
     await user.type(box(), four);
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
     expect(useSessionStore.getState().session?.mode).toBe('fairness');
