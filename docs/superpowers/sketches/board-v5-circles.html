@@ -1,0 +1,95 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Board view, circular avatars (sketch)</title><style>
+:root{--page:#ecece6;--panel:#f6f6f1;--ink:#111;--sub:#5f5f59}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px}
+.wrap{max-width:980px;margin:0 auto}
+h1{font-size:20px;font-weight:600;margin:0 0 4px}
+.lead{color:var(--sub);margin:0 0 18px;font-size:14px}
+.ph{background:var(--panel);border-radius:14px;padding:14px;margin-bottom:18px}
+.cap{font-size:13px;color:var(--sub);margin:0 0 10px;text-align:center}
+.tv,.pn{--bg:#0f0f0e;--fg:#f5f5f0;--mut:#9b9b94;--card:#1a1a19;--line:#2a2a28;background:var(--bg);color:var(--fg);border:0.5px solid var(--line);overflow:hidden;line-height:1.2}
+.tv{border-radius:16px;aspect-ratio:16/9;display:flex;flex-direction:column;padding:1.6% 2%;gap:1.4%;font-size:12px}
+.hd{display:flex;align-items:center;justify-content:space-between;flex:none}
+.hd .l{display:flex;align-items:center;gap:10px}
+.logo{width:22px;height:22px;border-radius:6px;background:var(--card);border:0.5px solid var(--line);display:flex;align-items:center;justify-content:center}
+.logo i{width:11px;height:11px;border:2px solid #f5f5f0;border-radius:50%;display:block}
+.hd b{font-size:16px;font-weight:500}.mut{color:var(--mut)}
+.clock{font-size:16px;font-weight:500;font-variant-numeric:tabular-nums}
+.x{width:24px;height:24px;border-radius:50%;border:0.5px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:15px}
+.ccols{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:1.4%;min-height:0}
+.ccol{background:var(--card);border:0.5px solid var(--line);border-radius:14px;padding:1.1%;display:flex;flex-direction:column;gap:1%;min-height:0}
+.ccol.rdy{border:1.5px dashed #c8f03c;background:transparent}
+.chd{display:flex;align-items:center;justify-content:space-between;padding:0 4px;min-height:34px;flex:none}
+.chd .n,.ph-h .n{font-size:12px;letter-spacing:.08em;color:var(--mut)}
+.timer{font-size:34px;font-weight:500;color:#c8f03c;font-variant-numeric:tabular-nums;letter-spacing:-.03em;line-height:1}
+.tag{font-size:14px;font-weight:500;color:#c8f03c}
+.team{flex:1;min-height:0;display:flex;justify-content:space-evenly;align-items:stretch;border-radius:13px;padding:2% 1%}
+.team.a{background:#18202e;box-shadow:inset 0 0 0 1.5px #34445f}
+.team.b{background:#2b1d1f;box-shadow:inset 0 0 0 1.5px #5a3a3e}
+.pf{display:flex;flex-direction:column;align-items:center;min-height:0;min-width:0;gap:4px}
+.cir{flex:1;min-height:0;aspect-ratio:1/1;border-radius:50%;overflow:hidden;position:relative;background:radial-gradient(circle at 50% 36%,hsl(var(--h) 42% 32%),hsl(var(--h) 45% 20%));box-shadow:0 0 0 2px rgba(255,255,255,.14)}
+.cir img,.wc img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 25%}
+.ini{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:600;color:rgba(255,255,255,.94)}
+.pn2{font-size:15px;font-weight:600;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.vsr{display:flex;align-items:center;gap:8px;flex:none}
+.vsr i{flex:1;height:1px;background:#3a3a37}
+.vs{width:34px;height:34px;border-radius:50%;background:#0f0f0e;border:1.5px solid #4a4a46;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;letter-spacing:.04em;color:#f5f5f0;flex:none}
+.wait{flex:none;height:22%;display:grid;grid-template-columns:11% 1fr;gap:1.4%;align-items:stretch}
+.wl{display:flex;flex-direction:column;justify-content:center;padding-left:8px}
+.wl .n{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.wl b{font-size:30px;font-weight:500;line-height:1}
+.wstrip{display:flex;gap:1.6%;min-width:0;align-items:stretch}
+.wpf{position:relative;display:flex;flex-direction:column;align-items:center;min-height:0;flex:none;gap:3px;padding:4px 2px 0}
+.wc{flex:1;min-height:0;aspect-ratio:1/1;border-radius:50%;overflow:hidden;position:relative;background:radial-gradient(circle at 50% 36%,hsl(var(--h) 42% 32%),hsl(var(--h) 45% 20%));box-shadow:0 0 0 2px rgba(255,255,255,.14)}
+.wc .ini{font-size:20px}
+.wc.more{background:transparent;box-shadow:none;border:1.5px dashed var(--line);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:500;color:var(--mut)}
+.wpf.first .wc{box-shadow:0 0 0 3px #c8f03c}
+.wn{font-size:12px;font-weight:600}
+.no{position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;background:#2a2a28;border:1.5px solid var(--bg);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;z-index:2}
+.wpf.first .no{background:#c8f03c;color:#0f0f0e}
+.ph2{display:flex;justify-content:center}
+.pn{width:320px;height:640px;border-radius:26px;padding:13px;display:flex;flex-direction:column;gap:8px;font-size:12px}
+.rows{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
+.row{flex:1;display:flex;flex-direction:column;padding:7px;gap:4px;background:var(--card);border:0.5px solid var(--line);border-radius:14px;min-height:0}
+.row.rdy{border:1.5px dashed #c8f03c;background:transparent}
+.ph-h{display:flex;justify-content:space-between;align-items:baseline;padding:0 3px}
+.pn .timer{font-size:22px}
+.pair{flex:1;display:flex;align-items:stretch;gap:4px;min-height:0}
+.pair .team{flex:1;padding:3px 2px;gap:2px}
+.pair .vs{width:26px;height:26px;font-size:10px;border-width:1px;align-self:center}
+.pair .pn2{font-size:11px}
+.pair .ini{font-size:17px}
+.pn .wait{height:17%;display:flex;flex-direction:column;gap:3px}
+.pn .wl{flex-direction:row;justify-content:space-between;padding:0 3px;align-items:baseline}
+.pn .wl b{font-size:14px}
+.pn .wstrip{flex:1}
+.pn .wn{font-size:10.5px}
+.pn .wc .ini{font-size:14px}
+.notes{font-size:13px;color:var(--sub);margin:6px 2px 0}.notes li{margin:3px 0}
+
+.cir{flex:none;width:var(--d,100px);height:var(--d,100px);aspect-ratio:auto}
+.tv{--d:98px}
+.pn{--d:50px}
+.pf{flex:1;min-width:0;justify-content:center}
+.wpf{width:calc(var(--w,92px));padding-top:3px}
+.wc{flex:none;width:100%;height:auto;aspect-ratio:1/1}
+.tv{--w:90px}
+.pn{--w:50px}
+.pn .wstrip{gap:5px;justify-content:flex-start}
+.wstrip{gap:1.6%}
+.pn .team{padding:6px 2px}
+.pn .pf{gap:3px}
+.pn .row{justify-content:center}
+</style></head><body><div class="wrap">
+<h1>Board view, circular avatars</h1>
+<p class="lead">Sketch only. Stand-in portraits of fictional people (randomuser.me), not your players. Ben and Jo have no photo, to show the initial circle beside real photos.</p>
+<div class="ph"><p class="cap">TV, landscape (16:9): one column per court</p>
+<div class="tv"><div class="hd"><span class="l"><span class="logo"><i></i></span><b>Tuesday open play</b><span class="mut">Sample Hall</span></span><span style="display:flex;align-items:center;gap:14px"><span class="mut">Ends 9:00 pm</span><span class="clock">7:42 pm</span><span class="x">&times;</span></span></div>
+<div class="ccols"><div class="ccol"><div class="chd"><span class="n">COURT 1</span><span class="timer">12:41</span></div><div class="team a"><div class="pf"><span class="cir" style="--h:200"><img alt="" src="https://randomuser.me/api/portraits/women/44.jpg"></span><span class="pn2">Ana</span></div><div class="pf"><span class="cir" style="--h:20"><img alt="" src="https://randomuser.me/api/portraits/men/32.jpg"></span><span class="pn2">Carlo</span></div></div><div class="vsr"><i></i><span class="vs">VS</span><i></i></div><div class="team b"><div class="pf"><span class="cir" style="--h:150"><img alt="" src="https://randomuser.me/api/portraits/men/75.jpg"></span><span class="pn2">Jun</span></div><div class="pf"><span class="cir" style="--h:320"><img alt="" src="https://randomuser.me/api/portraits/women/65.jpg"></span><span class="pn2">Mia</span></div></div></div><div class="ccol"><div class="chd"><span class="n">COURT 2</span><span class="timer">3:12</span></div><div class="team a"><div class="pf"><span class="cir" style="--h:260"><img alt="" src="https://randomuser.me/api/portraits/men/46.jpg"></span><span class="pn2">Paolo</span></div><div class="pf"><span class="cir" style="--h:340"><img alt="" src="https://randomuser.me/api/portraits/women/12.jpg"></span><span class="pn2">Rina</span></div></div><div class="vsr"><i></i><span class="vs">VS</span><i></i></div><div class="team b"><div class="pf"><span class="cir" style="--h:40"><span class="ini">BE</span></span><span class="pn2">Ben</span></div><div class="pf"><span class="cir" style="--h:170"><img alt="" src="https://randomuser.me/api/portraits/women/68.jpg"></span><span class="pn2">Liza</span></div></div></div><div class="ccol rdy"><div class="chd"><span class="n">COURT 3</span><span class="tag">Up next</span></div><div class="team a"><div class="pf"><span class="cir" style="--h:220"><img alt="" src="https://randomuser.me/api/portraits/men/11.jpg"></span><span class="pn2">Eli</span></div><div class="pf"><span class="cir" style="--h:300"><img alt="" src="https://randomuser.me/api/portraits/women/26.jpg"></span><span class="pn2">Fay</span></div></div><div class="vsr"><i></i><span class="vs">VS</span><i></i></div><div class="team b"><div class="pf"><span class="cir" style="--h:90"><img alt="" src="https://randomuser.me/api/portraits/men/86.jpg"></span><span class="pn2">Gus</span></div><div class="pf"><span class="cir" style="--h:10"><img alt="" src="https://randomuser.me/api/portraits/women/90.jpg"></span><span class="pn2">Hera</span></div></div></div></div>
+<div class="wait"><div class="wl"><span class="n">Waiting</span><b>6</b></div><div class="wstrip"><div class="wpf first"><span class="wc" style="--h:190"><img alt="" src="https://randomuser.me/api/portraits/men/54.jpg"></span><span class="no">1</span><span class="wn">Ian</span></div><div class="wpf"><span class="wc" style="--h:60"><span class="ini">JO</span></span><span class="no">2</span><span class="wn">Jo</span></div><div class="wpf"><span class="wc" style="--h:240"><img alt="" src="https://randomuser.me/api/portraits/men/62.jpg"></span><span class="no">3</span><span class="wn">Kai</span></div><div class="wpf"><span class="wc" style="--h:120"><img alt="" src="https://randomuser.me/api/portraits/women/79.jpg"></span><span class="no">4</span><span class="wn">Lee</span></div><div class="wpf"><span class="wc" style="--h:280"><img alt="" src="https://randomuser.me/api/portraits/women/52.jpg"></span><span class="no">5</span><span class="wn">Noa</span></div><div class="wpf"><span class="wc more">+1</span><span class="wn">&nbsp;</span></div></div></div></div></div>
+<div class="ph"><p class="cap">Phone on a stand, portrait</p><div class="ph2"><div class="pn">
+<div class="hd"><span class="l"><span class="logo"><i></i></span><b style="font-size:14px">Tuesday open play</b></span><span style="display:flex;align-items:center;gap:8px"><span class="clock" style="font-size:14px">7:42 pm</span><span class="x">&times;</span></span></div>
+<div class="rows"><div class="row"><div class="ph-h"><span class="n">COURT 1</span><span class="timer">12:41</span></div><div class="pair"><div class="team a"><div class="pf"><span class="cir" style="--h:200"><img alt="" src="https://randomuser.me/api/portraits/women/44.jpg"></span><span class="pn2">Ana</span></div><div class="pf"><span class="cir" style="--h:20"><img alt="" src="https://randomuser.me/api/portraits/men/32.jpg"></span><span class="pn2">Carlo</span></div></div><span class="vs">VS</span><div class="team b"><div class="pf"><span class="cir" style="--h:150"><img alt="" src="https://randomuser.me/api/portraits/men/75.jpg"></span><span class="pn2">Jun</span></div><div class="pf"><span class="cir" style="--h:320"><img alt="" src="https://randomuser.me/api/portraits/women/65.jpg"></span><span class="pn2">Mia</span></div></div></div></div><div class="row"><div class="ph-h"><span class="n">COURT 2</span><span class="timer">3:12</span></div><div class="pair"><div class="team a"><div class="pf"><span class="cir" style="--h:260"><img alt="" src="https://randomuser.me/api/portraits/men/46.jpg"></span><span class="pn2">Paolo</span></div><div class="pf"><span class="cir" style="--h:340"><img alt="" src="https://randomuser.me/api/portraits/women/12.jpg"></span><span class="pn2">Rina</span></div></div><span class="vs">VS</span><div class="team b"><div class="pf"><span class="cir" style="--h:40"><span class="ini">BE</span></span><span class="pn2">Ben</span></div><div class="pf"><span class="cir" style="--h:170"><img alt="" src="https://randomuser.me/api/portraits/women/68.jpg"></span><span class="pn2">Liza</span></div></div></div></div><div class="row rdy"><div class="ph-h"><span class="n">COURT 3</span><span class="tag">Up next</span></div><div class="pair"><div class="team a"><div class="pf"><span class="cir" style="--h:220"><img alt="" src="https://randomuser.me/api/portraits/men/11.jpg"></span><span class="pn2">Eli</span></div><div class="pf"><span class="cir" style="--h:300"><img alt="" src="https://randomuser.me/api/portraits/women/26.jpg"></span><span class="pn2">Fay</span></div></div><span class="vs">VS</span><div class="team b"><div class="pf"><span class="cir" style="--h:90"><img alt="" src="https://randomuser.me/api/portraits/men/86.jpg"></span><span class="pn2">Gus</span></div><div class="pf"><span class="cir" style="--h:10"><img alt="" src="https://randomuser.me/api/portraits/women/90.jpg"></span><span class="pn2">Hera</span></div></div></div></div></div>
+<div class="wait"><div class="wl"><span class="n">Waiting</span><b>6</b></div><div class="wstrip"><div class="wpf first"><span class="wc" style="--h:190"><img alt="" src="https://randomuser.me/api/portraits/men/54.jpg"></span><span class="no">1</span><span class="wn">Ian</span></div><div class="wpf"><span class="wc" style="--h:60"><span class="ini">JO</span></span><span class="no">2</span><span class="wn">Jo</span></div><div class="wpf"><span class="wc" style="--h:240"><img alt="" src="https://randomuser.me/api/portraits/men/62.jpg"></span><span class="no">3</span><span class="wn">Kai</span></div><div class="wpf"><span class="wc" style="--h:120"><img alt="" src="https://randomuser.me/api/portraits/women/79.jpg"></span><span class="no">4</span><span class="wn">Lee</span></div><div class="wpf"><span class="wc more">+2</span><span class="wn">&nbsp;</span></div></div></div></div></div></div>
+<ul class="notes"><li>Circular avatars, like everywhere else in the app. Names sit under each circle so the whole face stays visible.</li><li>Each team has its own outlined panel with a VS between the teams. Number 1 in the waiting row has a lime ring.</li></ul>
+</div></body></html>

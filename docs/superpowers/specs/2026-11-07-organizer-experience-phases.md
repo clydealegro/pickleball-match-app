@@ -332,6 +332,18 @@ The first Home was three equal cards and no way back from a running session. The
 - **Left out on purpose:** the first-run "Your weekly sessions" sheet, a bottom tab bar, confetti, and syncing slots.
 - **Known limits:** after Start new session the history can hold two Home entries, so the phone Back button may need two taps there. Slots are still per device.
 
+### 4.9 Board view, as built (4b, settled 2026-11-08, plan in `docs/superpowers/plans/2026-11-08-organizer-board.md`)
+
+The sketch is `docs/superpowers/sketches/board-v5-circles.html`. This refines 4.3.
+
+- **Entry and exit:** a "Show board" item after "Settings" in the live menu. The board is a screen of its own for a running session only. Close, the Escape key and the phone's Back button close it (one history entry). If the session ends while it is open, the summary shows and the board does not come back.
+- **Faces first:** every player is a circular avatar (photo, or initials on a colour made from the name with the lightness capped so white letters stay readable) with the first name under it; a last initial is added when two players on the board share a first name.
+- **Courts:** a card per court with the number and one state: playing (lime game clock), up next (lime tag, dashed lime outline), open (dashed grey, "Open"), closing (tag). Team A and Team B are outlined panels (bluish and warm) with a VS between them.
+- **Layout:** landscape courts are columns (1 to 3), 2 by 2 (4) or 3 by 2 (5 or 6); portrait courts stack and use two columns from 5. More than 6 shows 6 and "+N more courts". A court stacks its teams only when its card is about square or taller and at least 400 px tall.
+- **Waiting:** a numbered row in the app's own order (`orderedWaiting`) with a lime ring on number 1, a dashed "+N" circle when not all fit, and "No one is waiting." when empty.
+- **Always dark, no scores** (no wins, losses or ratings), nothing synced, no new wake-lock code (the running session already keeps the screen on).
+- **Left for later:** a live link on a second device (Phase 5), a Home shortcut, a light board theme. **Known limits:** about 28 px circles on a portrait phone with 5 or more courts, and small circles on a phone held sideways.
+
 ### Acceptance
 Highlights are tested with fixed sessions including ties and the under-three-games case. The canvas card is tested for dimensions and for the text it draws (through a canvas stub). The board view renders the same data as the live screen. Reminders fire once per game. Sunlight meets WCAG AA contrast for every text and control colour, with the ratios computed by a script and listed in the plan. Home shows the right slot for a given date, saves a slot's time and venue (this time only, or for good), starts a session that carries the slot's venue and end, and Extend moves only that session's end; each is tested with fixed dates.
 
