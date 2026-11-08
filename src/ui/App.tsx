@@ -17,7 +17,10 @@ import { SetupScreen } from './SetupScreen';
 import { SummaryScreen } from './SummaryScreen';
 import { KEEP_AWAKE_KEY, useBoolPref } from './prefs';
 import { useSessionConflict } from './useSessionConflict';
+import { useScreenHistory } from './useScreenHistory';
 import { useWakeLock } from './useWakeLock';
+
+type View = 'home' | 'setup' | 'saved' | 'settings' | 'history' | 'summary' | 'live';
 
 export default function App() {
   const session = useSessionStore((s) => s.session);
@@ -33,7 +36,7 @@ export default function App() {
   const sessionConflict = useSessionConflict();
   // 'live' is the session's own screen (live court, or the summary once it ended). A running session at load
   // starts there; Home is also reachable over a running session.
-  const [view, setView] = useState<'home' | 'setup' | 'saved' | 'settings' | 'history' | 'live'>(session ? 'live' : 'home');
+  const [view, setView] = useState<View>(session ? 'live' : 'home');
   // Who's playing is opened from Home, with the slot's plan or none for a one-off session. It stays mounted
   // (hidden) while Saved players or Settings are open on top of it, so a half-filled form survives the trip.
   const [setupOpen, setSetupOpen] = useState(false);
@@ -43,26 +46,63 @@ export default function App() {
   const [savedFrom, setSavedFrom] = useState<'setup' | 'settings'>('setup');
   const [settingsFrom, setSettingsFrom] = useState<'home' | 'setup' | 'live'>('home');
   const [historyFrom, setHistoryFrom] = useState<'home' | 'settings'>('settings');
+  // Past sessions can open one session's summary straight away (from the done card on Home).
+  const [historyOpenId, setHistoryOpenId] = useState<string | undefined>(undefined);
+
+  // The browser history follows the screens, so the phone's Back button steps back one screen. Every forward move
+  // pushes an entry, and every in-app Back steps the history back too, so the stack and the screen agree.
+  const screens = useScreenHistory<View>({
+    root: session ? 'live' : 'home',
+    // A history entry that cannot be shown now (no session, no draft, nothing foreign) falls back to the root screen.
+    resolve: (v) => {
+      const fallback = session ? 'live' : 'home';
+      switch (v) {
+        case 'home':
+          return session?.endedAt ? 'live' : 'home';
+        case 'live':
+          return fallback;
+        case 'setup':
+          return !session && setupOpen ? 'setup' : fallback;
+        case 'saved':
+        case 'settings':
+        case 'history':
+          return v;
+        case 'summary':
+          return historyOpenId ? 'summary' : 'history';
+        default:
+          return fallback;
+      }
+    },
+    show: (v) => {
+      setView(v);
+      // Landing on Home with no session means Who's playing is gone, like its own Back button does.
+      if (v === 'home' && !session) {
+        setSetupOpen(false);
+        setPlan(undefined);
+      }
+    },
+  });
+
   const openSaved = (from: 'setup' | 'settings') => {
     setSavedFrom(from);
-    setView('saved');
+    screens.push('saved');
   };
   const openSettings = () => {
     if (view === 'setup' || (view === 'saved' && savedFrom === 'setup')) setSettingsFrom('setup');
     else setSettingsFrom(view === 'live' ? 'live' : 'home');
-    setView('settings');
+    screens.push('settings');
   };
-  // Past sessions can open one session's summary straight away (from the done card on Home).
-  const [historyOpenId, setHistoryOpenId] = useState<string | undefined>(undefined);
   const openHistory = (from: 'home' | 'settings', openId?: string) => {
     setHistoryFrom(from);
     setHistoryOpenId(openId);
-    setView('history');
+    screens.push('history');
+    // The summary sits above the list, so Back from it lands on the list.
+    if (openId) screens.push('summary');
   };
   const openSetup = (p: SessionPlan | undefined) => {
     setPlan(p);
     setSetupOpen(true);
-    setView('setup');
+    screens.push('setup');
   };
 
   // When the session goes away (Start new session), the app lands on Home with a clean Who's playing.
@@ -78,6 +118,12 @@ export default function App() {
       setView('live');
     }
   }
+
+  // Start new session makes the current entry the first one again; a new session takes over the entry Who's playing held.
+  useEffect(() => {
+    if (!hadSession) screens.resetRoot('home');
+    else screens.replace('live');
+  }, [hadSession, screens]);
 
   useEffect(() => {
     // A failing roster load is already reflected by the store's `persistent` flag.
@@ -100,11 +146,19 @@ export default function App() {
 
   const overlay =
     view === 'saved' ? (
-      <SavedPlayersScreen onBack={() => setView(savedFrom)} />
+      <SavedPlayersScreen onBack={() => screens.back(savedFrom)} />
     ) : view === 'settings' ? (
-      <SettingsScreen onBack={() => setView(settingsFrom)} onManage={() => openSaved('settings')} onHistory={() => openHistory('settings')} />
-    ) : view === 'history' ? (
-      <PastSessionsScreen openId={historyOpenId} onBack={() => setView(historyFrom)} />
+      <SettingsScreen onBack={() => screens.back(settingsFrom)} onManage={() => openSaved('settings')} onHistory={() => openHistory('settings')} />
+    ) : view === 'history' || view === 'summary' ? (
+      <PastSessionsScreen
+        openId={view === 'summary' ? historyOpenId : undefined}
+        onOpen={(id) => {
+          setHistoryOpenId(id);
+          screens.push('summary');
+        }}
+        onCloseSummary={() => screens.back('history')}
+        onBack={() => screens.back(historyFrom)}
+      />
     ) : null;
 
   // Home shown over a running session: the Live hero and a way back, nothing that could start another session.
@@ -117,7 +171,7 @@ export default function App() {
         <SignInBanner onSignIn={openSettings} />
         <HomeScreen
           onStart={openSetup}
-          onResume={() => setView('live')}
+          onResume={() => screens.back('live')}
           onHistory={() => openHistory('home')}
           onViewSummary={(id) => openHistory('home', id)}
         />
@@ -131,11 +185,7 @@ export default function App() {
             <SignInBanner onSignIn={openSettings} />
             <SetupScreen
               plan={plan}
-              onBack={() => {
-                setSetupOpen(false);
-                setPlan(undefined);
-                setView('home');
-              }}
+              onBack={() => screens.back('home')}
               onManage={() => openSaved('setup')}
             />
           </div>
@@ -154,7 +204,7 @@ export default function App() {
   } else if (session.endedAt) {
     screen = <SummaryScreen session={session} />;
   } else {
-    screen = <LiveScreen session={session} onHome={() => setView('home')} onSettings={openSettings} />;
+    screen = <LiveScreen session={session} onHome={() => screens.push('home')} onSettings={openSettings} />;
   }
 
   // The live screen has its own slim top bar, so the app's title bar is left out to give the court the room.
@@ -165,7 +215,7 @@ export default function App() {
       {!live && (
         <header className="app-header">
           <span className="app-title">PIKLMatch</span>
-          {view !== 'settings' && view !== 'history' && <AccountButton onClick={openSettings} />}
+          {view !== 'settings' && view !== 'history' && view !== 'summary' && <AccountButton onClick={openSettings} />}
         </header>
       )}
       {updateReady && (

@@ -4,22 +4,32 @@ import { shortDate } from '../store/attendance';
 import { useHistoryStore } from '../store/historyStore';
 import { SummaryScreen } from './SummaryScreen';
 
-/** `openId` opens that session's summary straight away. Back from it returns to the list. */
-export function PastSessionsScreen({ onBack, openId }: { onBack: () => void; openId?: string }) {
+interface Props {
+  onBack: () => void;
+  /** Opens that session's summary straight away. Back from it returns to the list. */
+  openId?: string;
+  /** With these two the app owns which summary is open, so the browser history can follow it. */
+  onOpen?: (id: string) => void;
+  onCloseSummary?: () => void;
+}
+
+export function PastSessionsScreen({ onBack, openId, onOpen, onCloseSummary }: Props) {
   const entries = useHistoryStore((s) => s.entries);
   const loaded = useHistoryStore((s) => s.loaded);
   const persistent = useHistoryStore((s) => s.persistent);
   const [open, setOpen] = useState<Session | null>(null);
   const [listed, setListed] = useState(false);
   // History may still be loading when the screen opens, so the id is looked up on every render.
-  const fromId = openId && !listed ? entries.find((e) => e.id === openId)?.session : undefined;
-  const shown = open ?? fromId;
+  const owned = onOpen !== undefined;
+  const fromId = openId && (owned || !listed) ? entries.find((e) => e.id === openId)?.session : undefined;
+  const shown = owned ? fromId : (open ?? fromId);
 
   if (shown) {
     return (
       <SummaryScreen
         session={shown}
         onBack={() => {
+          if (onCloseSummary) return onCloseSummary();
           setOpen(null);
           setListed(true);
         }}
@@ -42,7 +52,7 @@ export function PastSessionsScreen({ onBack, openId }: { onBack: () => void; ope
         <ul className="list card" aria-label="Past sessions">
           {entries.map((e) => (
             <li key={e.id}>
-              <button type="button" className="past-row" onClick={() => setOpen(e.session)}>
+              <button type="button" className="past-row" onClick={() => (onOpen ? onOpen(e.id) : setOpen(e.session))}>
                 <span className="row-name">{e.name}</span>
                 <span className="muted">
                   {shortDate(e.endedAt)} · {e.session.venue ? `${e.session.venue} · ` : ''}{e.games} {e.games === 1 ? 'game' : 'games'} · {e.session.players.length} players
