@@ -81,6 +81,24 @@ h1 {
   margin-bottom: 16px;
 }
 
+.app-logo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-left: -4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.app-logo-btn:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
 .app-logo {
   display: block;
   width: 36px;

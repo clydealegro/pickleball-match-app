@@ -186,7 +186,8 @@ describe('the top bar', () => {
   it('is one slim row, with no separate title bar above it and no Undo icon', async () => {
     const user = userEvent.setup();
     await startSession(user, FIVE);
-    expect(screen.queryByRole('img', { name: 'PIKLMatch' })).not.toBeInTheDocument();
+    expect(document.querySelector('.app-header')).toBeNull();
+    expect(document.querySelector('.app-logo')).toBeNull();
     const bar = document.querySelector<HTMLElement>('.live-header')!;
     expect(within(bar).getByRole('button', { name: 'Home' })).toBeInTheDocument();
     expect(within(bar).getByRole('heading', { level: 1 })).toBeInTheDocument();
@@ -196,7 +197,7 @@ describe('the top bar', () => {
 
   it('brings the title bar back outside a live session', async () => {
     renderAtSetup();
-    expect(screen.getByRole('img', { name: 'PIKLMatch' })).toBeInTheDocument();
+    expect(within(document.querySelector<HTMLElement>('.app-header')!).getByRole('button', { name: 'Home' })).toBeInTheDocument();
   });
 
   it('no longer holds a theme switch', async () => {

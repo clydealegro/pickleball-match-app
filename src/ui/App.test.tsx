@@ -260,7 +260,7 @@ describe('App', () => {
   it('has a title bar with the PIKLMatch logo and the account button, and no theme button there', () => {
     renderAtSetup();
     const bar = document.querySelector<HTMLElement>('.app-header')!;
-    expect(within(bar).getByRole('img', { name: 'PIKLMatch' })).toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: 'Home' }).querySelector('img')).not.toBeNull();
     expect(within(bar).getByRole('button', { name: /^Settings/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /theme/i })).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /^Settings/ })).toHaveLength(1);

@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, type MutableRefObject } from 'react';
 import * as engine from '../engine';
 import type { PlayerSummary, Session } from '../engine';
 import { shortDate } from '../store/attendance';
@@ -111,8 +111,25 @@ function ShareSheet({
   );
 }
 
-/** `onBack` makes it a read-only look at a past session: nothing is saved again and there is no Start new. */
-export function SummaryScreen({ session, onBack }: { session: Session; onBack?: () => void }) {
+/** Leaving once it is in Past sessions or shared loses nothing. Otherwise, with games played, it asks first. */
+export function confirmLeave(session: Session, kept: boolean, shared: boolean): boolean {
+  if (kept || shared || engine.sessionStats(session).games === 0) return true;
+  return window.confirm('Close this summary? It could not be saved to Past sessions and you have not shared it yet.');
+}
+
+/**
+ * `onBack` makes it a read-only look at a past session: nothing is saved again and there is no Done.
+ * `leaveRef` lets the title bar logo do what Done does.
+ */
+export function SummaryScreen({
+  session,
+  onBack,
+  leaveRef,
+}: {
+  session: Session;
+  onBack?: () => void;
+  leaveRef?: MutableRefObject<(() => void) | null>;
+}) {
   const reset = useSessionStore((s) => s.reset);
   const saveToHistory = useHistoryStore((s) => s.save);
   const kept = useHistoryStore((s) => s.entries.some((e) => e.id === session.id));
@@ -181,10 +198,15 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
   }
 
   function done() {
-    // Once it is in Past sessions, leaving loses nothing, so there is nothing to warn about.
-    if (!kept && !shared && stats.games > 0 && !window.confirm('Close this summary? It could not be saved to Past sessions and you have not shared it yet.')) return;
-    reset();
+    if (confirmLeave(session, kept, shared)) reset();
   }
+  useEffect(() => {
+    if (!leaveRef) return;
+    leaveRef.current = done;
+    return () => {
+      leaveRef.current = null;
+    };
+  });
 
   return (
     <div className="stack">

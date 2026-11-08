@@ -14,7 +14,7 @@ import { PastSessionsScreen } from './PastSessionsScreen';
 import { SavedPlayersScreen } from './SavedPlayersScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { SetupScreen } from './SetupScreen';
-import { SummaryScreen } from './SummaryScreen';
+import { SummaryScreen, confirmLeave } from './SummaryScreen';
 import { KEEP_AWAKE_KEY, useBoolPref } from './prefs';
 import { useSessionConflict } from './useSessionConflict';
 import { useScreenHistory } from './useScreenHistory';
@@ -51,6 +51,11 @@ export default function App() {
 
   // The browser history follows the screens, so the phone's Back button steps back one screen. Every forward move
   // pushes an entry, and every in-app Back steps the history back too, so the stack and the screen agree.
+  // The logo takes the summary's Done route when a session has ended, and the summary registers it here.
+  const leaveSummary = useRef<(() => void) | null>(null);
+  // The logo goes Home over Who's playing without closing it, so Back finds the half-filled form.
+  const keepSetup = useRef(false);
+
   const screens = useScreenHistory<View>({
     root: session ? 'live' : 'home',
     // A history entry that cannot be shown now (no session, no draft, nothing foreign) falls back to the root screen.
@@ -76,7 +81,7 @@ export default function App() {
     show: (v) => {
       setView(v);
       // Landing on Home with no session means Who's playing is gone, like its own Back button does.
-      if (v === 'home' && !session) {
+      if (v === 'home' && !session && !keepSetup.current) {
         setSetupOpen(false);
         setPlan(undefined);
       }
@@ -105,7 +110,19 @@ export default function App() {
     screens.push('setup');
   };
 
-  // When the session goes away (Start new session), the app lands on Home with a clean Who's playing.
+  // The logo is Home. Over an ended session that means leaving it, like Done, so it asks the same question.
+  const goHome = () => {
+    if (session?.endedAt) {
+      if (leaveSummary.current) leaveSummary.current();
+      else if (confirmLeave(session, useHistoryStore.getState().entries.some((e) => e.id === session.id), false)) useSessionStore.getState().reset();
+      return;
+    }
+    keepSetup.current = true;
+    screens.push('home');
+    keepSetup.current = false;
+  };
+
+  // When the session goes away (Done on the summary), the app lands on Home with a clean Who's playing.
   const [hadSession, setHadSession] = useState(!!session);
   if (hadSession !== !!session) {
     setHadSession(!!session);
@@ -119,7 +136,7 @@ export default function App() {
     }
   }
 
-  // Start new session makes the current entry the first one again; a new session takes over the entry Who's playing held.
+  // Done makes the current entry the first one again; a new session takes over the entry Who's playing held.
   // The first run is skipped: the hook already wrote the root marker on load.
   const loadedOnce = useRef(false);
   useEffect(() => {
@@ -208,7 +225,7 @@ export default function App() {
   } else if (overlay) {
     screen = overlay;
   } else if (session.endedAt) {
-    screen = <SummaryScreen session={session} />;
+    screen = <SummaryScreen session={session} leaveRef={leaveSummary} />;
   } else {
     screen = <LiveScreen session={session} onHome={() => screens.push('home')} onSettings={openSettings} />;
   }
@@ -216,11 +233,16 @@ export default function App() {
   // The live screen has its own slim top bar, so the app's title bar is left out to give the court the room.
   const live = !!session && !session.endedAt && !overlay && view === 'live';
 
+  // On Home itself the logo has nowhere to go.
+  const atHome = view === 'home' && !session?.endedAt;
+
   return (
     <div className="app">
       {!live && (
         <header className="app-header">
-          <img className="app-logo" src={`${import.meta.env.BASE_URL}brand/logo.svg`} alt="PIKLMatch" width={36} height={36} />
+          <button type="button" className="app-logo-btn" aria-label="Home" aria-current={atHome ? 'page' : undefined} disabled={atHome} onClick={goHome}>
+            <img className="app-logo" src={`${import.meta.env.BASE_URL}brand/logo.svg`} alt="" width={36} height={36} />
+          </button>
           {view !== 'settings' && view !== 'history' && view !== 'summary' && <AccountButton onClick={openSettings} />}
         </header>
       )}
