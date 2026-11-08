@@ -499,7 +499,8 @@ legend {
   align-items: center;
 }
 
-.account-btn {
+.account-btn,
+.live-home-btn {
   position: relative;
   flex: none;
   display: inline-flex;

@@ -46,7 +46,8 @@ describe('Manage players in Settings', () => {
     renderAtSetup();
     await user.type(screen.getByLabelText('Search or add players'), 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}');
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
-    await settings(user);
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
     await user.click(screen.getByRole('button', { name: 'Manage players' }));
     expect(await screen.findByRole('heading', { name: 'Saved players' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Back' }));

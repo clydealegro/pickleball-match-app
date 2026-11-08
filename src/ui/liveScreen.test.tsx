@@ -173,7 +173,8 @@ describe('the menu', () => {
   it('opens Settings in the middle of a session, and Back returns to the live screen', async () => {
     const user = userEvent.setup();
     await startSession(user, FIVE);
-    await user.click(screen.getByRole('button', { name: /^Settings/ }));
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
     expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Back' }));
@@ -187,7 +188,7 @@ describe('the top bar', () => {
     await startSession(user, FIVE);
     expect(screen.queryByText('PIKLMatch')).not.toBeInTheDocument();
     const bar = document.querySelector<HTMLElement>('.live-header')!;
-    expect(within(bar).getByRole('button', { name: /^Settings/ })).toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: 'Home' })).toBeInTheDocument();
     expect(within(bar).getByRole('heading', { level: 1 })).toBeInTheDocument();
     expect(within(bar).queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
     expect(within(bar).getByRole('button', { name: 'Menu' })).toBeInTheDocument();
@@ -282,16 +283,15 @@ describe('swiping between courts', () => {
 });
 
 describe('the account button', () => {
-  it('opens Settings from the round button at the top left', async () => {
+  it('opens Settings from the round button at the top right of the title bar', async () => {
     const user = userEvent.setup();
-    await startSession(user, FIVE);
+    renderAtSetup();
     await user.click(screen.getByRole('button', { name: /^Settings/ }));
     expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument();
   });
 
   it('carries the sync state in its name and a coloured dot', async () => {
-    const user = userEvent.setup();
-    await startSession(user, FIVE);
+    renderAtSetup();
     act(() => useAuthStore.setState({ status: 'signedIn', email: 'a@b.co', userId: 'u1' }));
     const dot = () => document.querySelector('.account-btn .dot');
     const cases: [Partial<ReturnType<typeof useSyncStore.getState>>, string, string][] = [
@@ -378,9 +378,9 @@ describe('extending the session', () => {
 
   it('shows no chip on a session that has ended, even with a planned end', () => {
     const base = { ...newTestSession(['A', 'B', 'C', 'D']), plannedEndAt: END };
-    const { rerender } = render(<LiveScreen session={base} onSettings={() => {}} />);
+    const { rerender } = render(<LiveScreen session={base} onHome={() => {}} onSettings={() => {}} />);
     expect(chip()).toBeInTheDocument();
-    rerender(<LiveScreen session={{ ...base, endedAt: END }} onSettings={() => {}} />);
+    rerender(<LiveScreen session={{ ...base, endedAt: END }} onHome={() => {}} onSettings={() => {}} />);
     expect(chip()).not.toBeInTheDocument();
   });
 

@@ -140,7 +140,8 @@ describe('Settings, Play to', () => {
   it('starts at 11, remembers 15 or 21, and sets where the winning score starts', async () => {
     const user = userEvent.setup();
     await startSession(user);
-    await user.click(screen.getByRole('button', { name: /^Settings/ }));
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
     const group = within(screen.getByRole('radiogroup', { name: 'Play to' }));
     expect(group.getByRole('radio', { name: '11' })).toBeChecked();
     await user.click(group.getByRole('radio', { name: '15' }));
@@ -156,7 +157,8 @@ describe('Settings, Play to', () => {
     localStorage.setItem('pickleball.playTo', '13');
     const user = userEvent.setup();
     await startSession(user);
-    await user.click(screen.getByRole('button', { name: /^Settings/ }));
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
     expect(within(screen.getByRole('radiogroup', { name: 'Play to' })).getByRole('radio', { name: '11' })).toBeChecked();
   });
 });

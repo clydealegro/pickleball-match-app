@@ -31,7 +31,9 @@ export default function App() {
   const initAuth = useAuthStore((s) => s.init);
   const [keepAwake] = useBoolPref(KEEP_AWAKE_KEY, true);
   const sessionConflict = useSessionConflict();
-  const [view, setView] = useState<'home' | 'setup' | 'saved' | 'settings' | 'history'>('home');
+  // 'live' is the session's own screen (live court, or the summary once it ended). A running session at load
+  // starts there; Home is also reachable over a running session.
+  const [view, setView] = useState<'home' | 'setup' | 'saved' | 'settings' | 'history' | 'live'>(session ? 'live' : 'home');
   // Who's playing is opened from Home, with the slot's plan or none for a one-off session. It stays mounted
   // (hidden) while Saved players or Settings are open on top of it, so a half-filled form survives the trip.
   const [setupOpen, setSetupOpen] = useState(false);
@@ -39,14 +41,15 @@ export default function App() {
   // Saved players can be opened from Setup or from Settings; Settings and Past sessions can be opened from Home
   // or Setup (Past sessions also from Settings). Back returns to whichever it came from.
   const [savedFrom, setSavedFrom] = useState<'setup' | 'settings'>('setup');
-  const [settingsFrom, setSettingsFrom] = useState<'home' | 'setup'>('home');
+  const [settingsFrom, setSettingsFrom] = useState<'home' | 'setup' | 'live'>('home');
   const [historyFrom, setHistoryFrom] = useState<'home' | 'settings'>('settings');
   const openSaved = (from: 'setup' | 'settings') => {
     setSavedFrom(from);
     setView('saved');
   };
   const openSettings = () => {
-    setSettingsFrom(view === 'setup' || (view === 'saved' && savedFrom === 'setup') ? 'setup' : 'home');
+    if (view === 'setup' || (view === 'saved' && savedFrom === 'setup')) setSettingsFrom('setup');
+    else setSettingsFrom(view === 'live' ? 'live' : 'home');
     setView('settings');
   };
   // Past sessions can open one session's summary straight away (from the done card on Home).
@@ -70,6 +73,9 @@ export default function App() {
       setView('home');
       setSetupOpen(false);
       setPlan(undefined);
+    } else if (view === 'setup' || view === 'home') {
+      // A session just started: its screen takes over from Who's playing.
+      setView('live');
     }
   }
 
@@ -101,8 +107,23 @@ export default function App() {
       <PastSessionsScreen openId={historyOpenId} onBack={() => setView(historyFrom)} />
     ) : null;
 
+  // Home shown over a running session: the Live hero and a way back, nothing that could start another session.
+  const homeOverLive = !!session && !session.endedAt && view === 'home';
+
   let screen;
-  if (!session) {
+  if (homeOverLive) {
+    screen = (
+      <>
+        <SignInBanner onSignIn={openSettings} />
+        <HomeScreen
+          onStart={openSetup}
+          onResume={() => setView('live')}
+          onHistory={() => openHistory('home')}
+          onViewSummary={(id) => openHistory('home', id)}
+        />
+      </>
+    );
+  } else if (!session) {
     screen = (
       <>
         {setupOpen && (
@@ -133,11 +154,11 @@ export default function App() {
   } else if (session.endedAt) {
     screen = <SummaryScreen session={session} />;
   } else {
-    screen = <LiveScreen session={session} onSettings={openSettings} />;
+    screen = <LiveScreen session={session} onHome={() => setView('home')} onSettings={openSettings} />;
   }
 
   // The live screen has its own slim top bar, so the app's title bar is left out to give the court the room.
-  const live = !!session && !session.endedAt && !overlay;
+  const live = !!session && !session.endedAt && !overlay && view === 'live';
 
   return (
     <div className="app">

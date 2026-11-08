@@ -41,7 +41,8 @@ describe('the screen stays on during a session', () => {
     await user.keyboard('{Enter}');
     await user.click(await screen.findByRole('button', { name: 'Start 5 players' }));
     await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
-    await user.click(screen.getByRole('button', { name: /^Settings/ }));
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
     await user.click(screen.getByRole('button', { name: 'Back' }));
     expect(release).not.toHaveBeenCalled();
     expect(request).toHaveBeenCalledTimes(1);

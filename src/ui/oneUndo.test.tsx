@@ -108,7 +108,7 @@ describe('Undo in the menu', () => {
     await startSession(user, 5);
     await user.click(screen.getByRole('button', { name: /^Start game/ }));
     const pop = await menu(user);
-    const first = within(pop).getAllByRole('button')[0];
+    const first = within(pop).getAllByRole('button')[1]; // Settings is first
     expect(first).toHaveTextContent('Undo: Started Court 1');
     await user.click(first);
     expect(court(1).status).toBe('ready');
@@ -121,6 +121,6 @@ describe('Undo in the menu', () => {
     const { act } = await import('@testing-library/react');
     act(() => useSessionStore.setState({ lastAction: null }));
     const pop = await menu(user);
-    expect(within(pop).getAllByRole('button')[0]).toHaveTextContent('Undo last action');
+    expect(within(pop).getAllByRole('button')[1]).toHaveTextContent('Undo last action');
   });
 });

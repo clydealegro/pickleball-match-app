@@ -4,7 +4,6 @@ import type { GameResult, Session } from '../engine';
 import { useRosterStore } from '../store/rosterStore';
 import { formatClock } from '../store/slots';
 import { useSessionStore, type SessionAction } from '../store/sessionStore';
-import { AccountButton } from './AccountButton';
 import { AddPlayerSheet } from './AddPlayerSheet';
 import { CourtCard } from './CourtCard';
 import { CourtTabs } from './CourtTabs';
@@ -22,7 +21,19 @@ function clockOf(ms: number): string {
   return formatClock(d.getHours() * 60 + d.getMinutes());
 }
 
-export function LiveScreen({ session, onSettings }: { session: Session; onSettings: () => void }) {
+/** The house button: shows Home while the session keeps running. */
+function HomeButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className="live-home-btn" aria-label="Home" onClick={onClick}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M4 11l8-7 8 7" />
+        <path d="M6 10v10h12V10" />
+      </svg>
+    </button>
+  );
+}
+
+export function LiveScreen({ session, onHome, onSettings }: { session: Session; onHome: () => void; onSettings: () => void }) {
   const apply = useSessionStore((s) => s.apply);
   const undo = useSessionStore((s) => s.undo);
   const undoCount = useSessionStore((s) => s.undoStack.length);
@@ -123,7 +134,7 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
   return (
     <div className="live-screen">
       <div className="live-header">
-        <AccountButton onClick={onSettings} />
+        <HomeButton onClick={onHome} />
         <div className="live-title">
           <h1 className="screen-title">{session.name}</h1>
           <div className="live-sub">
@@ -140,6 +151,7 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
         <div className="live-actions">
           <LiveMenu
             items={[
+              { label: 'Settings', onSelect: onSettings },
               ...(undoCount > 0 ? [{ label: lastAction ? `Undo: ${lastAction.label}` : 'Undo last action', onSelect: undo }] : []),
               { label: 'Add player', onSelect: openAdd },
               ...(readyCount >= 2 ? [{ label: 'Start all ready courts', onSelect: () => run((s, ctx) => engine.startAllReady(s, ctx), 'Started all ready courts') }] : []),
