@@ -151,6 +151,9 @@ describe('HomeScreen while a session runs', () => {
     expect(pill()).toBe('Live · 1h 12m');
     expect(screen.queryByRole('button', { name: 'Share as picture' })).not.toBeInTheDocument();
     expect(screen.queryByText('Good session, Saturday')).not.toBeInTheDocument();
+    // The slim row stays the Last session row; View summary belongs to the done card only.
+    expect(screen.queryByRole('button', { name: 'View summary' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Last:/ })).toBeInTheDocument();
   });
 
   it('is not live for a session that has ended', () => {
