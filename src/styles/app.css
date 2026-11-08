@@ -2086,6 +2086,31 @@ caption {
   transform: scale(.98);
 }
 
+/* The courts list on the Live hero. */
+.home-courts {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-court-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  border-top: 1px solid color-mix(in srgb, var(--accent-ink) 18%, transparent);
+  font-size: 14px;
+}
+
+.home-court-name {
+  font-weight: 500;
+}
+
+.home-court-state {
+  font-weight: 700;
+}
+
 /* Short screens: the avatars go first, then the second line of the last session row. */
 @media (max-height: 600px) {
   .home-avatars {
@@ -2094,6 +2119,12 @@ caption {
 
   .home-foot {
     min-height: 0;
+  }
+}
+
+@media (max-height: 560px) {
+  .home-courts {
+    display: none;
   }
 }
 

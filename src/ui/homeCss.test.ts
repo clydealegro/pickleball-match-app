@@ -45,4 +45,20 @@ describe('Home styles', () => {
   it('has no styles left from the old slot cards', () => {
     for (const old of ['.slot-card', '.slot-big', '.slot-label', '.slot-title', '.btn-start']) expect(css).not.toContain(old);
   });
+
+  it('styles the courts list rows at 28 to 32 px with a translucent divider', () => {
+    const row = rule('.home-court-row');
+    const h = /(?:min-)?height:\s*(\d+)px/.exec(row);
+    expect(h).not.toBeNull();
+    expect(Number(h![1])).toBeGreaterThanOrEqual(28);
+    expect(Number(h![1])).toBeLessThanOrEqual(32);
+    expect(row).toMatch(/border-top:[^;]*color-mix\([^;]*var\(--accent-ink\)[^;]*transparent/);
+    expect(rule('.home-court-state')).toMatch(/font-weight:\s*700/);
+  });
+
+  it('hides the courts list on short screens', () => {
+    const block = /@media \(max-height: 560px\)\s*\{([\s\S]*?\n\})/.exec(css);
+    expect(block).not.toBeNull();
+    expect(block![1]).toMatch(/\.home-courts\s*\{[^}]*display:\s*none/);
+  });
 });
