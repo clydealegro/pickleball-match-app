@@ -4,13 +4,28 @@ import { shortDate } from '../store/attendance';
 import { useHistoryStore } from '../store/historyStore';
 import { SummaryScreen } from './SummaryScreen';
 
-export function PastSessionsScreen({ onBack }: { onBack: () => void }) {
+/** `openId` opens that session's summary straight away. Back from it returns to the list. */
+export function PastSessionsScreen({ onBack, openId }: { onBack: () => void; openId?: string }) {
   const entries = useHistoryStore((s) => s.entries);
   const loaded = useHistoryStore((s) => s.loaded);
   const persistent = useHistoryStore((s) => s.persistent);
   const [open, setOpen] = useState<Session | null>(null);
+  const [listed, setListed] = useState(false);
+  // History may still be loading when the screen opens, so the id is looked up on every render.
+  const fromId = openId && !listed ? entries.find((e) => e.id === openId)?.session : undefined;
+  const shown = open ?? fromId;
 
-  if (open) return <SummaryScreen session={open} onBack={() => setOpen(null)} />;
+  if (shown) {
+    return (
+      <SummaryScreen
+        session={shown}
+        onBack={() => {
+          setOpen(null);
+          setListed(true);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="stack">

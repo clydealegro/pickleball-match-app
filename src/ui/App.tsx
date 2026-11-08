@@ -49,8 +49,11 @@ export default function App() {
     setSettingsFrom(view === 'setup' || (view === 'saved' && savedFrom === 'setup') ? 'setup' : 'home');
     setView('settings');
   };
-  const openHistory = (from: 'home' | 'settings') => {
+  // Past sessions can open one session's summary straight away (from the done card on Home).
+  const [historyOpenId, setHistoryOpenId] = useState<string | undefined>(undefined);
+  const openHistory = (from: 'home' | 'settings', openId?: string) => {
     setHistoryFrom(from);
+    setHistoryOpenId(openId);
     setView('history');
   };
   const openSetup = (p: SessionPlan | undefined) => {
@@ -95,7 +98,7 @@ export default function App() {
     ) : view === 'settings' ? (
       <SettingsScreen onBack={() => setView(settingsFrom)} onManage={() => openSaved('settings')} onHistory={() => openHistory('settings')} />
     ) : view === 'history' ? (
-      <PastSessionsScreen onBack={() => setView(historyFrom)} />
+      <PastSessionsScreen openId={historyOpenId} onBack={() => setView(historyFrom)} />
     ) : null;
 
   let screen;
@@ -119,7 +122,7 @@ export default function App() {
         {view === 'home' && (
           <>
             <SignInBanner onSignIn={openSettings} />
-            <HomeScreen onStart={openSetup} onResume={() => {}} onHistory={() => openHistory('home')} onViewSummary={() => {}} />
+            <HomeScreen onStart={openSetup} onResume={() => {}} onHistory={() => openHistory('home')} onViewSummary={(id) => openHistory('home', id)} />
           </>
         )}
         {overlay}

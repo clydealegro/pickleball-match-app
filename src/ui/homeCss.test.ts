@@ -18,6 +18,10 @@ describe('Home styles', () => {
     expect(rule('.home-dashed')).toMatch(/min-height:\s*44px/);
   });
 
+  it('pulses the live dot', () => {
+    expect(rule('.home-live-dot')).toMatch(/animation:[^;]*home-live-pulse/);
+  });
+
   it('slides the hero in over 180 ms', () => {
     expect(rule('.home-hero-in')).toMatch(/animation:[^;]*180ms/);
   });
@@ -26,6 +30,7 @@ describe('Home styles', () => {
     const block = /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?\n\})/.exec(css.slice(css.indexOf('/* Home */')));
     expect(block).not.toBeNull();
     expect(block![1]).toMatch(/\.home-hero-in[^}]*animation:\s*none/);
+    expect(block![1]).toMatch(/\.home-live-dot[^}]*animation:\s*none/);
     expect(block![1]).toMatch(/transition:\s*none/);
   });
 

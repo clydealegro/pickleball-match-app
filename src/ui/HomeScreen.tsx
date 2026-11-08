@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { shortDate } from '../store/attendance';
-import { chipLabel, ctaGrade, sortedSlots, weeksPlayed } from '../store/homeInfo';
+import { chipLabel, ctaGrade, doneEntry, sortedSlots, weeksPlayed } from '../store/homeInfo';
 import { useHistoryStore } from '../store/historyStore';
+import { useSessionStore } from '../store/sessionStore';
 import { effectiveSlot, nextSlot, timestampAt, useSlotsStore, type Slot } from '../store/slots';
 import { EditSlotSheet, type SlotPatch, type SlotScope } from './EditSlotSheet';
+import { DoneCard, ViewSummaryRow, useSharePicture } from './HomeDone';
 import { OneOffHero, SlotHero } from './HomeHero';
+import { LiveHero } from './HomeLive';
 import { WEEKDAY_NAMES } from './weekdays';
 
 /** What Setup needs to start a session from a slot. */
@@ -56,7 +59,7 @@ function LastRow({ onHistory }: { onHistory: () => void }) {
   );
 }
 
-export function HomeScreen({ onStart, onHistory }: Props) {
+export function HomeScreen({ onStart, onResume, onHistory, onViewSummary }: Props) {
   const slots = useSlotsStore((s) => s.slots);
   const venues = useSlotsStore((s) => s.venues);
   const tonight = useSlotsStore((s) => s.tonight);
@@ -64,16 +67,24 @@ export function HomeScreen({ onStart, onHistory }: Props) {
   const saveSlot = useSlotsStore((s) => s.saveSlot);
   const setTonight = useSlotsStore((s) => s.setTonight);
   const clearTonight = useSlotsStore((s) => s.clearTonight);
+  const session = useSessionStore((s) => s.session);
+  const entries = useHistoryStore((s) => s.entries);
   // A tapped chip wins over the default until the screen goes away.
   const [picked, setPicked] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const now = new Date();
+  const live = session && !session.endedAt ? session : undefined;
+  // A session that ended in the last 24 hours shows its done card on the slot it was played on.
+  const done = doneEntry(entries, now, !!live);
+  const doneSlot = done && sortedSlots(slots.filter((s) => s.weekday === new Date(done.session.createdAt).getDay()), now)[0];
   const ordered = sortedSlots(slots, now);
-  const defaultId = nextSlot(slots, now)?.id ?? ONE_OFF;
+  const defaultId = doneSlot?.id ?? nextSlot(slots, now)?.id ?? ONE_OFF;
   const wanted = picked ?? defaultId;
   const selected = wanted === ONE_OFF ? undefined : slots.find((s) => s.id === wanted);
   const oneOff = selected === undefined;
+  const showDone = !!done && !!selected && selected.id === doneSlot?.id;
+  const sharing = useSharePicture(done?.session);
   const eff = selected && effectiveSlot(selected, tonight);
   const editing = slots.find((s) => s.id === editingId);
 
@@ -101,34 +112,71 @@ export function HomeScreen({ onStart, onHistory }: Props) {
   const day = selected ? WEEKDAY_NAMES[selected.weekday] : '';
   const grade = eff ? ctaGrade(eff, now) : 'primary';
 
+  let hero;
+  if (live) hero = <LiveHero key="live" session={live} />;
+  else if (showDone) hero = <DoneCard key="done" entry={done} now={now} />;
+  // The key makes a fresh hero for each choice, so the slide-in plays again.
+  else if (selected && eff) hero = <SlotHero key={selected.id} effective={eff} now={now} onEdit={() => setEditingId(selected.id)} />;
+  else hero = <OneOffHero key={ONE_OFF} />;
+
+  let action;
+  if (live) {
+    action = (
+      <button type="button" className="btn btn-block home-start" data-grade="primary" onClick={onResume}>
+        Back to session
+      </button>
+    );
+  } else if (showDone) {
+    action = (
+      <button type="button" className="btn btn-block home-start" data-grade="primary" disabled={sharing.making} onClick={() => void sharing.share()}>
+        {sharing.making ? 'Making picture…' : 'Share as picture'}
+      </button>
+    );
+  } else if (selected) {
+    action = (
+      <button type="button" className="btn btn-block home-start" data-grade={grade} aria-label={`Start session, ${day}`} onClick={() => start(selected)}>
+        Start {day} session
+      </button>
+    );
+  } else {
+    action = (
+      <button type="button" className="btn btn-block home-start" data-grade="primary" onClick={() => onStart(undefined)}>
+        Start a one-off session
+      </button>
+    );
+  }
+
   return (
     <div className="home">
-      <div className="home-chips" role="radiogroup" aria-label="Sessions">
-        {ordered.map((slot) => (
-          <button
-            key={slot.id}
-            type="button"
-            role="radio"
-            aria-checked={slot.id === selected?.id}
-            className="btn home-chip"
-            onClick={() => setPicked(slot.id)}
-          >
-            {chipLabel(slot, now)}
+      {!live && (
+        <div className="home-chips" role="radiogroup" aria-label="Sessions">
+          {ordered.map((slot) => (
+            <button
+              key={slot.id}
+              type="button"
+              role="radio"
+              aria-checked={slot.id === selected?.id}
+              className="btn home-chip"
+              onClick={() => setPicked(slot.id)}
+            >
+              {chipLabel(slot, now)}
+            </button>
+          ))}
+          <button type="button" role="radio" aria-checked={oneOff} aria-label="One-off session" className="btn dashed home-chip home-chip-plus" onClick={() => setPicked(ONE_OFF)}>
+            +
           </button>
-        ))}
-        <button type="button" role="radio" aria-checked={oneOff} aria-label="One-off session" className="btn dashed home-chip home-chip-plus" onClick={() => setPicked(ONE_OFF)}>
-          +
-        </button>
-      </div>
-
-      {selected && eff ? (
-        // The key makes a fresh hero for each choice, so the slide-in plays again.
-        <SlotHero key={selected.id} effective={eff} now={now} onEdit={() => setEditingId(selected.id)} />
-      ) : (
-        <OneOffHero key={ONE_OFF} />
+        </div>
       )}
 
-      <LastRow onHistory={onHistory} />
+      {hero}
+
+      {showDone ? <ViewSummaryRow onClick={() => onViewSummary(done.id)} /> : <LastRow onHistory={onHistory} />}
+
+      {showDone && sharing.message && (
+        <p className="muted home-note" role="status">
+          {sharing.message}
+        </p>
+      )}
 
       {!persistent && (
         <p className="muted home-note" role="status">
@@ -136,17 +184,7 @@ export function HomeScreen({ onStart, onHistory }: Props) {
         </p>
       )}
 
-      <div className="sticky-bar">
-        {selected ? (
-          <button type="button" className="btn btn-block home-start" data-grade={grade} aria-label={`Start session, ${day}`} onClick={() => start(selected)}>
-            Start {day} session
-          </button>
-        ) : (
-          <button type="button" className="btn btn-block home-start" data-grade="primary" onClick={() => onStart(undefined)}>
-            Start a one-off session
-          </button>
-        )}
-      </div>
+      <div className="sticky-bar">{action}</div>
 
       {editing && (
         <EditSlotSheet slot={editing} effective={effectiveSlot(editing, tonight)} venues={venues} onSave={save} onClose={() => setEditingId(null)} />

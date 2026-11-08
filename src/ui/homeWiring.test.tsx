@@ -125,8 +125,9 @@ describe('Home is the landing screen', () => {
   it('uses the slot’s weekday for the regulars shortcut, not today’s', async () => {
     const group = ['Ann', 'Ben', 'Cy', 'Dee'];
     const ids = await seed(group);
-    await pastSession(group, ids, 2026, 10, 5); // Thursdays
-    await pastSession(group, ids, 2026, 10, 12);
+    // Two earlier Thursdays; a session from yesterday would turn Home into the done card.
+    await pastSession(group, ids, 2026, 9, 29);
+    await pastSession(group, ids, 2026, 10, 5);
     const user = setup();
     render(<App />);
     await startThursday(user);
@@ -244,5 +245,23 @@ describe('SetupScreen props', () => {
   it('shows no line under the title when the plan has nothing to say', () => {
     render(<SetupScreen onManage={() => {}} plan={{ slotId: 'x', weekday: 2 }} />);
     expect(document.querySelector('.setup-plan')).toBeNull();
+  });
+});
+
+describe('Home done card in the app', () => {
+  it('opens the summary of the finished session from View summary, and Back steps out through the list to Home', async () => {
+    const group = ['Ann', 'Ben', 'Cy', 'Dee'];
+    const ids = await seed(group);
+    await pastSession(group, ids, 2026, 10, 12, 'Thursday night'); // Thursday 18:00, ended 18:15
+    const user = setup();
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: 'View summary' }));
+    expect(screen.getByRole('heading', { name: 'Session summary' })).toBeInTheDocument();
+    expect(screen.getByText('Thursday night')).toBeInTheDocument();
+    await click(user, 'Back');
+    expect(screen.getByRole('heading', { name: 'Past sessions' })).toBeInTheDocument();
+    await click(user, 'Back');
+    expect(screen.getByRole('radiogroup', { name: 'Sessions' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Thu 19' })).toHaveAttribute('aria-checked', 'true');
   });
 });
