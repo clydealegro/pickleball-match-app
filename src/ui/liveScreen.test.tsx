@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetRosterDbForTests } from '../store/rosterDb';
@@ -8,6 +8,8 @@ import { useSyncStore } from '../sync/syncStore';
 import { useUpdateStore } from '../pwa';
 import { useSessionStore } from '../store/sessionStore';
 import { renderAtSetup } from '../test/renderAtSetup';
+import { newTestSession } from '../engine/testing';
+import { LiveScreen } from './LiveScreen';
 
 type User = ReturnType<typeof userEvent.setup>;
 
@@ -374,11 +376,11 @@ describe('extending the session', () => {
     expect(screen.getByRole('button', { name: 'Ends 9:00 pm, extend the session' })).toBeInTheDocument();
   });
 
-  it('shows no chip once the session has ended', async () => {
-    await startSession(userEvent.setup(), FIVE);
-    setEnd(END);
+  it('shows no chip on a session that has ended, even with a planned end', () => {
+    const base = { ...newTestSession(['A', 'B', 'C', 'D']), plannedEndAt: END };
+    const { rerender } = render(<LiveScreen session={base} onSettings={() => {}} />);
     expect(chip()).toBeInTheDocument();
-    act(() => useSessionStore.setState({ session: { ...useSessionStore.getState().session!, endedAt: END } }));
+    rerender(<LiveScreen session={{ ...base, endedAt: END }} onSettings={() => {}} />);
     expect(chip()).not.toBeInTheDocument();
   });
 
