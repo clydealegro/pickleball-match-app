@@ -4,6 +4,10 @@ import type { PlayerSummary, Session } from '../engine';
 import { useHistoryStore } from '../store/historyStore';
 import { useSessionStore } from '../store/sessionStore';
 import { PlayerAvatar } from './PlayerAvatar';
+import { renderCardBlob } from './cardDraw';
+import { buildCardModel } from './cardModel';
+import { loadCardPhotos } from './cardPhotos';
+import { deliverPicture } from './cardShare';
 
 function countList(items: { name: string; count: number }[]): string {
   return items.map((p) => (p.count > 1 ? `${p.name} ×${p.count}` : p.name)).join(', ');
@@ -72,6 +76,7 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
   const readOnly = onBack !== undefined;
   const [message, setMessage] = useState('');
   const [shared, setShared] = useState(false);
+  const [making, setMaking] = useState(false);
   // Win records can sting in a friendly group, so they only go into the shared text when switched on, each time.
   const [withResults, setWithResults] = useState(false);
   const rows = engine.summarize(session);
@@ -109,6 +114,22 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
       setMessage('Copied to clipboard.');
     } catch {
       setMessage('Could not copy automatically.');
+    }
+  }
+
+  async function sharePicture() {
+    setMaking(true);
+    setMessage('');
+    try {
+      const model = buildCardModel(session, { results: withResults, theme: document.documentElement.dataset.theme });
+      const photos = await loadCardPhotos(model.players.flatMap((p) => (p.rosterId ? [p.rosterId] : [])));
+      const outcome = await deliverPicture(await renderCardBlob(model, photos), session.name);
+      if (outcome !== 'cancelled') setShared(true);
+      if (outcome === 'saved') setMessage('Picture saved to this device.');
+    } catch {
+      setMessage('Could not make the picture.');
+    } finally {
+      setMaking(false);
     }
   }
 
@@ -191,7 +212,7 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
 
       {anyResults && (
         <label className="switch-row">
-          <span>Include results in the shared text</span>
+          <span>Include results when sharing</span>
           <input type="checkbox" role="switch" checked={withResults} onChange={(e) => setWithResults(e.target.checked)} />
         </label>
       )}
@@ -205,6 +226,9 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
       <div className="sticky-bar">
         <button type="button" className="btn btn-primary btn-block" onClick={() => void share()}>
           {canShare ? 'Share results' : 'Copy results'}
+        </button>
+        <button type="button" className="btn btn-block" disabled={making} onClick={() => void sharePicture()}>
+          {making ? 'Making picture…' : 'Share as picture'}
         </button>
         {!readOnly && (
           <button type="button" className="btn btn-ghost btn-block" onClick={startNew}>

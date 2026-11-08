@@ -220,10 +220,10 @@ describe('results on the summary', () => {
 
   it('offers to include results in the shared text only when there are some, off by default', () => {
     const { unmount } = render(<SummaryScreen session={withResults()} />);
-    expect(screen.getByRole('switch', { name: 'Include results in the shared text' })).not.toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Include results when sharing' })).not.toBeChecked();
     unmount();
     render(<SummaryScreen session={finished(2)} />);
-    expect(screen.queryByRole('switch', { name: 'Include results in the shared text' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'Include results when sharing' })).not.toBeInTheDocument();
   });
 
   it('leaves results out of the shared text by default, and adds them when switched on', async () => {
@@ -233,7 +233,7 @@ describe('results on the summary', () => {
     render(<SummaryScreen session={withResults()} />);
     await user.click(screen.getByRole('button', { name: 'Share results' }));
     expect(share.mock.calls[0][0].text).not.toMatch(/\dW \dL/);
-    await user.click(screen.getByRole('switch', { name: 'Include results in the shared text' }));
+    await user.click(screen.getByRole('switch', { name: 'Include results when sharing' }));
     await user.click(screen.getByRole('button', { name: 'Share results' }));
     expect(share.mock.calls[1][0].text).toMatch(/Ann: 3 · 1W 1L/);
   });
