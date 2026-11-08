@@ -1091,6 +1091,30 @@ caption {
   font-weight: 600;
 }
 
+.sum-line {
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+
+.sum-highlights {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.sum-highlights li::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1px solid var(--ink);
+}
+
 .sum-list,
 .sum-log ol {
   list-style: none;

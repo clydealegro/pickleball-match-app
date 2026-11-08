@@ -78,6 +78,9 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
   const stats = engine.sessionStats(session);
   const log = engine.gameLog(session);
   const fairness = engine.fairnessLine(stats);
+  const line = engine.summaryLine(session);
+  // This screen already shows every record, so the highlights may too. The shared text and picture follow the switch.
+  const notable = engine.highlights(session, { results: true });
   const anyResults = engine.hasResults(session);
   // A session that has ended is kept for the Past sessions list. Saving twice just replaces the same entry.
   useEffect(() => {
@@ -121,6 +124,7 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
         <div>
           <h1 className="screen-title">Session summary</h1>
           <p className="muted">{session.name}</p>
+          {line && <p className="sum-line">{line}</p>}
         </div>
         {readOnly && (
           <button type="button" className="btn" onClick={onBack}>
@@ -144,6 +148,13 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
         </div>
       </dl>
       {fairness && <p className="sum-fairness">{fairness}</p>}
+      {notable.length > 0 && (
+        <ul className="sum-highlights" aria-label="Highlights">
+          {notable.map((h) => (
+            <li key={h.key}>{h.text}</li>
+          ))}
+        </ul>
+      )}
 
       <div className="card">
         <ul className="sum-list" aria-label="Games per player">

@@ -29,6 +29,31 @@ function finished(games = 1) {
   return { ...s, endedAt: ctx.now + 99 };
 }
 
+describe('summary highlights', () => {
+  it('says the session in a plain line under the name', () => {
+    render(<SummaryScreen session={finished(2)} />);
+    expect(document.querySelector('.sum-line')!.textContent).toMatch(/^2 games, 24 minutes/);
+  });
+
+  it('shows a few highlight lines once there are three games', () => {
+    render(<SummaryScreen session={finished(3)} />);
+    const list = screen.getByRole('list', { name: 'Highlights' });
+    const items = within(list).getAllByRole('listitem');
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.length).toBeLessThanOrEqual(3);
+  });
+
+  it('shows none for fewer than three games', () => {
+    render(<SummaryScreen session={finished(2)} />);
+    expect(screen.queryByRole('list', { name: 'Highlights' })).not.toBeInTheDocument();
+  });
+
+  it('shows no line for a session with no games', () => {
+    render(<SummaryScreen session={finished(0)} />);
+    expect(document.querySelector('.sum-line')).toBeNull();
+  });
+});
+
 describe('session summary screen', () => {
   it('opens with the facts and one short line per player', () => {
     render(<SummaryScreen session={finished(2)} />);
