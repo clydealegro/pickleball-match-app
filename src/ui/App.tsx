@@ -8,6 +8,7 @@ import { useSessionStore } from '../store/sessionStore';
 import { AccountButton } from './AccountButton';
 import { ErrorBoundary } from './ErrorBoundary';
 import { SignInBanner } from './SignInBanner';
+import { BoardScreen } from './BoardScreen';
 import { HomeScreen, type SessionPlan } from './HomeScreen';
 import { LiveScreen } from './LiveScreen';
 import { PastSessionsScreen } from './PastSessionsScreen';
@@ -20,7 +21,7 @@ import { useSessionConflict } from './useSessionConflict';
 import { useScreenHistory } from './useScreenHistory';
 import { useWakeLock } from './useWakeLock';
 
-type View = 'home' | 'setup' | 'saved' | 'settings' | 'history' | 'summary' | 'live';
+type View = 'home' | 'setup' | 'saved' | 'settings' | 'history' | 'summary' | 'live' | 'board';
 
 export default function App() {
   const session = useSessionStore((s) => s.session);
@@ -66,6 +67,9 @@ export default function App() {
           return session?.endedAt ? 'live' : 'home';
         case 'live':
           return fallback;
+        case 'board':
+          // The board only shows while a session is running.
+          return session && !session.endedAt ? 'board' : fallback;
         case 'setup':
           return !session && setupOpen ? 'setup' : fallback;
         case 'saved':
@@ -104,6 +108,7 @@ export default function App() {
     // The summary sits above the list, so Back from it lands on the list.
     if (openId) screens.push('summary');
   };
+  const openBoard = () => screens.push('board');
   const openSetup = (p: SessionPlan | undefined) => {
     setPlan(p);
     setSetupOpen(true);
@@ -135,6 +140,15 @@ export default function App() {
       setView('live');
     }
   }
+
+  // A session that ends under the board shows its summary, and the board's history entry becomes the live screen's,
+  // so Back or Forward can never land on the board again.
+  const ended = !!session?.endedAt;
+  useEffect(() => {
+    if (!ended || view !== 'board') return;
+    setView('live');
+    screens.replace('live');
+  }, [ended, view, screens]);
 
   // Done makes the current entry the first one again; a new session takes over the entry Who's playing held.
   // The first run is skipped: the hook already wrote the root marker on load.
@@ -226,12 +240,15 @@ export default function App() {
     screen = overlay;
   } else if (session.endedAt) {
     screen = <SummaryScreen session={session} leaveRef={leaveSummary} />;
+  } else if (view === 'board') {
+    screen = <BoardScreen session={session} onClose={() => screens.back('live')} />;
   } else {
-    screen = <LiveScreen session={session} onHome={() => screens.push('home')} onSettings={openSettings} />;
+    screen = <LiveScreen session={session} onHome={() => screens.push('home')} onSettings={openSettings} onShowBoard={openBoard} />;
   }
 
   // The live screen has its own slim top bar, so the app's title bar is left out to give the court the room.
-  const live = !!session && !session.endedAt && !overlay && view === 'live';
+  // The board covers the whole screen, so the title bar is left out under it too.
+  const live = !!session && !session.endedAt && !overlay && (view === 'live' || view === 'board');
 
   // On Home itself the logo has nowhere to go.
   const atHome = view === 'home' && !session?.endedAt;

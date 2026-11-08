@@ -103,12 +103,12 @@ describe('Undo in the menu', () => {
     expect(within(pop).queryByRole('button', { name: /^Undo/ })).not.toBeInTheDocument();
   });
 
-  it('says what it will undo, is the first item, and works', async () => {
+  it('says what it will undo, is the first item after Settings and Show board, and works', async () => {
     const user = userEvent.setup();
     await startSession(user, 5);
     await user.click(screen.getByRole('button', { name: /^Start game/ }));
     const pop = await menu(user);
-    const first = within(pop).getAllByRole('button')[1]; // Settings is first
+    const first = within(pop).getAllByRole('button')[2]; // Settings and Show board come first
     expect(first).toHaveTextContent('Undo: Started Court 1');
     await user.click(first);
     expect(court(1).status).toBe('ready');
@@ -121,6 +121,6 @@ describe('Undo in the menu', () => {
     const { act } = await import('@testing-library/react');
     act(() => useSessionStore.setState({ lastAction: null }));
     const pop = await menu(user);
-    expect(within(pop).getAllByRole('button')[1]).toHaveTextContent('Undo last action');
+    expect(within(pop).getAllByRole('button')[2]).toHaveTextContent('Undo last action');
   });
 });

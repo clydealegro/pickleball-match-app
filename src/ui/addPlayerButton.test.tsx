@@ -48,7 +48,7 @@ describe('Add player on the live screen', () => {
     await startSession(user, names(5));
     await user.click(screen.getByRole('button', { name: 'Menu' }));
     const pop = document.querySelector<HTMLElement>('.menu-pop')!;
-    expect(within(pop).getAllByRole('button')[1]).toHaveTextContent('Add player'); // Settings is first
+    expect(within(pop).getAllByRole('button')[2]).toHaveTextContent('Add player'); // Settings and Show board come first
     await user.click(within(pop).getByRole('button', { name: 'Add player' }));
     expect(await screen.findByRole('dialog', { name: 'Add player' })).toBeInTheDocument();
   });

@@ -379,9 +379,9 @@ describe('extending the session', () => {
 
   it('shows no chip on a session that has ended, even with a planned end', () => {
     const base = { ...newTestSession(['A', 'B', 'C', 'D']), plannedEndAt: END };
-    const { rerender } = render(<LiveScreen session={base} onHome={() => {}} onSettings={() => {}} />);
+    const { rerender } = render(<LiveScreen session={base} onHome={() => {}} onSettings={() => {}} onShowBoard={() => {}} />);
     expect(chip()).toBeInTheDocument();
-    rerender(<LiveScreen session={{ ...base, endedAt: END }} onHome={() => {}} onSettings={() => {}} />);
+    rerender(<LiveScreen session={{ ...base, endedAt: END }} onHome={() => {}} onSettings={() => {}} onShowBoard={() => {}} />);
     expect(chip()).not.toBeInTheDocument();
   });
 

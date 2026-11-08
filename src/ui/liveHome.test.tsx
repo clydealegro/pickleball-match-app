@@ -41,7 +41,7 @@ describe('the live screen header', () => {
   it('has a Home button that calls onHome, and no account button', async () => {
     const onHome = vi.fn();
     const user = setup();
-    render(<LiveScreen session={running()} onHome={onHome} onSettings={() => {}} />);
+    render(<LiveScreen session={running()} onHome={onHome} onSettings={() => {}} onShowBoard={() => {}} />);
     await user.click(screen.getByRole('button', { name: 'Home' }));
     expect(onHome).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('button', { name: /^Settings/ })).not.toBeInTheDocument();
@@ -50,11 +50,23 @@ describe('the live screen header', () => {
   it('puts Settings first in the menu and calls onSettings from it', async () => {
     const onSettings = vi.fn();
     const user = setup();
-    render(<LiveScreen session={running()} onHome={() => {}} onSettings={onSettings} />);
+    render(<LiveScreen session={running()} onHome={() => {}} onSettings={onSettings} onShowBoard={() => {}} />);
     await user.click(screen.getByRole('button', { name: 'Menu' }));
     expect(menuItems()[0]).toBe('Settings');
     await user.click(screen.getByRole('button', { name: 'Settings' }));
     expect(onSettings).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the Show board item', () => {
+  it('follows Settings in the menu and calls onShowBoard', async () => {
+    const onShowBoard = vi.fn();
+    const user = setup();
+    render(<LiveScreen session={running()} onHome={() => {}} onSettings={() => {}} onShowBoard={onShowBoard} />);
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    expect(menuItems().slice(0, 2)).toEqual(['Settings', 'Show board']);
+    await user.click(screen.getByRole('button', { name: 'Show board' }));
+    expect(onShowBoard).toHaveBeenCalledTimes(1);
   });
 });
 

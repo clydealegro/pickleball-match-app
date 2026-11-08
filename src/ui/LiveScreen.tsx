@@ -33,7 +33,7 @@ function HomeButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-export function LiveScreen({ session, onHome, onSettings }: { session: Session; onHome: () => void; onSettings: () => void }) {
+export function LiveScreen({ session, onHome, onSettings, onShowBoard }: { session: Session; onHome: () => void; onSettings: () => void; onShowBoard: () => void }) {
   const apply = useSessionStore((s) => s.apply);
   const undo = useSessionStore((s) => s.undo);
   const undoCount = useSessionStore((s) => s.undoStack.length);
@@ -152,6 +152,7 @@ export function LiveScreen({ session, onHome, onSettings }: { session: Session; 
           <LiveMenu
             items={[
               { label: 'Settings', onSelect: onSettings },
+              { label: 'Show board', onSelect: onShowBoard },
               ...(undoCount > 0 ? [{ label: lastAction ? `Undo: ${lastAction.label}` : 'Undo last action', onSelect: undo }] : []),
               { label: 'Add player', onSelect: openAdd },
               ...(readyCount >= 2 ? [{ label: 'Start all ready courts', onSelect: () => run((s, ctx) => engine.startAllReady(s, ctx), 'Started all ready courts') }] : []),
