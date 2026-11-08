@@ -70,3 +70,27 @@ describe('the hero layout', () => {
     expect(rule('.home-once')).toMatch(/font-size:\s*13px/);
   });
 });
+
+describe('the Start bar buttons on Home', () => {
+  it('are outlined in every state, never filled', () => {
+    expect(rule('.home-start')).not.toMatch(/background:\s*var\(--accent\)/);
+    expect(rule(".home-start[data-grade='primary']")).toMatch(/background:\s*transparent/);
+    expect(rule(".home-start[data-grade='quiet']")).toMatch(/background:\s*transparent/);
+  });
+
+  it('draw the near-session outline in the ring colour at 2 px, and the far-session outline in the muted colour', () => {
+    const primary = rule(".home-start[data-grade='primary']");
+    expect(primary).toMatch(/border-color:\s*var\(--chip-ring\)/);
+    expect(primary).toMatch(/border-width:\s*2px/);
+    expect(rule(".home-start[data-grade='quiet']")).toMatch(/border-color:\s*var\(--muted\)/);
+  });
+
+  it('keep the ring and the muted outline at least 3 to 1 against the page in both themes', () => {
+    const light = rule(':root');
+    const dark = rule(":root[data-theme='dark']");
+    expect(ratio(hex(light, '--chip-ring'), hex(light, '--bg'))).toBeGreaterThanOrEqual(3);
+    expect(ratio(hex(light, '--muted'), hex(light, '--bg'))).toBeGreaterThanOrEqual(3);
+    expect(ratio(hex(light, '--accent'), hex(dark, '--bg'))).toBeGreaterThanOrEqual(3);
+    expect(ratio(hex(dark, '--muted'), hex(dark, '--bg'))).toBeGreaterThanOrEqual(3);
+  });
+});

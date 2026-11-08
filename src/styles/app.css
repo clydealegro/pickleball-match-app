@@ -2064,15 +2064,18 @@ caption {
   transition: transform 120ms ease-out;
 }
 
+/* Outlined in every state: a thicker accent ring when the session is near, a thin muted one when it is far. */
 .home-start[data-grade='primary'] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
+  background: transparent;
+  border-color: var(--chip-ring);
+  border-width: 2px;
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .home-start[data-grade='quiet'] {
   background: transparent;
-  border-color: var(--ink);
+  border-color: var(--muted);
   color: var(--ink);
 }
 
