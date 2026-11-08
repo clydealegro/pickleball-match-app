@@ -59,6 +59,29 @@ describe('Past sessions', () => {
   });
 });
 
+describe('Past sessions venue', () => {
+  async function openList(user: ReturnType<typeof userEvent.setup>) {
+    render(<App />);
+    await openSettings(user);
+    await user.click(screen.getByRole('button', { name: 'Past sessions' }));
+    return within(await screen.findByRole('list', { name: 'Past sessions' })).getAllByRole('button');
+  }
+
+  it('puts the venue between the date and the games when one is set', async () => {
+    const names = ['Ann', 'Ben', 'Cy', 'Dee', 'Eve'];
+    await pastSession(names, await seed(names), 2026, 10, 4, 'Hall night', 'Tacloban Sports Hall');
+    const rows = await openList(userEvent.setup());
+    expect(rows[0]).toHaveTextContent('Wed 4 Nov · Tacloban Sports Hall · 1 game · 5 players');
+  });
+
+  it('leaves the row as it was when there is no venue', async () => {
+    const names = ['Ann', 'Ben', 'Cy', 'Dee', 'Eve'];
+    await pastSession(names, await seed(names), 2026, 10, 4, 'Plain night');
+    const rows = await openList(userEvent.setup());
+    expect(rows[0]).toHaveTextContent(/^Plain nightWed 4 Nov · 1 game · 5 players$/);
+  });
+});
+
 describe('ending a session keeps it', () => {
   it('shows an ended session in Past sessions after Start new', async () => {
     const names = ['Ann', 'Ben', 'Cy', 'Dee'];

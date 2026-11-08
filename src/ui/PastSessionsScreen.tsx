@@ -30,7 +30,7 @@ export function PastSessionsScreen({ onBack }: { onBack: () => void }) {
               <button type="button" className="past-row" onClick={() => setOpen(e.session)}>
                 <span className="row-name">{e.name}</span>
                 <span className="muted">
-                  {shortDate(e.endedAt)} · {e.games} {e.games === 1 ? 'game' : 'games'} · {e.session.players.length} players
+                  {shortDate(e.endedAt)} · {e.session.venue ? `${e.session.venue} · ` : ''}{e.games} {e.games === 1 ? 'game' : 'games'} · {e.session.players.length} players
                 </span>
               </button>
             </li>

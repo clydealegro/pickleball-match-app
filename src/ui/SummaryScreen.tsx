@@ -145,6 +145,7 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
         <div>
           <h1 className="screen-title">Session summary</h1>
           <p className="muted">{session.name}</p>
+          {session.venue && <p className="muted sum-venue">{session.venue}</p>}
           {line && <p className="sum-line">{line}</p>}
         </div>
         {readOnly && (

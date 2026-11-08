@@ -37,6 +37,8 @@ export interface CardPlayer {
 export interface CardModel {
   title: string;
   date: string;
+  /** Where it was played, when the session says. */
+  venue?: string;
   facts: string;
   lines: string[];
   players: CardPlayer[];
@@ -55,9 +57,11 @@ export function buildCardModel(session: Session, options: { results: boolean; th
   });
   const facts = [engine.plural(stats.games, 'game')];
   if (stats.games > 0) facts.push(engine.formatDuration(stats.playingMs));
+  const venue = session.venue?.trim();
   return {
     title: session.name,
     date: shortDate(session.createdAt),
+    ...(venue ? { venue } : {}),
     facts: facts.join(' · '),
     lines: engine.highlights(session, { results: options.results }).map((h) => h.text),
     players,

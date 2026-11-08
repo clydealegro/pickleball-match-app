@@ -29,6 +29,21 @@ function finished(games = 1) {
   return { ...s, endedAt: ctx.now + 99 };
 }
 
+describe('summary venue', () => {
+  it('shows the venue as a muted line under the session name when set', () => {
+    render(<SummaryScreen session={{ ...finished(1), venue: 'Tacloban Sports Hall' }} />);
+    const venue = document.querySelector('.sum-venue')!;
+    expect(venue).toHaveTextContent('Tacloban Sports Hall');
+    expect(venue).toHaveClass('muted');
+    expect(venue.previousElementSibling).toHaveTextContent('Test');
+  });
+
+  it('shows no venue line when there is none', () => {
+    render(<SummaryScreen session={finished(1)} />);
+    expect(document.querySelector('.sum-venue')).toBeNull();
+  });
+});
+
 describe('summary highlights', () => {
   it('says the session in a plain line under the name', () => {
     render(<SummaryScreen session={finished(2)} />);

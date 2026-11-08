@@ -19,6 +19,16 @@ describe('buildCardModel', () => {
     expect(m.lines.length).toBeGreaterThan(0);
   });
 
+  it('carries the venue, trimmed, when the session has one', () => {
+    const m = buildCardModel({ ...played(), venue: '  Tacloban Sports Hall ' }, { results: false, theme: 'light' });
+    expect(m.venue).toBe('Tacloban Sports Hall');
+  });
+
+  it('leaves the venue out when there is none or it is blank', () => {
+    expect('venue' in buildCardModel(played(), { results: false, theme: 'light' })).toBe(false);
+    expect('venue' in buildCardModel({ ...played(), venue: '   ' }, { results: false, theme: 'light' })).toBe(false);
+  });
+
   it('lists every player, most games first, with their games', () => {
     const s = played();
     const m = buildCardModel(s, { results: false, theme: 'light' });

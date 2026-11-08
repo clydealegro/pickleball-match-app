@@ -63,6 +63,28 @@ describe('drawCard', () => {
     expect(written).toContain('Longest game: 25m');
   });
 
+  it('writes the venue after the day when there is one', () => {
+    const { ctx, calls } = recorder();
+    drawCard(ctx, model([ann], { venue: 'Tacloban Sports Hall' }), new Map());
+    expect(texts(calls)).toContain('Wed 4 Nov · Tacloban Sports Hall · 12 games · 3h 5m');
+  });
+
+  it('writes the day line exactly as before when there is no venue', () => {
+    const { ctx, calls } = recorder();
+    drawCard(ctx, model([ann]), new Map());
+    const dayLine = texts(calls).filter((t) => t.startsWith('Wed 4 Nov'));
+    expect(dayLine).toEqual(['Wed 4 Nov · 12 games · 3h 5m']);
+  });
+
+  it('cuts a venue that is too long for the width with an ellipsis', () => {
+    const { ctx, calls } = recorder();
+    drawCard(ctx, model([ann], { venue: 'The Very Long Name Sports And Recreation Complex '.repeat(4).trim() }), new Map());
+    const dayLine = texts(calls).find((t) => t.startsWith('Wed 4 Nov'))!;
+    expect(dayLine.endsWith('…')).toBe(true);
+    expect(dayLine.length * 10).toBeLessThanOrEqual(CARD_WIDTH - 72 * 2);
+    expect(dayLine).toContain('The Very Long');
+  });
+
   it('uses the dark colours for a dark card', () => {
     const { ctx, calls } = recorder();
     drawCard(ctx, model([ann], { palette: paletteFor('dark') }), new Map());

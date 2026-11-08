@@ -110,7 +110,10 @@ export function drawCard(ctx: DrawingContext, model: CardModel, photos: CardPhot
   ctx.fillRect(0, 0, CARD_WIDTH, 28);
 
   drawTitle(ctx, model.title, palette, 170);
-  write(ctx, `${model.date} · ${model.facts}`, MARGIN, 236, 38, 500, palette.muted);
+  // The venue sits right after the day; a long one is cut like the title.
+  ctx.font = `500 38px ${FONT}`;
+  const dayLine = [model.date, model.venue, model.facts].filter(Boolean).join(' · ');
+  write(ctx, fit(ctx, dayLine, CONTENT_WIDTH), MARGIN, 236, 38, 500, palette.muted);
 
   let top = 300;
   for (const line of model.lines) {
