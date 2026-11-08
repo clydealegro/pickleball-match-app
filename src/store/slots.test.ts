@@ -319,6 +319,15 @@ describe('useSlotsStore', () => {
       });
     const persistent = () => useSlotsStore.getState().persistent;
 
+    it('is true in a freshly loaded store, even when reading storage throws', async () => {
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('blocked');
+      });
+      vi.resetModules();
+      const { useSlotsStore: fresh } = await import('./slots');
+      expect(fresh.getState().persistent).toBe(true);
+    });
+
     it('is true at the start and after a write that works', () => {
       expect(persistent()).toBe(true);
       useSlotsStore.getState().saveSlot('tue', { startMin: 600 });
