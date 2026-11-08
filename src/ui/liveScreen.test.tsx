@@ -354,3 +354,58 @@ describe('the waiting sheet', () => {
     expect(screen.getByRole('button', { name: 'Add player' })).toBeInTheDocument();
   });
 });
+
+describe('extending the session', () => {
+  const END = new Date(2026, 10, 10, 21, 0).getTime();
+  const setEnd = (plannedEndAt?: number) =>
+    act(() => useSessionStore.setState({ session: { ...useSessionStore.getState().session!, plannedEndAt } }));
+  const plannedEnd = () => useSessionStore.getState().session?.plannedEndAt;
+  const chip = () => screen.queryByRole('button', { name: /extend the session/i });
+
+  it('shows no chip when the session has no planned end', async () => {
+    await startSession(userEvent.setup(), FIVE);
+    expect(chip()).not.toBeInTheDocument();
+  });
+
+  it('shows the planned end as a chip that says what tapping does', async () => {
+    await startSession(userEvent.setup(), FIVE);
+    setEnd(END);
+    expect(chip()).toHaveTextContent('Ends 9:00 pm');
+    expect(screen.getByRole('button', { name: 'Ends 9:00 pm, extend the session' })).toBeInTheDocument();
+  });
+
+  it('shows no chip once the session has ended', async () => {
+    await startSession(userEvent.setup(), FIVE);
+    setEnd(END);
+    expect(chip()).toBeInTheDocument();
+    act(() => useSessionStore.setState({ session: { ...useSessionStore.getState().session!, endedAt: END } }));
+    expect(chip()).not.toBeInTheDocument();
+  });
+
+  it('opens the sheet, extends, updates the chip and offers Undo', async () => {
+    const user = userEvent.setup();
+    await startSession(user, FIVE);
+    setEnd(END);
+    await user.click(chip()!);
+    expect(screen.getByRole('dialog', { name: 'Extend the session' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '+30 min' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(plannedEnd()).toBe(END + 30 * 60_000);
+    expect(chip()).toHaveTextContent('Ends 9:30 pm');
+    expect(screen.getByRole('status')).toHaveTextContent('Extended by 30 minutes');
+    await user.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(plannedEnd()).toBe(END);
+    expect(chip()).toHaveTextContent('Ends 9:00 pm');
+  });
+
+  it('closes the sheet on Escape without changing the end', async () => {
+    const user = userEvent.setup();
+    await startSession(user, FIVE);
+    setEnd(END);
+    await user.click(chip()!);
+    expect(screen.getByRole('dialog', { name: 'Extend the session' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(plannedEnd()).toBe(END);
+  });
+});

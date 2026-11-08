@@ -2,11 +2,13 @@ import { useMemo, useState } from 'react';
 import * as engine from '../engine';
 import type { GameResult, Session } from '../engine';
 import { useRosterStore } from '../store/rosterStore';
+import { formatClock } from '../store/slots';
 import { useSessionStore, type SessionAction } from '../store/sessionStore';
 import { AccountButton } from './AccountButton';
 import { AddPlayerSheet } from './AddPlayerSheet';
 import { CourtCard } from './CourtCard';
 import { CourtTabs } from './CourtTabs';
+import { ExtendSheet } from './ExtendSheet';
 import { LiveMenu } from './LiveMenu';
 import { PlayerSheet } from './PlayerSheet';
 import { ResultSheet } from './ResultSheet';
@@ -14,6 +16,11 @@ import { getBoolPref, getPlayTo, VIBRATE_KEY } from './prefs';
 import { UndoBar } from './UndoBar';
 import { useSwipe } from './useSwipe';
 import { WaitingSheet } from './WaitingSheet';
+
+function clockOf(ms: number): string {
+  const d = new Date(ms);
+  return formatClock(d.getHours() * 60 + d.getMinutes());
+}
 
 export function LiveScreen({ session, onSettings }: { session: Session; onSettings: () => void }) {
   const apply = useSessionStore((s) => s.apply);
@@ -27,6 +34,7 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
   /** Which way the court on show last moved, so the next one slides in from that side. */
   const [slide, setSlide] = useState<'from-right' | 'from-left' | null>(null);
   const [adding, setAdding] = useState(false);
+  const [extending, setExtending] = useState(false);
   /** The court whose Game finished button was pressed, while the result sheet is open. */
   const [finishing, setFinishing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +96,8 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
     if (ended) markPlayed(rosterIds, Date.now()).catch(() => {});
   }
 
+  // The planned end as a local clock time, while the session is still running.
+  const endsAt = session.plannedEndAt !== undefined && session.endedAt === undefined ? clockOf(session.plannedEndAt) : null;
   const sorted = [...session.courts].sort((a, b) => a.number - b.number);
   const readyCount = sorted.filter((c) => c.status === 'ready').length;
   const finishingCourt = sorted.find((c) => c.id === finishing);
@@ -121,6 +131,11 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
           </span>
         </div>
         <div className="live-actions">
+          {endsAt !== null && (
+            <button type="button" className="chip end-chip" aria-label={`Ends ${endsAt}, extend the session`} onClick={() => setExtending(true)}>
+              Ends {endsAt}
+            </button>
+          )}
           <LiveMenu
             items={[
               ...(undoCount > 0 ? [{ label: lastAction ? `Undo: ${lastAction.label}` : 'Undo last action', onSelect: undo }] : []),
@@ -194,6 +209,7 @@ export function LiveScreen({ session, onSettings }: { session: Session; onSettin
           }}
         />
       )}
+      {extending && <ExtendSheet onClose={() => setExtending(false)} />}
       {adding && <AddPlayerSheet session={session} onClose={() => setAdding(false)} />}
     </div>
   );

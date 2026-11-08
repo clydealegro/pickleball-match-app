@@ -1709,3 +1709,6 @@ caption {
 .slot-card .row-flex { flex-wrap: wrap; }
 .slot-card .btn-start { flex: 1; }
 .setup-plan { margin-top: -12px; }
+
+/* The planned end in the live header */
+.end-chip { padding: 4px 12px; font-size: 13px; font-weight: 600; white-space: nowrap; }
