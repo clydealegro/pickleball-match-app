@@ -58,39 +58,46 @@ interface SlotHeroProps {
   now: Date;
   /** Opens the edit sheet. */
   onEdit: () => void;
+  /** The slot has Just this time changes, so a one-off change is not mistaken for a lasting one. */
+  thisTimeOnly?: boolean;
 }
 
 /** The lime card for one slot. It only shows things; the Start bar is the only way to go on. */
-export function SlotHero({ effective, now, onEdit }: SlotHeroProps) {
+export function SlotHero({ effective, now, onEdit, thisTimeOnly = false }: SlotHeroProps) {
   const loaded = useHistoryStore((s) => s.loaded);
   const day = WEEKDAY_NAMES[effective.weekday];
   const courts = effective.courts === undefined ? undefined : `${effective.courts} ${effective.courts === 1 ? 'court' : 'courts'}`;
   const noTime = effective.startMin === undefined && effective.endMin === undefined;
   return (
-    <section className="home-hero home-hero-in">
+    <section className="home-hero home-hero-split home-hero-in">
       <CourtLines />
-      <div className="home-hero-top">
-        <span className="home-pill">{homeLabel(effective, now)}</span>
-        <button type="button" className="home-edit" aria-label={`Edit ${day}`} onClick={onEdit}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M4 20h4L19 9l-4-4L4 16z" />
-            <path d="M13.5 6.5l4 4" />
-          </svg>
-        </button>
-      </div>
-      <h1 className="home-day">{day}</h1>
-      {noTime ? <DashedChip label="+ Add a time" onClick={onEdit} /> : <p className="home-line">{formatRange(effective.startMin, effective.endMin)}</p>}
-      {effective.venue !== undefined && courts !== undefined ? (
-        <p className="home-line">
-          {effective.venue} · {courts}
-        </p>
-      ) : (
-        <div className="home-where">
-          {effective.venue !== undefined ? <p className="home-line">{effective.venue}</p> : <DashedChip label="+ Add a venue" onClick={onEdit} />}
-          {courts !== undefined ? <p className="home-line">{courts}</p> : <DashedChip label="+ Add courts" onClick={onEdit} />}
+      <div className="home-hero-head">
+        <div className="home-hero-top">
+          <span className="home-pill">{homeLabel(effective, now)}</span>
+          <button type="button" className="home-edit" aria-label={`Edit ${day}`} onClick={onEdit}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M4 20h4L19 9l-4-4L4 16z" />
+              <path d="M13.5 6.5l4 4" />
+            </svg>
+          </button>
         </div>
-      )}
-      <div className="home-foot">{loaded && <Regulars weekday={effective.weekday} />}</div>
+        <h1 className="home-day">{day}</h1>
+      </div>
+      <div className="home-hero-body">
+        {noTime ? <DashedChip label="+ Add a time" onClick={onEdit} /> : <p className="home-line">{formatRange(effective.startMin, effective.endMin)}</p>}
+        {effective.venue !== undefined && courts !== undefined ? (
+          <p className="home-line">
+            {effective.venue} · {courts}
+          </p>
+        ) : (
+          <div className="home-where">
+            {effective.venue !== undefined ? <p className="home-line">{effective.venue}</p> : <DashedChip label="+ Add a venue" onClick={onEdit} />}
+            {courts !== undefined ? <p className="home-line">{courts}</p> : <DashedChip label="+ Add courts" onClick={onEdit} />}
+          </div>
+        )}
+        {thisTimeOnly && <p className="home-once">This time only</p>}
+        <div className="home-foot">{loaded && <Regulars weekday={effective.weekday} />}</div>
+      </div>
     </section>
   );
 }

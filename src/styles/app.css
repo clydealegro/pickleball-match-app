@@ -7,6 +7,8 @@
   --line: #e6e5df;
   --accent: #c8f03c;
   --accent-ink: #111111;
+  /* The ring on a selected chip: 3 to 1 against the page, which the lime is not on the light theme. */
+  --chip-ring: #4f6a00;
   --danger: #b3261e;
   --radius: 16px;
   --gap: 16px;
@@ -20,6 +22,7 @@
   --ink: #f4f4ef;
   --muted: #a0a098;
   --line: #2c2c29;
+  --chip-ring: var(--accent);
   --danger: #ff8a80;
   color-scheme: dark;
 }
@@ -1757,7 +1760,7 @@ caption {
 
 .home-chip[aria-checked='true'] {
   background: color-mix(in srgb, var(--accent) 22%, var(--surface));
-  border: 1.5px solid var(--accent);
+  border: 1.5px solid var(--chip-ring);
   border-style: solid;
   color: var(--ink);
   font-weight: 700;
@@ -1787,6 +1790,26 @@ caption {
 .home-hero > :not(svg) {
   position: relative;
   z-index: 1;
+}
+
+.home-hero-split {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.home-hero-head,
+.home-hero-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.home-once {
+  font-size: 13px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--accent-ink) 78%, transparent);
 }
 
 .home-hero-in {

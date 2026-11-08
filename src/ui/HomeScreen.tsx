@@ -116,7 +116,7 @@ export function HomeScreen({ onStart, onResume, onHistory, onViewSummary }: Prop
   if (live) hero = <LiveHero key="live" session={live} />;
   else if (showDone) hero = <DoneCard key="done" entry={done} now={now} />;
   // The key makes a fresh hero for each choice, so the slide-in plays again.
-  else if (selected && eff) hero = <SlotHero key={selected.id} effective={eff} now={now} onEdit={() => setEditingId(selected.id)} />;
+  else if (selected && eff) hero = <SlotHero key={selected.id} effective={eff} now={now} thisTimeOnly={Object.keys(tonight[selected.id] ?? {}).length > 0} onEdit={() => setEditingId(selected.id)} />;
   else hero = <OneOffHero key={ONE_OFF} />;
 
   let action;
