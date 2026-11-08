@@ -84,6 +84,13 @@ describe('the board header', () => {
     expect(screen.getByText('8:43 pm')).toBeInTheDocument();
   });
 
+  it('uses one one-second interval for the courts and one one-minute interval for the time of day', () => {
+    const spy = vi.spyOn(globalThis, 'setInterval');
+    view(build([court(1)]));
+    expect(spy.mock.calls.map((c) => c[1]).sort((a, b) => Number(a) - Number(b))).toEqual([SEC, MIN]);
+    spy.mockRestore();
+  });
+
   it('does not announce the time of day', () => {
     view(build([court(1)]));
     expect(screen.getByText('7:42 pm')).toHaveAttribute('aria-live', 'off');
