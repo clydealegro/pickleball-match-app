@@ -2248,3 +2248,426 @@ caption {
     transform: none;
   }
 }
+
+/* Board */
+/* A full-screen board for a TV or a phone on a stand. It sets its own dark colours whatever the app theme is. */
+.board {
+  --board-bg: #0f0f0e;
+  --board-fg: #f5f5f0;
+  --board-mut: #9b9b94;
+  --board-card: #1a1a19;
+  --board-line: #2a2a28;
+  --board-edge: #77776f;
+  --board-lime: #c8f03c;
+  --board-lime-ink: #0f0f0e;
+  --board-a: #18202e;
+  --board-a-line: #34445f;
+  --board-b: #2b1d1f;
+  --board-b-line: #5a3a3e;
+  /* Initials tile: lightness 32% keeps white text at 4.5 to 1 or more for every hue. */
+  --board-tile-s: 42%;
+  --board-tile-l: 32%;
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4vmin;
+  padding: 2vmin;
+  overflow: hidden;
+  background: var(--board-bg);
+  color: var(--board-fg);
+  color-scheme: dark;
+  line-height: 1.2;
+}
+
+.board-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.board-head-l,
+.board-head-r {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.board-name {
+  margin: 0;
+  font-size: clamp(16px, 2.6vmin, 30px);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.board-venue,
+.board-end,
+.board-more {
+  color: var(--board-mut);
+  font-size: clamp(13px, 2vmin, 22px);
+  white-space: nowrap;
+}
+
+.board-clock {
+  font-size: clamp(16px, 2.6vmin, 30px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.board-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--board-edge);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--board-fg);
+  cursor: pointer;
+}
+
+.board-close:focus-visible {
+  outline: 2px solid var(--board-lime);
+  outline-offset: 2px;
+}
+
+/* Portrait: courts stacked in rows. Landscape: columns, set below. */
+.board-courts {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 1.4vmin;
+  grid-template-columns: repeat(var(--cols-port, 1), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--rows-port, 1), minmax(0, 1fr));
+}
+
+.board-court {
+  container-type: size;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2cqmin;
+  padding: 3cqmin;
+  overflow: hidden;
+  border: 1px solid var(--board-line);
+  border-radius: 14px;
+  background: var(--board-card);
+}
+
+.board-court-ready {
+  border: 1.5px dashed var(--board-lime);
+  background: transparent;
+}
+
+.board-court-open {
+  border: 1.5px dashed var(--board-edge);
+  background: transparent;
+}
+
+.board-court-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 0;
+}
+
+.board-court-n {
+  color: var(--board-mut);
+  font-size: clamp(11px, 4cqmin, 20px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.board-timer {
+  color: var(--board-lime);
+  font-size: clamp(18px, 9cqmin, 56px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.board-tag {
+  color: var(--board-lime);
+  font-size: clamp(12px, 5cqmin, 24px);
+  font-weight: 600;
+}
+
+.board-closing {
+  padding: 0 0.6em;
+  border: 1px solid var(--board-edge);
+  border-radius: 999px;
+  color: var(--board-fg);
+  font-size: clamp(11px, 4cqmin, 20px);
+  white-space: nowrap;
+}
+
+.board-open {
+  flex: 1;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--board-mut);
+  font-size: clamp(16px, 10cqmin, 44px);
+}
+
+/* Portrait: Team A, VS and Team B side by side. */
+.board-teams {
+  --d: min(48cqh, 19cqw);
+  --vs: min(20cqh, 9cqw);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 1.5cqmin;
+}
+
+.board-team {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  box-sizing: border-box;
+  padding: 2cqmin 1cqmin;
+  border-radius: 13px;
+}
+
+.board-team-a {
+  background: var(--board-a);
+  box-shadow: inset 0 0 0 1.5px var(--board-a-line);
+}
+
+.board-team-b {
+  background: var(--board-b);
+  box-shadow: inset 0 0 0 1.5px var(--board-b-line);
+}
+
+.board-pf {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4em;
+  font-size: clamp(11px, 3.4cqmin, 22px);
+}
+
+.board-circle {
+  flex: none;
+  width: var(--d);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.14);
+}
+
+.board-pname {
+  max-width: 100%;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-vs {
+  flex: none;
+  align-self: center;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--vs);
+  height: var(--vs);
+  border: 1.5px solid var(--board-edge);
+  border-radius: 50%;
+  background: var(--board-bg);
+  font-size: calc(var(--vs) * 0.38);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* Circles that fill their container, with a photo or initials on a colour from the name. */
+.avatar-fill {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.board .avatar-fill {
+  background: radial-gradient(
+    circle at 50% 36%,
+    hsl(var(--h, 0) var(--board-tile-s) var(--board-tile-l)),
+    hsl(var(--h, 0) 45% 20%)
+  );
+  color: #fff;
+  font-size: calc(var(--d, var(--wd)) * 0.36);
+  font-weight: 600;
+  object-fit: cover;
+  object-position: 50% 25%;
+}
+
+/* Waiting */
+.board-waiting {
+  container-type: size;
+  flex: none;
+  height: 17%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 1cqmin;
+}
+
+.board-wl {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 3px;
+}
+
+.board-wl-label {
+  color: var(--board-mut);
+  font-size: clamp(11px, 2cqmin, 18px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.board-wl-count {
+  font-size: clamp(14px, 3cqmin, 30px);
+  font-weight: 600;
+}
+
+.board-none {
+  margin: 0;
+  color: var(--board-mut);
+  font-size: clamp(14px, 3cqmin, 24px);
+}
+
+.board-wstrip {
+  --wd: min(50cqh, 15cqw);
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 1.4cqw;
+}
+
+.board-wpf {
+  position: relative;
+  flex: none;
+  width: var(--wd);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding-top: 3px;
+  font-size: clamp(10px, 11cqh, 20px);
+}
+
+.board-wpf .board-circle {
+  width: 100%;
+}
+
+.board-wpf.is-first .board-circle {
+  box-shadow: 0 0 0 3px var(--board-lime);
+}
+
+.board-no {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--wd) * 0.3);
+  height: calc(var(--wd) * 0.3);
+  border: 1.5px solid var(--board-bg);
+  border-radius: 50%;
+  background: var(--board-line);
+  font-size: calc(var(--wd) * 0.17);
+  font-weight: 600;
+}
+
+.board-wpf.is-first .board-no {
+  background: var(--board-lime);
+  color: var(--board-lime-ink);
+}
+
+.board-more-circle {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border: 1.5px dashed var(--board-edge);
+  color: var(--board-mut);
+  box-shadow: none;
+  font-size: calc(var(--wd) * 0.3);
+  font-weight: 600;
+}
+
+/* Landscape on a wide screen: courts in columns, each court a column with the teams stacked. */
+@media (orientation: landscape) and (min-width: 640px) {
+  .board-courts {
+    grid-template-columns: repeat(var(--cols-land, 1), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--rows-land, 1), minmax(0, 1fr));
+  }
+
+  .board-teams {
+    --d: min(26cqh, 34cqw);
+    --vs: min(8cqh, 9cqw);
+    flex-direction: column;
+  }
+
+  .board-waiting {
+    height: 22%;
+    flex-direction: row;
+    gap: 1.4cqw;
+  }
+
+  .board-wl {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    width: 11%;
+  }
+
+  .board-wstrip {
+    --wd: min(62cqh, 11cqw);
+  }
+}
+
+/* A narrow screen: the venue and the end time make room. The name, the clock and Close stay. */
+@media (max-width: 520px) {
+  .board-venue,
+  .board-end {
+    display: none;
+  }
+}

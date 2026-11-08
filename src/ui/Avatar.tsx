@@ -1,3 +1,6 @@
+import type { CSSProperties } from 'react';
+import { nameHue } from '../store/boardInfo';
+
 export function initials(name: string): string {
   const parts = name
     .trim()
@@ -11,7 +14,8 @@ export function initials(name: string): string {
 
 interface AvatarProps {
   name: string;
-  size?: 'sm' | 'md' | 'lg';
+  /** `fill` makes the circle as wide as its container, for the board. */
+  size?: 'sm' | 'md' | 'lg' | 'fill';
   /** A photo to show; initials are shown without one. */
   photoUrl?: string;
 }
@@ -22,7 +26,11 @@ export function Avatar({ name, size = 'md', photoUrl }: AvatarProps) {
     return <img className={`avatar avatar-${size}`} src={photoUrl} alt="" />;
   }
   return (
-    <span className={`avatar avatar-${size}`} aria-hidden="true">
+    <span
+      className={`avatar avatar-${size}`}
+      style={size === 'fill' ? ({ '--h': nameHue(name) } as CSSProperties) : undefined}
+      aria-hidden="true"
+    >
       {initials(name)}
     </span>
   );

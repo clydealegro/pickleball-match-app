@@ -5,7 +5,7 @@ interface Props {
   name: string;
   /** The saved player this avatar belongs to; without one, initials are shown. */
   rosterId?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'fill';
 }
 
 /** An avatar that shows the saved player's photo when there is one, otherwise their initials. */
