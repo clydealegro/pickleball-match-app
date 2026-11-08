@@ -4,10 +4,7 @@ import type { PlayerSummary, Session } from '../engine';
 import { useHistoryStore } from '../store/historyStore';
 import { useSessionStore } from '../store/sessionStore';
 import { PlayerAvatar } from './PlayerAvatar';
-import { renderCardBlob } from './cardDraw';
-import { buildCardModel } from './cardModel';
-import { loadCardPhotos } from './cardPhotos';
-import { deliverPicture } from './cardShare';
+import { sharePictureFor } from './sharePicture';
 
 function countList(items: { name: string; count: number }[]): string {
   return items.map((p) => (p.count > 1 ? `${p.name} ×${p.count}` : p.name)).join(', ');
@@ -121,9 +118,7 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
     setMaking(true);
     setMessage('');
     try {
-      const model = buildCardModel(session, { results: withResults, theme: document.documentElement.dataset.theme });
-      const photos = await loadCardPhotos(model.players.flatMap((p) => (p.rosterId ? [p.rosterId] : [])));
-      const outcome = await deliverPicture(await renderCardBlob(model, photos), session.name);
+      const outcome = await sharePictureFor(session, { results: withResults, theme: document.documentElement.dataset.theme });
       if (outcome !== 'cancelled') setShared(true);
       if (outcome === 'saved') setMessage('Picture saved to this device.');
     } catch {
