@@ -578,10 +578,9 @@ describe('the board styles', () => {
     expect(rule('.board-courts', land)).toContain('--rows-land');
   });
 
-  it('lays a court out as a row in portrait and a column in landscape', () => {
+  it('lays a court out as a row by default and as a column when its card is square or tall', () => {
     expect(must('.board-teams')).toMatch(/flex-direction:\s*row/);
-    const land = media('(orientation: landscape)');
-    expect(rule('.board-teams', land)).toMatch(/flex-direction:\s*column/);
+    expect(css).toMatch(/@container \(max-aspect-ratio: [\d.]+\)[^{]*\{[^@]*\.board-teams\s*\{[^}]*flex-direction:\s*column/);
   });
 
   it('only treats a screen as landscape when it is also wide enough', () => {

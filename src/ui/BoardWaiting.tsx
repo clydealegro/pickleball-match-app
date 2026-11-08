@@ -41,7 +41,7 @@ export function BoardWaiting({ waiting, everyone }: Props) {
   const { strip, shown } = useCapacity(waiting.length);
   const hidden = waiting.length - shown;
   return (
-    <section className="board-waiting" aria-label="Waiting">
+    <section className={`board-waiting${waiting.length === 0 ? ' is-empty' : ''}`} aria-label="Waiting">
       <div className="board-wl">
         <span className="board-wl-label">Waiting</span>
         <b className="board-wl-count">{waiting.length}</b>

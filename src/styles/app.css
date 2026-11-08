@@ -2298,9 +2298,14 @@ caption {
   min-width: 0;
 }
 
+/* The clock and Close never shrink, so the name gives way first. */
+.board-head-r {
+  flex: none;
+}
+
 .board-name {
   margin: 0;
-  font-size: clamp(16px, 2.6vmin, 30px);
+  font-size: clamp(18px, 3.4vmin, 44px);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -2311,12 +2316,12 @@ caption {
 .board-end,
 .board-more {
   color: var(--board-mut);
-  font-size: clamp(13px, 2vmin, 22px);
+  font-size: clamp(13px, 2.4vmin, 30px);
   white-space: nowrap;
 }
 
 .board-clock {
-  font-size: clamp(16px, 2.6vmin, 30px);
+  font-size: clamp(18px, 3.4vmin, 44px);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -2391,14 +2396,14 @@ caption {
 
 .board-court-n {
   color: var(--board-mut);
-  font-size: clamp(11px, 4cqmin, 20px);
+  font-size: clamp(11px, min(3.4cqw, 6cqh), 26px);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .board-timer {
   color: var(--board-lime);
-  font-size: clamp(18px, 9cqmin, 56px);
+  font-size: clamp(20px, min(13cqw, 15cqh), 120px);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
@@ -2407,7 +2412,7 @@ caption {
 
 .board-tag {
   color: var(--board-lime);
-  font-size: clamp(12px, 5cqmin, 24px);
+  font-size: clamp(12px, min(4.6cqw, 8cqh), 34px);
   font-weight: 600;
 }
 
@@ -2416,7 +2421,7 @@ caption {
   border: 1px solid var(--board-edge);
   border-radius: 999px;
   color: var(--board-fg);
-  font-size: clamp(11px, 4cqmin, 20px);
+  font-size: clamp(11px, min(3.4cqw, 6cqh), 26px);
   white-space: nowrap;
 }
 
@@ -2427,13 +2432,13 @@ caption {
   align-items: center;
   justify-content: center;
   color: var(--board-mut);
-  font-size: clamp(16px, 10cqmin, 44px);
+  font-size: clamp(16px, min(9cqw, 12cqh), 64px);
 }
 
 /* Portrait: Team A, VS and Team B side by side. */
 .board-teams {
-  --d: min(48cqh, 19cqw);
-  --vs: min(20cqh, 9cqw);
+  --d: min(40cqh, 19cqw);
+  --vs: max(1.6rem, min(20cqh, 9cqw, calc(var(--d) * 0.4)));
   flex: 1;
   min-height: 0;
   display: flex;
@@ -2471,7 +2476,7 @@ caption {
   flex-direction: column;
   align-items: center;
   gap: 0.4em;
-  font-size: clamp(11px, 3.4cqmin, 22px);
+  font-size: max(11px, calc(var(--d) * 0.19));
 }
 
 .board-circle {
@@ -2501,7 +2506,7 @@ caption {
   border: 1.5px solid var(--board-edge);
   border-radius: 50%;
   background: var(--board-bg);
-  font-size: calc(var(--vs) * 0.38);
+  font-size: max(10px, calc(var(--vs) * 0.38));
   font-weight: 700;
   letter-spacing: 0.04em;
 }
@@ -2547,20 +2552,26 @@ caption {
 
 .board-wl-label {
   color: var(--board-mut);
-  font-size: clamp(11px, 2cqmin, 18px);
+  font-size: clamp(11px, 2cqmin, 30px);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .board-wl-count {
-  font-size: clamp(14px, 3cqmin, 30px);
+  font-size: clamp(14px, 3cqmin, 56px);
   font-weight: 600;
 }
 
 .board-none {
+  align-self: center;
   margin: 0;
   color: var(--board-mut);
-  font-size: clamp(14px, 3cqmin, 24px);
+  font-size: clamp(16px, 34cqh, 40px);
+}
+
+/* Nobody waiting: a slim band, so the courts get the room. */
+.board-waiting.is-empty {
+  height: 9%;
 }
 
 .board-wstrip {
@@ -2573,7 +2584,7 @@ caption {
   list-style: none;
   display: flex;
   align-items: flex-start;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 1.4cqw;
 }
 
@@ -2586,7 +2597,7 @@ caption {
   align-items: center;
   gap: 3px;
   padding-top: 3px;
-  font-size: clamp(10px, 11cqh, 20px);
+  font-size: max(11px, calc(var(--wd) * 0.16));
 }
 
 .board-wpf .board-circle {
@@ -2633,21 +2644,15 @@ caption {
   font-weight: 600;
 }
 
-/* Landscape on a wide screen: courts in columns, each court a column with the teams stacked. */
+/* Landscape on a wide screen: the courts follow the landscape grid, and the waiting strip runs along the bottom. */
 @media (orientation: landscape) and (min-width: 640px) {
   .board-courts {
     grid-template-columns: repeat(var(--cols-land, 1), minmax(0, 1fr));
     grid-template-rows: repeat(var(--rows-land, 1), minmax(0, 1fr));
   }
 
-  .board-teams {
-    --d: min(26cqh, 34cqw);
-    --vs: min(8cqh, 9cqw);
-    flex-direction: column;
-  }
-
   .board-waiting {
-    height: 22%;
+    height: 24%;
     flex-direction: row;
     gap: 1.4cqw;
   }
@@ -2659,8 +2664,25 @@ caption {
     width: 11%;
   }
 
+  .board-wl-label {
+    font-size: clamp(12px, 9cqh, 28px);
+  }
+
+  .board-wl-count {
+    font-size: clamp(16px, 16cqh, 60px);
+  }
+
   .board-wstrip {
-    --wd: min(62cqh, 11cqw);
+    --wd: min(66cqh, 11cqw);
+  }
+}
+
+/* A court that is nearly square or taller, and tall enough to stack, puts Team A, VS and Team B in a column. A wider or shorter court puts them side by side. */
+@container (max-aspect-ratio: 1.35) and (min-height: 400px) {
+  .board-teams {
+    --d: min(25cqh, 34cqw);
+    --vs: max(1.6rem, min(8cqh, 9cqw));
+    flex-direction: column;
   }
 }
 
@@ -2669,5 +2691,13 @@ caption {
   .board-venue,
   .board-end {
     display: none;
+  }
+
+  .board-head-r {
+    gap: 8px;
+  }
+
+  .board-more {
+    font-size: 12px;
   }
 }
