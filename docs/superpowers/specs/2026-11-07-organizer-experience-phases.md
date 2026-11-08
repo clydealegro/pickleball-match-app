@@ -319,6 +319,19 @@ Goal: the app opens on the club's own sessions instead of a blank player list. T
 - **The venue** shows on the summary, in Past sessions, and on the shared picture.
 - **Later:** a quiet "15 minutes left" prompt (as restrained as 4.4), a "planned 7 to 9, ran to 9:30" line, syncing slots, courts per venue.
 
+### 4.8 Home, second pass (built 2026-11-08, branch `home-v6`)
+
+The first Home was three equal cards and no way back from a running session. The second pass is one screen that never scrolls.
+
+- **Layout:** logo and the account icon; session chips ("Tue 10", "Thu 12", "Sat 14", and a dashed "+" for a one-off); one lime hero that is information only; one slim "last session" row; and a bottom Start bar, the only text button, in the same place as Who's playing and the summary.
+- **Start grading:** the bar is lime only from 3 hours before the session until 3 hours after it ends (all day when no time is set). Otherwise it is outlined. Its accessible name is "Start session, {Weekday}".
+- **Hero:** a relative pill ("Starts in 38 min", "Tonight", "In 2 days"), a pencil icon, the weekday, time, "venue, courts", and the regulars with "Usually 12 to 16 play" from the last six sessions that day. A one-time change shows "This time only".
+- **States:** running (Live pill, games, players, waiting, a list of the courts, button "Back to session"), done (a calm card for 24 hours, "Share as picture", "View summary"), and one-off.
+- **Courts per slot** (reverses the old "no courts per venue"). **Weeks played:** "Played 9 of the last 10 weeks", from rolling 7-day windows.
+- **Navigation:** the live screen has a house button (Settings moved into its menu), and the phone's Back button steps back through screens through the browser history.
+- **Left out on purpose:** the first-run "Your weekly sessions" sheet, a bottom tab bar, confetti, and syncing slots.
+- **Known limits:** after Start new session the history can hold two Home entries, so the phone Back button may need two taps there. Slots are still per device.
+
 ### Acceptance
 Highlights are tested with fixed sessions including ties and the under-three-games case. The canvas card is tested for dimensions and for the text it draws (through a canvas stub). The board view renders the same data as the live screen. Reminders fire once per game. Sunlight meets WCAG AA contrast for every text and control colour, with the ratios computed by a script and listed in the plan. Home shows the right slot for a given date, saves a slot's time and venue (this time only, or for good), starts a session that carries the slot's venue and end, and Extend moves only that session's end; each is tested with fixed dates.
 
