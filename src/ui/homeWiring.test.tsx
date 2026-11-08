@@ -66,6 +66,18 @@ describe('Home is the landing screen', () => {
     expect(screen.getByText('Hall A · 7:00 to 9:00 pm')).toBeInTheDocument();
   });
 
+  it('starts Who’s playing from the slot courts, and the session gets that many courts', async () => {
+    localStorage.setItem('pickleball.courts', '2');
+    useSlotsStore.setState({ slots: [{ id: 'thu', weekday: 4, courts: 3 }] });
+    const user = setup();
+    render(<App />);
+    await click(user, 'Start Thursday session');
+    expect(screen.getByRole('group', { name: 'Courts' }).querySelector('.stepper-value')).toHaveTextContent('3');
+    await user.type(box(), four);
+    await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
+    expect(useSessionStore.getState().session!.courts).toHaveLength(3);
+  });
+
   it('stores the venue and planned end on the session', async () => {
     useSlotsStore.setState({ slots: [{ id: 'thu', weekday: 4, startMin: 1140, endMin: 1260, venue: 'Hall A' }] });
     const user = setup();
@@ -196,6 +208,18 @@ describe('SetupScreen props', () => {
     render(<SetupScreen onManage={() => {}} onBack={onBack} />);
     await click(user, 'Back');
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts the court count from the plan when it has courts', () => {
+    localStorage.setItem('pickleball.courts', '2');
+    render(<SetupScreen onManage={() => {}} plan={{ slotId: 'x', weekday: 2, courts: 5 }} />);
+    expect(screen.getByRole('group', { name: 'Courts' }).querySelector('.stepper-value')).toHaveTextContent('5');
+  });
+
+  it('starts the court count from the saved preference when the plan has none', () => {
+    localStorage.setItem('pickleball.courts', '4');
+    render(<SetupScreen onManage={() => {}} plan={{ slotId: 'x', weekday: 2 }} />);
+    expect(screen.getByRole('group', { name: 'Courts' }).querySelector('.stepper-value')).toHaveTextContent('4');
   });
 
   it('shows only the venue when the plan has a venue but no time', () => {

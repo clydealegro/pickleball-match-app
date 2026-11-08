@@ -11,6 +11,7 @@ export interface SessionPlan {
   weekday: number;
   venue?: string;
   plannedEndAt?: number;
+  courts?: number;
 }
 
 interface Props {
@@ -37,6 +38,7 @@ export function HomeScreen({ onStart, onHistory }: Props) {
     const eff = effectiveSlot(slot, tonight);
     const plan: SessionPlan = { slotId: slot.id, weekday: slot.weekday };
     if (eff.venue !== undefined) plan.venue = eff.venue;
+    if (eff.courts !== undefined) plan.courts = eff.courts;
     if (eff.endMin !== undefined) plan.plannedEndAt = timestampAt(eff.endMin, Date.now());
     onStart(plan);
   }

@@ -78,6 +78,15 @@ describe('parseSlots', () => {
     expect(parseSlots(raw).slots).toEqual([{ id: 'ok', weekday: 1 }]);
   });
 
+  it('keeps courts from 1 to 12 and drops any other value, keeping the slot', () => {
+    const slot = (courts: unknown) => ({ id: 'a', weekday: 1, courts });
+    const parsed = (courts: unknown) => parseSlots(JSON.stringify({ slots: [slot(courts)], venues: [] })).slots;
+    expect(parsed(1)).toEqual([{ id: 'a', weekday: 1, courts: 1 }]);
+    expect(parsed(5)).toEqual([{ id: 'a', weekday: 1, courts: 5 }]);
+    expect(parsed(12)).toEqual([{ id: 'a', weekday: 1, courts: 12 }]);
+    for (const bad of [0, 13, 2.5, -1, '3', null, true]) expect(parsed(bad)).toEqual([{ id: 'a', weekday: 1 }]);
+  });
+
   it('drops non-string venues', () => {
     const raw = JSON.stringify({ slots: [], venues: ['Hall', 3, null, 'Court B'] });
     expect(parseSlots(raw)).toEqual({ slots: [], venues: ['Hall', 'Court B'] });
@@ -189,6 +198,13 @@ describe('effectiveSlot', () => {
   it('lets an override clear a value', () => {
     expect(effectiveSlot(base, { tue: { venue: undefined } }).venue).toBeUndefined();
   });
+  it('carries courts, and lets an override set or clear them', () => {
+    const withCourts = { ...base, courts: 3 };
+    expect(effectiveSlot(withCourts, {}).courts).toBe(3);
+    expect(effectiveSlot(base, { tue: { courts: 4 } }).courts).toBe(4);
+    expect(effectiveSlot(withCourts, { tue: { courts: 4 } }).courts).toBe(4);
+    expect(effectiveSlot(withCourts, { tue: { courts: undefined } }).courts).toBeUndefined();
+  });
 });
 
 describe('useSlotsStore', () => {
@@ -207,6 +223,23 @@ describe('useSlotsStore', () => {
     const before = localStorage.getItem(SLOTS_KEY);
     useSlotsStore.getState().saveSlot('nope', { startMin: 5 });
     expect(localStorage.getItem(SLOTS_KEY)).toBe(before);
+  });
+
+  it('saveSlot stores courts and persists them, and undefined clears them', () => {
+    useSlotsStore.getState().saveSlot('tue', { courts: 4, venue: 'Hall' });
+    expect(useSlotsStore.getState().slots[0]).toEqual({ id: 'tue', weekday: 2, courts: 4, venue: 'Hall' });
+    expect(stored().slots[0]).toEqual({ id: 'tue', weekday: 2, courts: 4, venue: 'Hall' });
+    useSlotsStore.getState().saveSlot('tue', { courts: undefined });
+    expect(useSlotsStore.getState().slots[0]).toEqual({ id: 'tue', weekday: 2, venue: 'Hall' });
+    expect(stored().slots[0]).toEqual({ id: 'tue', weekday: 2, venue: 'Hall' });
+    expect(localStorage.getItem(SLOTS_KEY)).not.toContain('courts');
+  });
+
+  it('setTonight carries courts in memory only', () => {
+    useSlotsStore.getState().setTonight('tue', { courts: 3 });
+    expect(useSlotsStore.getState().tonight).toEqual({ tue: { courts: 3 } });
+    expect(useSlotsStore.getState().slots[0].courts).toBeUndefined();
+    expect(localStorage.getItem(SLOTS_KEY)).toBeNull();
   });
 
   it('saveSlot keeps the saved venues', () => {

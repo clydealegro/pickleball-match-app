@@ -9,6 +9,8 @@ export interface Slot {
   startMin?: number;
   endMin?: number;
   venue?: string;
+  /** How many courts this session uses, a whole number from 1 to 12. */
+  courts?: number;
 }
 
 export interface SlotsData {
@@ -16,11 +18,12 @@ export interface SlotsData {
   venues: string[];
 }
 
-type SlotEdit = Partial<Pick<Slot, 'startMin' | 'endMin' | 'venue'>>;
+type SlotEdit = Partial<Pick<Slot, 'startMin' | 'endMin' | 'venue' | 'courts'>>;
 
 export const SLOTS_KEY = 'pickleball.slots';
 export const MAX_VENUES = 12;
 export const MAX_VENUE_LENGTH = 40;
+export const MAX_COURTS = 12;
 
 export const DEFAULT_SLOTS: SlotsData = {
   slots: [
@@ -35,6 +38,8 @@ const defaults = (): SlotsData => ({ slots: DEFAULT_SLOTS.slots.map((s) => ({ ..
 
 const isObject = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null;
 const isOptNum = (x: unknown) => x === undefined || (typeof x === 'number' && Number.isFinite(x));
+
+const isCourts = (x: unknown): x is number => typeof x === 'number' && Number.isInteger(x) && x >= 1 && x <= MAX_COURTS;
 
 function isSlot(x: unknown): x is Slot {
   return (
@@ -58,7 +63,8 @@ export function parseSlots(raw: string | null): SlotsData {
     const data: unknown = JSON.parse(raw);
     if (!isObject(data) || !Array.isArray(data.slots) || !Array.isArray(data.venues)) return defaults();
     return {
-      slots: data.slots.filter(isSlot),
+      // A courts value that is not a whole number from 1 to 12 is dropped, and the slot stays.
+      slots: data.slots.filter(isSlot).map(({ courts, ...rest }) => (isCourts(courts) ? { ...rest, courts } : rest)),
       venues: data.venues.filter((v): v is string => typeof v === 'string'),
     };
   } catch {

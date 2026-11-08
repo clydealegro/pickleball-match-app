@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { COURTS_KEY } from './prefs';
 import { DEFAULT_SLOTS, MAX_VENUES, useSlotsStore, type Slot } from '../store/slots';
 import { EditSlotSheet } from './EditSlotSheet';
 
@@ -84,6 +85,79 @@ describe('EditSlotSheet', () => {
     expect(chip('One too many')).toBeNull();
     expect(chip('Venue 2')).toHaveAttribute('aria-pressed', 'true');
     expect(useSlotsStore.getState().venues).toHaveLength(MAX_VENUES);
+  });
+
+  describe('courts', () => {
+    const more = () => screen.getByRole('button', { name: 'More courts' });
+    const fewer = () => screen.getByRole('button', { name: 'Fewer courts' });
+    const shown = () => screen.getByRole('group', { name: 'Courts' }).querySelector('output')!;
+    const save = (user: ReturnType<typeof userEvent.setup>) => user.click(screen.getByRole('button', { name: 'Save' }));
+
+    it('starts as Not set, with Fewer disabled', () => {
+      setup();
+      expect(shown()).toHaveTextContent('Not set');
+      expect(fewer()).toBeDisabled();
+    });
+
+    it('starts from the effective slot', () => {
+      setup({ courts: 3 });
+      expect(shown()).toHaveTextContent('3 courts');
+    });
+
+    it('the first plus uses the saved courts preference, default 2', async () => {
+      const { user } = setup();
+      await user.click(more());
+      expect(shown()).toHaveTextContent('2 courts');
+    });
+
+    it('the first plus uses a saved preference of 4', async () => {
+      localStorage.setItem(COURTS_KEY, '4');
+      const { user } = setup();
+      await user.click(more());
+      expect(shown()).toHaveTextContent('4 courts');
+    });
+
+    it('steps up and down by one and says court for 1', async () => {
+      const { user } = setup({ courts: 2 });
+      await user.click(more());
+      expect(shown()).toHaveTextContent('3 courts');
+      await user.click(fewer());
+      await user.click(fewer());
+      expect(shown()).toHaveTextContent('1 court');
+      expect(shown()).not.toHaveTextContent('1 courts');
+    });
+
+    it('minus at 1 clears the courts back to Not set', async () => {
+      const { user, onSave } = setup({ courts: 1 });
+      await user.click(fewer());
+      expect(shown()).toHaveTextContent('Not set');
+      await save(user);
+      expect(onSave.mock.calls[0][0]).toHaveProperty('courts', undefined);
+    });
+
+    it('stops at 12', async () => {
+      const { user } = setup({ courts: 12 });
+      expect(more()).toBeDisabled();
+      await user.click(fewer());
+      expect(shown()).toHaveTextContent('11 courts');
+    });
+
+    it('puts courts in the patch, for this time and for always', async () => {
+      const { user, onSave } = setup();
+      await user.click(more());
+      await user.click(more());
+      await save(user);
+      expect(onSave).toHaveBeenLastCalledWith({ startMin: undefined, endMin: undefined, venue: undefined, courts: 3 }, 'this-time');
+      await user.click(screen.getByRole('radio', { name: 'Always for Tuesday' }));
+      await save(user);
+      expect(onSave).toHaveBeenLastCalledWith({ startMin: undefined, endMin: undefined, venue: undefined, courts: 3 }, 'always');
+    });
+
+    it('leaves courts unset in the patch when untouched', async () => {
+      const { user, onSave } = setup();
+      await save(user);
+      expect(onSave.mock.calls[0][0].courts).toBeUndefined();
+    });
   });
 
   it('defaults the scope to just this time', () => {

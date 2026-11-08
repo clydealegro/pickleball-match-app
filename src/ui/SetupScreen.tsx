@@ -58,7 +58,7 @@ export function SetupScreen({ onManage, plan, onBack }: Props) {
         : undefined;
   const planLine = [plan?.venue, when].filter(Boolean).join(' · ');
 
-  const [courtCount, setCourtCount] = useState(() => getNumPref(COURTS_KEY, 2, 1, MAX_COURTS));
+  const [courtCount, setCourtCount] = useState(() => plan?.courts ?? getNumPref(COURTS_KEY, 2, 1, MAX_COURTS));
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);

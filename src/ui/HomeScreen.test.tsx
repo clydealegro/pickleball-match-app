@@ -182,6 +182,40 @@ describe('HomeScreen starting', () => {
     expect(onStart.mock.calls[0][0]).not.toHaveProperty('plannedEndAt');
   });
 
+  it('carries the slot courts in the plan', async () => {
+    resetSlots([{ id: 'sat', weekday: 6, courts: 3 }, { id: 'thu', weekday: 4 }]);
+    const { user, onStart } = setup();
+    await user.click(screen.getByRole('button', { name: 'Start Saturday session' }));
+    expect(onStart).toHaveBeenLastCalledWith({ slotId: 'sat', weekday: 6, courts: 3 });
+    await user.click(screen.getByRole('button', { name: 'Start Thursday session' }));
+    expect(onStart.mock.calls[1][0]).not.toHaveProperty('courts');
+  });
+
+  it('lets this time only courts win over the slot, and a this time only clear drop them', async () => {
+    resetSlots([{ id: 'sat', weekday: 6, courts: 3 }]);
+    useSlotsStore.setState({ tonight: { sat: { courts: 5 } } });
+    const first = setup();
+    await first.user.click(screen.getByRole('button', { name: 'Start Saturday session' }));
+    expect(first.onStart).toHaveBeenCalledWith({ slotId: 'sat', weekday: 6, courts: 5 });
+    cleanup();
+    useSlotsStore.setState({ tonight: { sat: { courts: undefined } } });
+    const second = setup();
+    await second.user.click(screen.getByRole('button', { name: 'Start Saturday session' }));
+    expect(second.onStart.mock.calls[0][0]).not.toHaveProperty('courts');
+  });
+
+  it('starts with the courts set in the edit sheet', async () => {
+    const { user, onStart } = setup();
+    await user.click(screen.getByRole('button', { name: 'Edit Saturday' }));
+    await user.click(screen.getByRole('button', { name: 'More courts' }));
+    await user.click(screen.getByRole('button', { name: 'More courts' }));
+    await user.click(screen.getByRole('radio', { name: 'Always for Saturday' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(useSlotsStore.getState().slots.find((s) => s.id === 'sat')?.courts).toBe(3);
+    await user.click(screen.getByRole('button', { name: 'Start Saturday session' }));
+    expect(onStart).toHaveBeenCalledWith({ slotId: 'sat', weekday: 6, courts: 3 });
+  });
+
   it('starts a one-off session with no plan', async () => {
     const { user, onStart } = setup();
     await user.click(screen.getByRole('button', { name: 'Start a one-off session' }));

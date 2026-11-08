@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { useSlotsStore, type Slot } from '../store/slots';
+import { MAX_COURTS, useSlotsStore, type Slot } from '../store/slots';
+import { COURTS_KEY, getNumPref } from './prefs';
 import { Sheet } from './Sheet';
 import { WEEKDAY_NAMES } from './weekdays';
 
 export type SlotScope = 'this-time' | 'always';
-export type SlotPatch = Partial<Pick<Slot, 'startMin' | 'endMin' | 'venue'>>;
+export type SlotPatch = Partial<Pick<Slot, 'startMin' | 'endMin' | 'venue' | 'courts'>>;
 
 interface Props {
   slot: Slot;
@@ -29,6 +30,7 @@ export function EditSlotSheet({ slot, effective, venues, onSave, onClose }: Prop
   const [start, setStart] = useState(toInput(effective.startMin));
   const [end, setEnd] = useState(toInput(effective.endMin));
   const [venue, setVenue] = useState<string | undefined>(effective.venue);
+  const [courts, setCourts] = useState<number | undefined>(effective.courts);
   const [newVenue, setNewVenue] = useState('');
   const [scope, setScope] = useState<SlotScope>('this-time');
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +54,7 @@ export function EditSlotSheet({ slot, effective, venues, onSave, onClose }: Prop
       return;
     }
     setError(null);
-    onSave({ startMin, endMin, venue }, scope);
+    onSave({ startMin, endMin, venue, courts }, scope);
   }
 
   return (
@@ -104,6 +106,33 @@ export function EditSlotSheet({ slot, effective, venues, onSave, onClose }: Prop
           />
           <button type="button" className="btn" onClick={add}>
             Add venue
+          </button>
+        </div>
+      </div>
+
+      <div className="stack">
+        <h3 className="section-title">Courts</h3>
+        <div className="stepper" role="group" aria-label="Courts">
+          <button
+            type="button"
+            className="btn"
+            aria-label="Fewer courts"
+            disabled={courts === undefined}
+            // Minus at 1 goes back to not set.
+            onClick={() => setCourts((c) => (c === undefined || c <= 1 ? undefined : c - 1))}
+          >
+            −
+          </button>
+          <output aria-live="polite">{courts === undefined ? 'Not set' : `${courts} ${courts === 1 ? 'court' : 'courts'}`}</output>
+          <button
+            type="button"
+            className="btn"
+            aria-label="More courts"
+            disabled={courts !== undefined && courts >= MAX_COURTS}
+            // The first plus starts from the courts the organizer used last.
+            onClick={() => setCourts((c) => (c === undefined ? getNumPref(COURTS_KEY, 2, 1, MAX_COURTS) : c + 1))}
+          >
+            +
           </button>
         </div>
       </div>
