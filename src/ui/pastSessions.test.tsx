@@ -50,7 +50,7 @@ describe('Past sessions', () => {
     expect(rows.map((r) => r.querySelector('.row-name')?.textContent)).toEqual(['Newer night', 'Older night']);
     expect(rows[0]).toHaveTextContent('Wed 4 Nov · 1 game · 5 players');
     await user.click(rows[0]);
-    expect(screen.getByRole('heading', { name: 'Session summary' })).toBeInTheDocument();
+    expect(screen.getByText('Session summary')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Done' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByRole('heading', { name: 'Past sessions' })).toBeInTheDocument();

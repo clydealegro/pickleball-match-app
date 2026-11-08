@@ -63,10 +63,10 @@ describe('Manage players in Settings', () => {
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
     await user.click(screen.getByRole('button', { name: 'Menu' }));
     await user.click(screen.getByRole('button', { name: 'End session' }));
-    expect(await screen.findByRole('heading', { name: 'Session summary' })).toBeInTheDocument();
+    expect(await screen.findByText('Session summary')).toBeInTheDocument();
     await settings(user);
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Back' }));
-    expect(screen.getByRole('heading', { name: 'Session summary' })).toBeInTheDocument();
+    expect(screen.getByText('Session summary')).toBeInTheDocument();
   });
 });

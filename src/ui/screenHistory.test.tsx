@@ -143,7 +143,7 @@ describe('the phone’s Back button', () => {
     render(<App />);
     await user.click(await screen.findByRole('button', { name: /^Last:/ }));
     await user.click(screen.getByRole('button', { name: /Open play/ }));
-    expect(screen.getByRole('heading', { name: 'Session summary' })).toBeInTheDocument();
+    expect(screen.getByText('Session summary')).toBeInTheDocument();
     expect(state()).toEqual({ pk: 2, view: 'summary' });
     phoneBack();
     expect(await screen.findByRole('heading', { name: 'Past sessions' })).toBeInTheDocument();

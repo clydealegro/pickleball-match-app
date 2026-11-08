@@ -201,7 +201,7 @@ describe('App', () => {
     await startFivePlayerSession(user);
 
     await endSessionFromMenu(user);
-    expect(await screen.findByRole('heading', { name: 'Session summary' })).toBeInTheDocument();
+    expect(await screen.findByText('Session summary')).toBeInTheDocument();
     expect(screen.getByRole('list', { name: 'Games per player' })).toBeInTheDocument();
     // The roster is told who played in the background, so wait for that before asking for "Same as last session".
     await waitFor(() => expect(useRosterStore.getState().players.filter((p) => p.lastPlayedAt !== undefined)).toHaveLength(5));

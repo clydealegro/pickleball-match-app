@@ -1085,9 +1085,17 @@ caption {
   font-weight: 800;
 }
 
-.sum-fairness {
-  margin: 0;
-  font-weight: 600;
+.sum-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sum-title {
+  font-size: 24px;
+  margin-bottom: 4px;
 }
 
 .sum-line {

@@ -166,7 +166,7 @@ describe('the menu', () => {
     await startSession(user, FIVE);
     await user.click(screen.getByRole('button', { name: 'Menu' }));
     await user.click(screen.getByRole('button', { name: 'End session' }));
-    expect(screen.queryByRole('heading', { name: 'Session summary' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Session summary')).not.toBeInTheDocument();
     expect(tabs()).toHaveLength(2);
   });
 

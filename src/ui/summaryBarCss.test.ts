@@ -47,3 +47,17 @@ describe('the summary bar', () => {
     expect(done).toMatch(/font-weight:\s*700/);
   });
 });
+
+describe('the summary header', () => {
+  it('sets the session name at 24 px', () => {
+    expect(rule('.sum-title')).toMatch(/font-size:\s*24px/);
+  });
+
+  it('sets the label small, muted, uppercase and spaced', () => {
+    const label = rule('.sum-eyebrow');
+    expect(label).toMatch(/font-size:\s*11px/);
+    expect(label).toMatch(/color:\s*var\(--muted\)/);
+    expect(label).toMatch(/text-transform:\s*uppercase/);
+    expect(label).toMatch(/letter-spacing:\s*[\d.]+em/);
+  });
+});

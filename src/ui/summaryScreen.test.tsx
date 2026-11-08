@@ -37,18 +37,85 @@ async function openShare(user: ReturnType<typeof userEvent.setup>) {
 
 const CONFIRM = 'Close this summary? It could not be saved to Past sessions and you have not shared it yet.';
 
-describe('summary venue', () => {
-  it('shows the venue as a muted line under the session name when set', () => {
-    render(<SummaryScreen session={{ ...finished(1), venue: 'Tacloban Sports Hall' }} />);
-    const venue = document.querySelector('.sum-venue')!;
-    expect(venue).toHaveTextContent('Tacloban Sports Hall');
-    expect(venue).toHaveClass('muted');
-    expect(venue.previousElementSibling).toHaveTextContent('Test');
+const NOV_4 = new Date(2026, 10, 4, 12).getTime();
+
+describe('summary header', () => {
+  it('puts the session name in the h1, under a small label that says what the page is', () => {
+    render(<SummaryScreen session={{ ...finished(1), name: 'Thursday night' }} />);
+    const title = screen.getByRole('heading', { level: 1 });
+    expect(title).toHaveTextContent('Thursday night');
+    expect(screen.queryByRole('heading', { name: 'Session summary' })).not.toBeInTheDocument();
+    const label = screen.getByText('Session summary');
+    expect(label).toHaveClass('sum-eyebrow');
+    expect(label.nextElementSibling).toBe(title);
   });
 
-  it('shows no venue line when there is none', () => {
+  it('puts the venue and the start date on one muted line under the name', () => {
+    render(<SummaryScreen session={{ ...finished(1), venue: 'Tacloban Sports Hall', createdAt: NOV_4 }} />);
+    const meta = document.querySelector('.sum-meta')!;
+    expect(meta).toHaveTextContent('Tacloban Sports Hall · Wed 4 Nov');
+    expect(meta).toHaveClass('muted');
+    expect(meta.previousElementSibling).toBe(screen.getByRole('heading', { level: 1 }));
+  });
+
+  it('shows only the date when no venue is set', () => {
+    render(<SummaryScreen session={{ ...finished(1), createdAt: NOV_4 }} />);
+    expect(document.querySelector('.sum-meta')!.textContent).toBe('Wed 4 Nov');
+  });
+
+  it('uses the day the session started, not the day it ended', () => {
+    render(<SummaryScreen session={{ ...finished(1), createdAt: NOV_4, endedAt: NOV_4 + 3 * 86_400_000 }} />);
+    expect(document.querySelector('.sum-meta')!.textContent).toBe('Wed 4 Nov');
+  });
+
+  it('puts the human line after the venue and date line', () => {
+    render(<SummaryScreen session={{ ...finished(2), createdAt: NOV_4 }} />);
+    expect(document.querySelector('.sum-meta')!.nextElementSibling).toBe(document.querySelector('.sum-line'));
+  });
+
+  it('no longer repeats the numbers as a games per player line', () => {
+    const { unmount } = render(<SummaryScreen session={finished(2)} />);
+    expect(screen.queryByText(/Games per player:/)).not.toBeInTheDocument();
+    expect(document.querySelector('.sum-fairness')).toBeNull();
+    unmount();
+    render(<SummaryScreen session={evenGames(2)} />);
+    expect(screen.queryByText(/Everyone played/)).not.toBeInTheDocument();
+  });
+});
+
+/** Four players on one court, so everyone plays every game. */
+function evenGames(games: number) {
+  const ctx = makeCtx(1, 1_000_000);
+  let s = newTestSession(['Ann', 'Ben', 'Cy', 'Dee'], { courts: 1 }, ctx);
+  for (let i = 1; i <= games; i++) s = finishGame(s, s.courts[0].id, { ...ctx, now: ctx.now + i * 12 * 60_000 });
+  return { ...s, endedAt: ctx.now + 99 };
+}
+
+describe('the games bars', () => {
+  it('shows one bar per player when the games are uneven, as long as the most played fills it', () => {
     render(<SummaryScreen session={finished(1)} />);
-    expect(document.querySelector('.sum-venue')).toBeNull();
+    const bars = document.querySelectorAll<HTMLElement>('.sum-bar > span');
+    expect(bars).toHaveLength(5);
+    expect(Array.from(bars).map((b) => b.style.width).sort()).toEqual(['0%', '100%', '100%', '100%', '100%']);
+  });
+
+  it('hides them when everyone played the same number of games, and keeps the counts', () => {
+    render(<SummaryScreen session={evenGames(2)} />);
+    expect(document.querySelector('.sum-bar')).toBeNull();
+    const rows = within(screen.getByRole('list', { name: 'Games per player' })).getAllByRole('listitem');
+    expect(rows).toHaveLength(4);
+    for (const r of rows) expect(r.querySelector('.sum-count')!.textContent).toContain('2');
+  });
+
+  it('hides them when nobody has played yet, since every count is the same', () => {
+    render(<SummaryScreen session={finished(0)} />);
+    expect(document.querySelector('.sum-bar')).toBeNull();
+  });
+
+  it('shows them when the counts differ by only one game', () => {
+    // Five players on one court, three games: the counts are 3 and 2, so they are not all equal.
+    render(<SummaryScreen session={finished(3)} />);
+    expect(document.querySelectorAll('.sum-bar')).toHaveLength(5);
   });
 });
 
@@ -84,7 +151,6 @@ describe('session summary screen', () => {
     expect(facts.textContent).toContain('Games2');
     expect(facts.textContent).toContain('Time24m');
     expect(facts.textContent).toContain('Players5');
-    expect(screen.getByText(/Games per player: \d to \d|Everyone played/)).toBeInTheDocument();
     expect(within(screen.getByRole('list', { name: 'Games per player' })).getAllByRole('listitem')).toHaveLength(5);
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });

@@ -278,7 +278,7 @@ describe('Home done card in the app', () => {
     const user = setup();
     render(<App />);
     await user.click(await screen.findByRole('button', { name: 'View summary' }));
-    expect(screen.getByRole('heading', { name: 'Session summary' })).toBeInTheDocument();
+    expect(screen.getByText('Session summary')).toBeInTheDocument();
     expect(screen.getByText('Thursday night')).toBeInTheDocument();
     await click(user, 'Back');
     expect(screen.getByRole('heading', { name: 'Past sessions' })).toBeInTheDocument();

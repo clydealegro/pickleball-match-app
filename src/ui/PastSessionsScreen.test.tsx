@@ -26,12 +26,12 @@ describe('PastSessionsScreen openId', () => {
   it('lists the sessions when no id is given', () => {
     render(<PastSessionsScreen onBack={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Past sessions' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Session summary' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Session summary')).not.toBeInTheDocument();
   });
 
   it('opens that session read-only straight away', () => {
     render(<PastSessionsScreen openId="a" onBack={vi.fn()} />);
-    expect(screen.getByRole('heading', { name: 'Session summary' })).toBeInTheDocument();
+    expect(screen.getByText('Session summary')).toBeInTheDocument();
     expect(screen.getByText('Older night')).toBeInTheDocument();
     expect(screen.queryByText('Newer night')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Done' })).not.toBeInTheDocument();
@@ -56,9 +56,9 @@ describe('PastSessionsScreen openId', () => {
   it('opens the session once history has loaded', () => {
     useHistoryStore.setState({ entries: [], loaded: false });
     render(<PastSessionsScreen openId="b" onBack={vi.fn()} />);
-    expect(screen.queryByRole('heading', { name: 'Session summary' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Session summary')).not.toBeInTheDocument();
     act(() => useHistoryStore.setState({ entries, loaded: true }));
-    expect(screen.getByRole('heading', { name: 'Session summary' })).toBeInTheDocument();
+    expect(screen.getByText('Session summary')).toBeInTheDocument();
     expect(screen.getByText('Newer night')).toBeInTheDocument();
   });
 });

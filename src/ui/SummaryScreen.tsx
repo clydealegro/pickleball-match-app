@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import * as engine from '../engine';
 import type { PlayerSummary, Session } from '../engine';
+import { shortDate } from '../store/attendance';
 import { useHistoryStore } from '../store/historyStore';
 import { useSessionStore } from '../store/sessionStore';
 import { PlayerAvatar } from './PlayerAvatar';
@@ -21,7 +22,7 @@ function partnerList(items: PlayerSummary['partners']): string {
     .join(', ');
 }
 
-function PlayerRow({ row, maxGames }: { row: PlayerSummary; maxGames: number }) {
+function PlayerRow({ row, maxGames, showBar }: { row: PlayerSummary; maxGames: number; showBar: boolean }) {
   const width = maxGames > 0 ? Math.round((row.gamesPlayed / maxGames) * 100) : 0;
   return (
     <li>
@@ -39,9 +40,11 @@ function PlayerRow({ row, maxGames }: { row: PlayerSummary; maxGames: number }) 
               </span>
             )}
           </span>
-          <span className="sum-bar" aria-hidden="true">
-            <span style={{ width: `${width}%` }} />
-          </span>
+          {showBar && (
+            <span className="sum-bar" aria-hidden="true">
+              <span style={{ width: `${width}%` }} />
+            </span>
+          )}
           <span className="sum-count">
             {row.gamesPlayed}
             <span className="sr-only"> {row.gamesPlayed === 1 ? 'game' : 'games'}</span>
@@ -121,7 +124,8 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
   const rows = engine.summarize(session);
   const stats = engine.sessionStats(session);
   const log = engine.gameLog(session);
-  const fairness = engine.fairnessLine(stats);
+  // The bars only say something when the games differ.
+  const uneven = rows.some((r) => r.gamesPlayed !== rows[0].gamesPlayed);
   const line = engine.summaryLine(session);
   // This screen already shows every record, so the highlights may too. The shared text and picture follow the switch.
   const notable = engine.highlights(session, { results: true });
@@ -186,9 +190,12 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
     <div className="stack">
       <div className="row-flex spread">
         <div>
-          <h1 className="screen-title">Session summary</h1>
-          <p className="muted">{session.name}</p>
-          {session.venue && <p className="muted sum-venue">{session.venue}</p>}
+          <p className="sum-eyebrow">Session summary</p>
+          <h1 className="screen-title sum-title">{session.name}</h1>
+          <p className="muted sum-meta">
+            {session.venue ? `${session.venue} · ` : ''}
+            {shortDate(session.createdAt)}
+          </p>
           {line && <p className="sum-line">{line}</p>}
         </div>
         {readOnly && (
@@ -212,7 +219,6 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
           <dd>{stats.players}</dd>
         </div>
       </dl>
-      {fairness && <p className="sum-fairness">{fairness}</p>}
       {notable.length > 0 && (
         <ul className="sum-highlights" aria-label="Highlights">
           {notable.map((h) => (
@@ -224,7 +230,7 @@ export function SummaryScreen({ session, onBack }: { session: Session; onBack?: 
       <div className="card">
         <ul className="sum-list" aria-label="Games per player">
           {rows.map((r) => (
-            <PlayerRow key={r.id} row={r} maxGames={stats.maxGames} />
+            <PlayerRow key={r.id} row={r} maxGames={stats.maxGames} showBar={uneven} />
           ))}
         </ul>
         <p className="muted sum-hint">Tap a player to see partners and opponents.</p>
