@@ -1698,3 +1698,9 @@ caption {
 .past-row { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 12px 14px; text-align: left; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
 .saved-name { display: flex; flex-direction: column; min-width: 0; }
 .saved-att { font-size: 0.8125rem; }
+
+/* Home and the slot sheet */
+.time-row { display: flex; gap: 12px; }
+.slot-field { flex: 1; min-width: 0; gap: 4px; }
+.venue-chip { border-radius: 999px; }
+.venue-chip.is-on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
