@@ -119,7 +119,7 @@ export default function App() {
         {view === 'home' && (
           <>
             <SignInBanner onSignIn={openSettings} />
-            <HomeScreen onStart={openSetup} onHistory={() => openHistory('home')} />
+            <HomeScreen onStart={openSetup} onResume={() => {}} onHistory={() => openHistory('home')} onViewSummary={() => {}} />
           </>
         )}
         {overlay}

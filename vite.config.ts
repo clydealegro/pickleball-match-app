@@ -38,7 +38,8 @@ export default defineConfig(({ mode }) => ({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
-    css: false,
+    // CSS is left out, except app.css, which one test reads as text to check rules that jsdom cannot compute.
+    css: { include: [/app\.css/] },
     // Newer Node versions ship their own localStorage global that gets in the way of jsdom's. Switch it off where the flag exists.
     poolOptions: {
       forks: {

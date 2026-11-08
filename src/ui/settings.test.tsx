@@ -1,7 +1,8 @@
 import type { AuthError, Session } from '@supabase/supabase-js';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { openOneOff } from '../test/renderAtSetup';
 
 // The app reads its Supabase client through getSupabase(); these tests hand it a fake one.
 const backend = vi.hoisted(() => ({ client: null as unknown }));
@@ -29,7 +30,7 @@ async function startApp(client: ReturnType<typeof fakeClient> | null) {
   const { default: App } = await import('./App');
   render(<App />);
   // These tests are about Who's playing, so they open it from Home first.
-  fireEvent.click(screen.getByRole('button', { name: 'Start a one-off session' }));
+  openOneOff();
   return userEvent.setup();
 }
 

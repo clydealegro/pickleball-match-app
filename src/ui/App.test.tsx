@@ -176,6 +176,7 @@ describe('App', () => {
     await startFivePlayerSession(user);
     await endSessionFromMenu(user);
     await user.click(await screen.findByRole('button', { name: 'Start new session' }));
+    await user.click(await screen.findByRole('radio', { name: 'One-off session' }));
     await user.click(await screen.findByRole('button', { name: 'Start a one-off session' }));
 
     for (const name of ['Ann', 'Ben', 'Cy', 'Dee']) {
@@ -206,6 +207,7 @@ describe('App', () => {
     await waitFor(() => expect(useRosterStore.getState().players.filter((p) => p.lastPlayedAt !== undefined)).toHaveLength(5));
 
     await user.click(screen.getByRole('button', { name: 'Start new session' }));
+    await user.click(await screen.findByRole('radio', { name: 'One-off session' }));
     await user.click(await screen.findByRole('button', { name: 'Start a one-off session' }));
     await user.click(await screen.findByRole('button', { name: /^Same as last time/ }));
     expect(await screen.findByRole('button', { name: 'Start 5 players' })).toBeEnabled();

@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { shortDate } from '../store/attendance';
+import { chipLabel, ctaGrade, sortedSlots, weeksPlayed } from '../store/homeInfo';
 import { useHistoryStore } from '../store/historyStore';
-import { effectiveSlot, formatRange, nextSlot, timestampAt, useSlotsStore, type Slot } from '../store/slots';
+import { effectiveSlot, nextSlot, timestampAt, useSlotsStore, type Slot } from '../store/slots';
 import { EditSlotSheet, type SlotPatch, type SlotScope } from './EditSlotSheet';
+import { OneOffHero, SlotHero } from './HomeHero';
 import { WEEKDAY_NAMES } from './weekdays';
 
 /** What Setup needs to start a session from a slot. */
@@ -16,30 +18,71 @@ export interface SessionPlan {
 
 interface Props {
   onStart: (plan: SessionPlan | undefined) => void;
+  /** Goes back to the session that is running. */
+  onResume: () => void;
   onHistory: () => void;
+  /** Opens the summary of a finished session by its history id. */
+  onViewSummary: (entryId: string) => void;
+}
+
+const ONE_OFF = 'one-off';
+
+/** The slim row under the hero: the last session and how often the group played. */
+function LastRow({ onHistory }: { onHistory: () => void }) {
+  const entries = useHistoryStore((s) => s.entries);
+  const loaded = useHistoryStore((s) => s.loaded);
+  const now = new Date();
+  // The row keeps its height while history loads, so nothing jumps when it arrives.
+  if (!loaded) return <div className="home-last home-last-ph" data-testid="home-last-placeholder" aria-hidden="true" />;
+  const last = entries[0];
+  if (!last) return null;
+  const weeks = weeksPlayed(entries, now);
+  return (
+    <button type="button" className="home-last" onClick={onHistory}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </svg>
+      <span className="home-last-text">
+        <span>
+          Last: {shortDate(last.endedAt)}, {last.games} {last.games === 1 ? 'game' : 'games'}
+        </span>
+        {weeks && <span className="muted home-last-sub">{`Played ${weeks.played} of the last ${weeks.of} weeks`}</span>}
+      </span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M9 6l6 6-6 6" />
+      </svg>
+    </button>
+  );
 }
 
 export function HomeScreen({ onStart, onHistory }: Props) {
   const slots = useSlotsStore((s) => s.slots);
   const venues = useSlotsStore((s) => s.venues);
   const tonight = useSlotsStore((s) => s.tonight);
+  const persistent = useSlotsStore((s) => s.persistent);
   const saveSlot = useSlotsStore((s) => s.saveSlot);
   const setTonight = useSlotsStore((s) => s.setTonight);
   const clearTonight = useSlotsStore((s) => s.clearTonight);
-  const last = useHistoryStore((s) => s.entries[0]);
+  // A tapped chip wins over the default until the screen goes away.
+  const [picked, setPicked] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const now = new Date();
-  const big = nextSlot(slots, now);
-  const others = slots.filter((s) => s.id !== big?.id);
+  const ordered = sortedSlots(slots, now);
+  const defaultId = nextSlot(slots, now)?.id ?? ONE_OFF;
+  const wanted = picked ?? defaultId;
+  const selected = wanted === ONE_OFF ? undefined : slots.find((s) => s.id === wanted);
+  const oneOff = selected === undefined;
+  const eff = selected && effectiveSlot(selected, tonight);
   const editing = slots.find((s) => s.id === editingId);
 
   function start(slot: Slot) {
-    const eff = effectiveSlot(slot, tonight);
+    const e = effectiveSlot(slot, tonight);
     const plan: SessionPlan = { slotId: slot.id, weekday: slot.weekday };
-    if (eff.venue !== undefined) plan.venue = eff.venue;
-    if (eff.courts !== undefined) plan.courts = eff.courts;
-    if (eff.endMin !== undefined) plan.plannedEndAt = timestampAt(eff.endMin, Date.now());
+    if (e.venue !== undefined) plan.venue = e.venue;
+    if (e.courts !== undefined) plan.courts = e.courts;
+    if (e.endMin !== undefined) plan.plannedEndAt = timestampAt(e.endMin, Date.now());
     onStart(plan);
   }
 
@@ -55,55 +98,55 @@ export function HomeScreen({ onStart, onHistory }: Props) {
     setEditingId(null);
   }
 
-  function renderCard(slot: Slot, isBig: boolean) {
-    const eff = effectiveSlot(slot, tonight);
-    const day = WEEKDAY_NAMES[slot.weekday];
-    const label = slot.weekday === now.getDay() ? 'Today' : day;
-    return (
-      <section key={slot.id} className={`card stack slot-card${isBig ? ' slot-big' : ''}`}>
-        <div className="row-flex spread">
-          {isBig ? <span className="slot-label muted">{label}</span> : <h3 className="section-title">{day}</h3>}
-          {tonight[slot.id] && <span className="tag">This time only</span>}
-        </div>
-        {isBig && <h2 className="slot-title">{day} open play</h2>}
-        <p className={eff.startMin === undefined && eff.endMin === undefined ? 'muted' : undefined}>{formatRange(eff.startMin, eff.endMin)}</p>
-        <p className={eff.venue === undefined ? 'muted' : undefined}>{eff.venue ?? 'Add a venue'}</p>
-        <div className="row-flex">
-          <button type="button" className="btn" aria-label={`Edit ${day}`} onClick={() => setEditingId(slot.id)}>
-            Edit
-          </button>
-          <button
-            type="button"
-            className={`btn btn-start${isBig ? ' btn-primary' : ''}`}
-            aria-label={isBig ? undefined : `Start ${day} session`}
-            onClick={() => start(slot)}
-          >
-            {isBig ? `Start ${day} session` : 'Start'}
-          </button>
-        </div>
-      </section>
-    );
-  }
+  const day = selected ? WEEKDAY_NAMES[selected.weekday] : '';
+  const grade = eff ? ctaGrade(eff, now) : 'primary';
 
   return (
-    <div className="stack">
-      {big && renderCard(big, true)}
-      {others.map((s) => renderCard(s, false))}
-
-      <button type="button" className="btn btn-ghost" onClick={() => onStart(undefined)}>
-        Start a one-off session
-      </button>
-
-      {last && (
-        <div className="row-flex spread">
-          <p className="muted">
-            Last: {shortDate(last.endedAt)}, {last.games} {last.games === 1 ? 'game' : 'games'}
-          </p>
-          <button type="button" className="btn" onClick={onHistory}>
-            Past sessions
+    <div className="home">
+      <div className="home-chips" role="radiogroup" aria-label="Sessions">
+        {ordered.map((slot) => (
+          <button
+            key={slot.id}
+            type="button"
+            role="radio"
+            aria-checked={slot.id === selected?.id}
+            className="btn home-chip"
+            onClick={() => setPicked(slot.id)}
+          >
+            {chipLabel(slot, now)}
           </button>
-        </div>
+        ))}
+        <button type="button" role="radio" aria-checked={oneOff} aria-label="One-off session" className="btn dashed home-chip home-chip-plus" onClick={() => setPicked(ONE_OFF)}>
+          +
+        </button>
+      </div>
+
+      {selected && eff ? (
+        // The key makes a fresh hero for each choice, so the slide-in plays again.
+        <SlotHero key={selected.id} effective={eff} now={now} onEdit={() => setEditingId(selected.id)} />
+      ) : (
+        <OneOffHero key={ONE_OFF} />
       )}
+
+      <LastRow onHistory={onHistory} />
+
+      {!persistent && (
+        <p className="muted home-note" role="status">
+          Times and venues cannot be saved in this browser, so they will be forgotten when the app closes.
+        </p>
+      )}
+
+      <div className="sticky-bar">
+        {selected ? (
+          <button type="button" className="btn btn-block home-start" data-grade={grade} aria-label={`Start session, ${day}`} onClick={() => start(selected)}>
+            Start {day} session
+          </button>
+        ) : (
+          <button type="button" className="btn btn-block home-start" data-grade="primary" onClick={() => onStart(undefined)}>
+            Start a one-off session
+          </button>
+        )}
+      </div>
 
       {editing && (
         <EditSlotSheet slot={editing} effective={effectiveSlot(editing, tonight)} venues={venues} onSave={save} onClose={() => setEditingId(null)} />

@@ -96,6 +96,7 @@ describe('courts are remembered', () => {
     expect(localStorage.getItem('pickleball.courts')).toBe('4');
     act(() => useSessionStore.getState().reset());
     // Resetting lands on Home, so open Who's playing again.
+    await user.click(screen.getByRole('radio', { name: 'One-off session' }));
     await user.click(screen.getByRole('button', { name: 'Start a one-off session' }));
     expect(screen.getByRole('group', { name: 'Courts' })).toHaveTextContent('4');
   });

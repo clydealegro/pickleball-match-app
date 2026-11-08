@@ -39,19 +39,28 @@ const setup = () => userEvent.setup({ advanceTimers: () => {} });
 const four = 'Ann{enter}Ben{enter}Cy{enter}Dee{enter}';
 const box = () => screen.getByLabelText('Search or add players');
 const click = (user: ReturnType<typeof setup>, name: string | RegExp) => user.click(screen.getByRole('button', { name }));
+// On Friday 13 Nov the chips read Sat 14, Tue 17 and Thu 19.
+const startThursday = async (user: ReturnType<typeof setup>) => {
+  await user.click(screen.getByRole('radio', { name: 'Thu 19' }));
+  await click(user, 'Start session, Thursday');
+};
+const startOneOff = async (user: ReturnType<typeof setup>) => {
+  await user.click(screen.getByRole('radio', { name: 'One-off session' }));
+  await click(user, 'Start a one-off session');
+};
 
 describe('Home is the landing screen', () => {
   it('shows Home first, with no Who’s playing form', () => {
     render(<App />);
-    expect(screen.getByRole('button', { name: 'Start a one-off session' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'Saturday open play' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'One-off session' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Saturday' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Who’s playing?' })).not.toBeInTheDocument();
   });
 
   it('opens Who’s playing from a slot, named for that slot’s weekday', async () => {
     const user = setup();
     render(<App />);
-    await click(user, 'Start Thursday session');
+    await startThursday(user);
     expect(screen.getByRole('heading', { level: 1, name: 'Who’s playing?' })).toBeInTheDocument();
     await user.type(box(), four);
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
@@ -62,7 +71,7 @@ describe('Home is the landing screen', () => {
     useSlotsStore.setState({ slots: [{ id: 'thu', weekday: 4, startMin: 1140, endMin: 1260, venue: 'Hall A' }] });
     const user = setup();
     render(<App />);
-    await click(user, 'Start Thursday session');
+    await startThursday(user);
     expect(screen.getByText('Hall A · 7:00 to 9:00 pm')).toBeInTheDocument();
   });
 
@@ -71,7 +80,7 @@ describe('Home is the landing screen', () => {
     useSlotsStore.setState({ slots: [{ id: 'thu', weekday: 4, courts: 3 }] });
     const user = setup();
     render(<App />);
-    await click(user, 'Start Thursday session');
+    await startThursday(user);
     expect(screen.getByRole('group', { name: 'Courts' }).querySelector('.stepper-value')).toHaveTextContent('3');
     await user.type(box(), four);
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
@@ -82,7 +91,7 @@ describe('Home is the landing screen', () => {
     useSlotsStore.setState({ slots: [{ id: 'thu', weekday: 4, startMin: 1140, endMin: 1260, venue: 'Hall A' }] });
     const user = setup();
     render(<App />);
-    await click(user, 'Start Thursday session');
+    await startThursday(user);
     await user.type(box(), four);
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
     const s = useSessionStore.getState().session!;
@@ -94,7 +103,7 @@ describe('Home is the landing screen', () => {
     useSlotsStore.setState({ slots: [{ id: 'thu', weekday: 4, venue: 'Hall A' }], tonight: { thu: { venue: 'Park' } } });
     const user = setup();
     render(<App />);
-    await click(user, 'Start Thursday session');
+    await startThursday(user);
     await user.type(box(), four);
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
     expect(useSessionStore.getState().session!.venue).toBe('Park');
@@ -104,7 +113,7 @@ describe('Home is the landing screen', () => {
   it('leaves venue and planned end off a one-off session', async () => {
     const user = setup();
     render(<App />);
-    await click(user, 'Start a one-off session');
+    await startOneOff(user);
     await user.type(box(), four);
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
     const s = useSessionStore.getState().session!;
@@ -120,7 +129,7 @@ describe('Home is the landing screen', () => {
     await pastSession(group, ids, 2026, 10, 12);
     const user = setup();
     render(<App />);
-    await click(user, 'Start Thursday session');
+    await startThursday(user);
     expect(await screen.findByRole('button', { name: 'Thursday regulars (4)' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Friday regulars/ })).not.toBeInTheDocument();
   });
@@ -128,16 +137,16 @@ describe('Home is the landing screen', () => {
   it('goes back to Home from Who’s playing', async () => {
     const user = setup();
     render(<App />);
-    await click(user, 'Start Thursday session');
+    await startThursday(user);
     await click(user, 'Back');
-    expect(screen.getByRole('button', { name: 'Start a one-off session' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Sessions' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Who’s playing?' })).not.toBeInTheDocument();
   });
 
   it('shows Back on a one-off session’s Who’s playing too', async () => {
     const user = setup();
     render(<App />);
-    await click(user, 'Start a one-off session');
+    await startOneOff(user);
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
   });
 
@@ -147,13 +156,13 @@ describe('Home is the landing screen', () => {
     await click(user, 'Settings');
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     await click(user, 'Back');
-    expect(screen.getByRole('button', { name: 'Start a one-off session' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Sessions' })).toBeInTheDocument();
   });
 
   it('returns to Who’s playing from Settings opened there, keeping the form', async () => {
     const user = setup();
     render(<App />);
-    await click(user, 'Start a one-off session');
+    await startOneOff(user);
     await user.type(box(), 'Ann{enter}');
     await screen.findByRole('checkbox', { name: 'Ann' });
     await click(user, /^Settings/);
@@ -168,10 +177,10 @@ describe('Home is the landing screen', () => {
     await pastSession(group, ids, 2026, 10, 5);
     const user = setup();
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: 'Past sessions' }));
+    await user.click(await screen.findByRole('button', { name: /^Last:/ }));
     expect(screen.getByRole('heading', { name: 'Past sessions' })).toBeInTheDocument();
     await click(user, 'Back');
-    expect(screen.getByRole('button', { name: 'Start a one-off session' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Sessions' })).toBeInTheDocument();
   });
 
   it('lands on Home after Start new session on the summary', async () => {
@@ -180,19 +189,19 @@ describe('Home is the landing screen', () => {
     const user = setup();
     render(<App />);
     await click(user, 'Start new session');
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Start a one-off session' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('radiogroup', { name: 'Sessions' })).toBeInTheDocument());
     expect(screen.queryByRole('heading', { name: 'Who’s playing?' })).not.toBeInTheDocument();
   });
 
   it('lands on Home after Start new session even if Who’s playing was open before', async () => {
     const user = setup();
     render(<App />);
-    await click(user, 'Start a one-off session');
+    await startOneOff(user);
     await user.type(box(), four);
     await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
     act(() => useSessionStore.setState((st) => ({ session: { ...st.session!, endedAt: Date.now() } })));
     await user.click(await screen.findByRole('button', { name: 'Start new session' }));
-    expect(await screen.findByRole('button', { name: 'Start a one-off session' })).toBeInTheDocument();
+    expect(await screen.findByRole('radiogroup', { name: 'Sessions' })).toBeInTheDocument();
   });
 });
 
