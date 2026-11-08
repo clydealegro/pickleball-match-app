@@ -124,6 +124,7 @@ export function SetupScreen({ onManage, plan, onBack }: Props) {
       players: chosen.map((p) => ({ name: p.name, rosterId: p.id })),
       venue: plan?.venue,
       plannedEndAt: plan?.plannedEndAt,
+      weekday: plan?.weekday,
     });
     if (res.ok) {
       setNumPref(COURTS_KEY, courtCount);

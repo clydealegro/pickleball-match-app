@@ -1,3 +1,4 @@
+import type { Session } from '../engine';
 import type { HistoryEntry } from './historyDb';
 import { formatClock, type Slot } from './slots';
 import { WEEKDAY_NAMES } from '../ui/weekdays';
@@ -52,6 +53,11 @@ export function sortedSlots(slots: Slot[], now: Date): Slot[] {
 export function chipLabel(slot: Slot, now: Date): string {
   const { date } = nextOccurrence(slot, now);
   return `${WEEKDAY_NAMES[slot.weekday].slice(0, 3)} ${date.getDate()}`;
+}
+
+/** The slot weekday a session was started for. Sessions saved before it was stored use the day they began. */
+export function sessionWeekday(session: Session): number {
+  return session.weekday ?? new Date(session.createdAt).getDay();
 }
 
 /** Player counts of the latest 6 sessions that started on this weekday. Undefined with fewer than 2. */

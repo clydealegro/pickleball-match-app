@@ -4,6 +4,8 @@ import { fillCourts } from './fill';
 import { lateArrivalGames } from './pool';
 import type { Court, Ctx, NewPlayerInput, NewSessionInput, Player, Session } from './types';
 
+const isWeekday = (x: unknown): x is number => typeof x === 'number' && Number.isInteger(x) && x >= 0 && x <= 6;
+
 const normalize = (name: string) => name.trim().toLowerCase();
 
 function makeCourt(number: number, ctx: Ctx): Court {
@@ -57,6 +59,7 @@ export function createSession(input: NewSessionInput, ctx: Ctx): Session {
     ...(input.autoStart === undefined ? {} : { autoStart: input.autoStart }),
     ...(venue ? { venue } : {}),
     ...(input.plannedEndAt === undefined ? {} : { plannedEndAt: input.plannedEndAt }),
+    ...(isWeekday(input.weekday) ? { weekday: input.weekday } : {}),
   };
   // Players are inserted first and courts filled once, so a whole group starts together.
   for (const p of input.players) insertPlayer(s, p, ctx);

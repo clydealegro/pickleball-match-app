@@ -76,6 +76,7 @@ function isSession(x: unknown): x is Session {
     x.history.every(isFinishedGame) &&
     isNum(x.gameSeq) &&
     isNum(x.createdAt) &&
+    (x.weekday === undefined || (typeof x.weekday === 'number' && Number.isInteger(x.weekday) && x.weekday >= 0 && x.weekday <= 6)) &&
     (x.venue === undefined || typeof x.venue === 'string') &&
     (x.plannedEndAt === undefined || isNum(x.plannedEndAt)) &&
     (x.pinned === undefined || (Array.isArray(x.pinned) && x.pinned.every((id) => typeof id === 'string')))

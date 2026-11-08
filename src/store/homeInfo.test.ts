@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mkEntry } from '../test/historyFixtures';
-import { chipLabel, ctaGrade, doneEntry, elapsedLabel, homeLabel, nextOccurrence, sortedSlots, usualTurnout, weeksPlayed } from './homeInfo';
+import { chipLabel, ctaGrade, doneEntry, elapsedLabel, homeLabel, nextOccurrence, sessionWeekday, sortedSlots, usualTurnout, weeksPlayed } from './homeInfo';
 import type { Slot } from './slots';
 
 const MIN = 60_000;
@@ -266,5 +266,21 @@ describe('elapsedLabel', () => {
   });
   it('never goes below zero', () => {
     expect(elapsedLabel(s, s - 5 * MIN)).toBe('0m');
+  });
+});
+
+describe('sessionWeekday', () => {
+  const session = (createdAt: number, weekday?: number) => ({ ...mkEntry(createdAt, createdAt + HOUR).session, ...(weekday === undefined ? {} : { weekday }) });
+
+  it('is the slot weekday when the session has one, whatever day it started', () => {
+    expect(sessionWeekday(session(at(14, 10).getTime(), 2))).toBe(2); // started Sunday 14 June
+    expect(sessionWeekday(session(at(14, 10).getTime(), 0))).toBe(0);
+  });
+  it('falls back to the weekday of createdAt for sessions saved without one', () => {
+    expect(sessionWeekday(session(at(16, 10).getTime()))).toBe(2);
+  });
+  it('uses local time at the Saturday and Sunday boundary', () => {
+    expect(sessionWeekday(session(at(13, 23, 59).getTime()))).toBe(6); // Saturday 13 June
+    expect(sessionWeekday(session(at(14, 0, 0).getTime()))).toBe(0);
   });
 });

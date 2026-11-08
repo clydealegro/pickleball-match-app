@@ -201,3 +201,27 @@ describe('a session with players asked to play next', () => {
     }
   });
 });
+
+describe('persisted weekday', () => {
+  const store = (session: unknown) =>
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, session, undoStack: [] }));
+
+  it('keeps a weekday from 0 to 6, and loads sessions saved without one', () => {
+    const s = newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }, makeCtx());
+    expect(loadPersisted()?.session ?? null).toBeNull();
+    store(s);
+    expect(loadPersisted()?.session).toEqual(s);
+    for (const weekday of [0, 2, 6]) {
+      savePersisted({ session: { ...s, weekday }, undoStack: [] });
+      expect(loadPersisted()?.session?.weekday).toBe(weekday);
+    }
+  });
+
+  it('rejects a weekday that is not an integer from 0 to 6', () => {
+    const s = newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }, makeCtx());
+    for (const bad of [7, -1, 2.5, '2', null]) {
+      store({ ...s, weekday: bad });
+      expect(loadPersisted()).toBeNull();
+    }
+  });
+});

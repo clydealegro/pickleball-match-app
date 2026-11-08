@@ -4,6 +4,14 @@ import { expectEngineError, idOf, makeCtx, mkPlayer, mkSession, newTestSession }
 import { onCourtIds } from './pool';
 
 describe('createSession', () => {
+  it('keeps a weekday from 0 to 6 and drops anything else', () => {
+    const make = (weekday: unknown) =>
+      createSession({ name: 'x', mode: 'fairness', courtCount: 1, players: [], weekday: weekday as number }, makeCtx());
+    for (const ok of [0, 2, 6]) expect(make(ok).weekday).toBe(ok);
+    for (const bad of [7, -1, 2.5, '2']) expect('weekday' in make(bad)).toBe(false);
+    expect('weekday' in createSession({ name: 'x', mode: 'fairness', courtCount: 1, players: [] }, makeCtx())).toBe(false);
+  });
+
   it('creates numbered empty courts when there are fewer than 4 players', () => {
     const s = newTestSession(['Ann', 'Ben', 'Cy'], { courts: 2 });
     expect(s.courts.map((c) => [c.number, c.status])).toEqual([

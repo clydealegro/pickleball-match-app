@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { formatDuration } from '../engine';
 import type { Session } from '../engine';
 import type { HistoryEntry } from '../store/historyDb';
+import { sessionWeekday } from '../store/homeInfo';
 import { formatRange } from '../store/slots';
 import { sharePictureFor } from './sharePicture';
 import { WEEKDAY_NAMES } from './weekdays';
@@ -16,7 +17,7 @@ const sameDay = (a: number, b: number) => new Date(a).toDateString() === new Dat
 /** The calm card for a session that ended in the last 24 hours. */
 export function DoneCard({ entry, now }: { entry: HistoryEntry; now: Date }) {
   const { session } = entry;
-  const day = WEEKDAY_NAMES[new Date(session.createdAt).getDay()];
+  const day = WEEKDAY_NAMES[sessionWeekday(session)];
   const when = formatRange(minuteOfDay(entry.createdAt), minuteOfDay(entry.endedAt));
   const stats: [string, string][] = [
     ['Games', String(entry.games)],

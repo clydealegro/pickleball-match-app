@@ -79,6 +79,8 @@ export interface Session {
   /** Increments each time a game finishes. */
   gameSeq: number;
   createdAt: number;
+  /** The slot's weekday, 0 Sunday to 6 Saturday. A slot can start on any day, so this can differ from createdAt. */
+  weekday?: number;
   endedAt?: number;
   /**
    * False means every game waits for the organizer's Start. Missing or true means games start by themselves, which is
@@ -115,4 +117,6 @@ export interface NewSessionInput {
   autoStart?: boolean;
   venue?: string;
   plannedEndAt?: number;
+  /** The slot's weekday, 0 Sunday to 6 Saturday. */
+  weekday?: number;
 }

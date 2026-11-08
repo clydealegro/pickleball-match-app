@@ -67,6 +67,28 @@ describe('Home is the landing screen', () => {
     expect(useSessionStore.getState().session!.name).toBe('Thursday open play');
   });
 
+  it('stores the slot weekday when the Tuesday slot is started on a Sunday', async () => {
+    vi.setSystemTime(new Date(2026, 10, 8, 12)); // Sunday 8 Nov
+    const user = setup();
+    render(<App />);
+    await user.click(screen.getByRole('radio', { name: 'Tue 10' }));
+    await click(user, 'Start session, Tuesday');
+    await user.type(box(), four);
+    await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
+    const session = useSessionStore.getState().session!;
+    expect(session.name).toBe('Tuesday open play');
+    expect(session.weekday).toBe(2);
+  });
+
+  it('stores no weekday for a one-off session', async () => {
+    const user = setup();
+    render(<App />);
+    await startOneOff(user);
+    await user.type(box(), four);
+    await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
+    expect('weekday' in useSessionStore.getState().session!).toBe(false);
+  });
+
   it('shows the slot’s venue and time under the title', async () => {
     useSlotsStore.setState({ slots: [{ id: 'thu', weekday: 4, startMin: 1140, endMin: 1260, venue: 'Hall A' }] });
     const user = setup();

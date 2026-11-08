@@ -82,6 +82,22 @@ describe('HomeScreen while a session runs', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Saturday' })).toBeInTheDocument();
   });
 
+  it('names the slot weekday when the Tuesday slot was started on a Sunday', () => {
+    const sunday = new Date(2026, 10, 8, 10).getTime();
+    vi.setSystemTime(sunday + 72 * MIN);
+    useSessionStore.setState({ session: running(sunday, 2, { name: 'Tuesday open play', weekday: 2 }) });
+    setup();
+    expect(screen.getByRole('heading', { level: 1, name: 'Tuesday' })).toBeInTheDocument();
+  });
+
+  it('still names the createdAt weekday for a saved session with no weekday', () => {
+    const sunday = new Date(2026, 10, 8, 10).getTime();
+    vi.setSystemTime(sunday + 72 * MIN);
+    useSessionStore.setState({ session: running(sunday, 2) });
+    setup();
+    expect(screen.getByRole('heading', { level: 1, name: 'Sunday' })).toBeInTheDocument();
+  });
+
   it('has no pencil and no dashed chips', () => {
     setup();
     expect(screen.queryByRole('button', { name: /^Edit/ })).not.toBeInTheDocument();
@@ -220,6 +236,36 @@ describe('HomeScreen after a session', () => {
     expect(chip('Tue 17')).toHaveAttribute('aria-checked', 'true');
     expect(chip('Thu 12')).toHaveAttribute('aria-checked', 'false');
     expect(screen.getByRole('heading', { level: 1, name: 'Good session, Tuesday' })).toBeInTheDocument();
+  });
+
+  describe('for a Thursday slot that was started on a Sunday', () => {
+    const sundayStart = new Date(2026, 10, 8, 19);
+    const sundayEnd = new Date(2026, 10, 8, 21, 30);
+    const thursdayEntry = (weekday?: number) => {
+      const e = doneEntry(sundayStart, sundayEnd, 'Park');
+      return { ...e, session: { ...e.session, ...(weekday === undefined ? {} : { weekday }) } };
+    };
+    beforeEach(() => vi.setSystemTime(new Date(2026, 10, 8, 22))); // Sunday: the next slot is Tuesday
+
+    it('opens on the Thursday chip', () => {
+      useHistoryStore.setState({ entries: [thursdayEntry(4)] });
+      setup();
+      expect(chip('Thu 12')).toHaveAttribute('aria-checked', 'true');
+      expect(chip('Tue 10')).toHaveAttribute('aria-checked', 'false');
+    });
+
+    it('says Thursday on the done card', () => {
+      useHistoryStore.setState({ entries: [thursdayEntry(4)] });
+      setup();
+      expect(screen.getByRole('heading', { level: 1, name: 'Good session, Thursday' })).toBeInTheDocument();
+    });
+
+    it('falls back to the createdAt weekday when the session has none', () => {
+      useHistoryStore.setState({ entries: [thursdayEntry()] });
+      setup();
+      expect(screen.getByRole('heading', { level: 1, name: 'Tuesday' })).toBeInTheDocument();
+      expect(chip('Tue 10')).toHaveAttribute('aria-checked', 'true');
+    });
   });
 
   it('turns the bar into Share as picture and the slim row into View summary', async () => {

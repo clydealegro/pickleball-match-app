@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { shortDate } from '../store/attendance';
-import { chipLabel, ctaGrade, doneEntry, sortedSlots, weeksPlayed } from '../store/homeInfo';
+import { chipLabel, ctaGrade, doneEntry, sessionWeekday, sortedSlots, weeksPlayed } from '../store/homeInfo';
 import { useHistoryStore } from '../store/historyStore';
 import { useSessionStore } from '../store/sessionStore';
 import { effectiveSlot, nextSlot, timestampAt, useSlotsStore, type Slot } from '../store/slots';
@@ -77,7 +77,7 @@ export function HomeScreen({ onStart, onResume, onHistory, onViewSummary }: Prop
   const live = session && !session.endedAt ? session : undefined;
   // A session that ended in the last 24 hours shows its done card on the slot it was played on.
   const done = doneEntry(entries, now, !!live);
-  const doneSlot = done && sortedSlots(slots.filter((s) => s.weekday === new Date(done.session.createdAt).getDay()), now)[0];
+  const doneSlot = done && sortedSlots(slots.filter((s) => s.weekday === sessionWeekday(done.session)), now)[0];
   const ordered = sortedSlots(slots, now);
   const defaultId = doneSlot?.id ?? nextSlot(slots, now)?.id ?? ONE_OFF;
   const wanted = picked ?? defaultId;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { availablePlayers, plural, type Session } from '../engine';
-import { elapsedLabel } from '../store/homeInfo';
+import { elapsedLabel, sessionWeekday } from '../store/homeInfo';
 import { formatClock } from '../store/slots';
 import { WEEKDAY_NAMES } from './weekdays';
 
@@ -14,7 +14,7 @@ export function LiveHero({ session }: { session: Session }) {
     return () => clearInterval(id);
   }, []);
 
-  const day = WEEKDAY_NAMES[new Date(session.createdAt).getDay()];
+  const day = WEEKDAY_NAMES[sessionWeekday(session)];
   const end = session.plannedEndAt === undefined ? undefined : new Date(session.plannedEndAt);
   const line = [session.venue, end && `Ends ${formatClock(end.getHours() * 60 + end.getMinutes())}`].filter(Boolean).join(' · ');
   const players = session.players.filter((p) => p.status !== 'left').length;
