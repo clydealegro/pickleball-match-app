@@ -1,5 +1,5 @@
 import { gsap } from 'gsap';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { attendanceByRoster, regularsForWeekday, sortByAttendance } from '../store/attendance';
 import { useHistoryStore } from '../store/historyStore';
 import { lastSessionIds } from '../store/rosterDb';
@@ -29,6 +29,59 @@ const norm = (name: string) => name.trim().toLowerCase();
 /** "Saturday open play": enough to tell sessions apart without asking for a name. */
 function defaultSessionName(weekday: number): string {
   return `${WEEKDAY_NAMES[weekday]} open play`;
+}
+
+interface PickRowProps {
+  name: string;
+  /** The saved player behind the row. A friend has none. */
+  rosterId?: string;
+  checked: boolean;
+  onToggle: () => void;
+  /** A small label on the row. The checkbox keeps the plain name and is described by it. */
+  tag?: string;
+}
+
+function PickRow({ name, rosterId, checked, onToggle, tag }: PickRowProps) {
+  const tagId = useId();
+  return (
+    <li className={tag ? 'pick-wide' : undefined}>
+      <label className="pick">
+        <input type="checkbox" checked={checked} onChange={onToggle} aria-label={tag ? name : undefined} aria-describedby={tag ? tagId : undefined} />
+        <PlayerAvatar name={name} rosterId={rosterId} size="sm" />
+        <span className="row-name">{name}</span>
+        {tag && (
+          <span id={tagId} className="tag pick-tag">
+            {tag}
+          </span>
+        )}
+      </label>
+    </li>
+  );
+}
+
+/** The saved players list. With groups above it, it gets a heading of its own. */
+function ListWrap({ grouped, children }: { grouped: boolean; children: ReactNode }) {
+  const list = (
+    <ul className="pick-grid" aria-label="Saved players">
+      {children}
+    </ul>
+  );
+  if (!grouped) return list;
+  return (
+    <section className="pick-group">
+      <h2 className="pick-group-title">Everyone else</h2>
+      {list}
+    </section>
+  );
+}
+
+function PickGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="pick-group">
+      <h2 className="pick-group-title">{title}</h2>
+      <ul className="pick-grid">{children}</ul>
+    </section>
+  );
 }
 
 export function SetupScreen({ onManage, plan, onBack }: Props) {
@@ -61,7 +114,10 @@ export function SetupScreen({ onManage, plan, onBack }: Props) {
   const planLine = [plan?.venue, when].filter(Boolean).join(' · ');
 
   const [courtCount, setCourtCount] = useState(() => plan?.courts ?? getNumPref(COURTS_KEY, 2, 1, MAX_COURTS));
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const attendance = plan?.attendance;
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(attendance?.inIds ?? []));
+  // The friends ticked for tonight, by guest id. Shortcuts below never touch them.
+  const [friendsOn, setFriendsOn] = useState<Set<string>>(() => new Set(attendance?.friends.map((f) => f.id) ?? []));
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
@@ -75,7 +131,16 @@ export function SetupScreen({ onManage, plan, onBack }: Props) {
 
   const lastIds = lastSessionIds(roster);
   const chosen = roster.filter((p) => selected.has(p.id));
-  const canStart = chosen.length >= MIN_PLAYERS;
+  // A friend with the same name as a player in the list, or as an earlier friend, would be a duplicate: the engine refuses those.
+  const seenNames = new Set(chosen.map((p) => norm(p.name)));
+  const friendPlayers: { id: string; name: string }[] = [];
+  for (const f of attendance?.friends ?? []) {
+    if (!friendsOn.has(f.id) || seenNames.has(norm(f.name))) continue;
+    seenNames.add(norm(f.name));
+    friendPlayers.push(f);
+  }
+  const total = chosen.length + friendPlayers.length;
+  const canStart = total >= MIN_PLAYERS;
   const countRef = useRef<HTMLSpanElement>(null);
   const startRef = useRef<HTMLButtonElement>(null);
   const counted = useRef<{ count: number; canStart: boolean } | null>(null);
@@ -83,18 +148,31 @@ export function SetupScreen({ onManage, plan, onBack }: Props) {
   // The count gives a small bump each time it changes, and the Start button springs when it becomes available.
   useEffect(() => {
     const before = counted.current;
-    counted.current = { count: chosen.length, canStart };
+    counted.current = { count: total, canStart };
     if (!before || !motionOK()) return;
-    if (before.count !== chosen.length && countRef.current) {
-      gsap.fromTo(countRef.current, { y: before.count < chosen.length ? 6 : -6, scale: 1.18 }, { y: 0, scale: 1, duration: MOTION.fast + 0.1, ease: MOTION.out, clearProps: 'transform' });
+    if (before.count !== total && countRef.current) {
+      gsap.fromTo(countRef.current, { y: before.count < total ? 6 : -6, scale: 1.18 }, { y: 0, scale: 1, duration: MOTION.fast + 0.1, ease: MOTION.out, clearProps: 'transform' });
     }
     if (canStart && !before.canStart && startRef.current) {
       gsap.fromTo(startRef.current, { scale: 0.94 }, { scale: 1, duration: MOTION.slow + 0.1, ease: 'back.out(2.4)', clearProps: 'transform' });
     }
-  }, [chosen.length, canStart]);
+  }, [total, canStart]);
+  // The groups the link fills in. Players the link names but this phone does not have are only counted.
+  const byId = new Map(roster.map((p) => [p.id, p]));
+  const found = (ids: string[]) => ids.flatMap((id) => byId.get(id) ?? []);
+  const saidIn = found(attendance?.inIds ?? []);
+  const maybe = found(attendance?.maybeIds ?? []);
+  const missing = (attendance?.inIds.length ?? 0) - saidIn.length;
+  const friends = attendance?.friends ?? [];
+  const grouped = saidIn.length + maybe.length + friends.length > 0;
+  const inGroup = new Set([...saidIn, ...maybe].map((p) => p.id));
+  const rest = grouped ? roster.filter((p) => !inGroup.has(p.id)) : roster;
+  const late = new Set(attendance?.lateIds ?? []);
   const typed = query.trim();
   const exact = roster.find((p) => norm(p.name) === norm(typed));
-  const shown = typed ? roster.filter((p) => norm(p.name).includes(norm(typed))) : roster;
+  const matches = (p: { name: string }) => !typed || norm(p.name).includes(norm(typed));
+  const shown = rest.filter(matches);
+  const anyMatch = roster.some(matches);
   const canAdd = typed !== '' && !exact;
 
   function toggle(id: string) {
@@ -133,13 +211,25 @@ export function SetupScreen({ onManage, plan, onBack }: Props) {
     setQuery('');
   }
 
+  function toggleFriend(id: string) {
+    setFriendsOn((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   function startSession() {
     const res = start({
       name: defaultSessionName(weekday),
       mode: getDefaultMode(),
       courtCount,
       autoStart: getBoolPref(AUTO_START_KEY, false),
-      players: chosen.map((p) => ({ name: p.name, rosterId: p.id })),
+      players: [
+        ...chosen.map((p) => ({ name: p.name, rosterId: p.id, ...(late.has(p.id) ? { onBreak: true } : {}) })),
+        ...friendPlayers.map((f) => ({ name: f.name })),
+      ],
       venue: plan?.venue,
       plannedEndAt: plan?.plannedEndAt,
       weekday: plan?.weekday,
@@ -164,10 +254,35 @@ export function SetupScreen({ onManage, plan, onBack }: Props) {
       <div className="setup-head">
         <h1 className="screen-title">Who’s playing?</h1>
         <span ref={countRef} className="setup-count" aria-live="polite">
-          {chosen.length} selected
+          {total} selected
         </span>
       </div>
       {planLine && <p className="muted setup-plan">{planLine}</p>}
+
+      {missing > 0 && (
+        <p className="muted setup-note">{`${missing} who said In ${missing === 1 ? 'is' : 'are'} not saved on this phone yet.`}</p>
+      )}
+      {saidIn.length > 0 && (
+        <PickGroup title={`Said In, ${saidIn.length}`}>
+          {saidIn.map((p) => (
+            <PickRow key={p.id} name={p.name} rosterId={p.id} checked={selected.has(p.id)} onToggle={() => toggle(p.id)} tag={late.has(p.id) ? 'Late, starts on a break' : undefined} />
+          ))}
+        </PickGroup>
+      )}
+      {maybe.length > 0 && (
+        <PickGroup title={`Maybe, ${maybe.length}`}>
+          {maybe.map((p) => (
+            <PickRow key={p.id} name={p.name} rosterId={p.id} checked={selected.has(p.id)} onToggle={() => toggle(p.id)} />
+          ))}
+        </PickGroup>
+      )}
+      {friends.length > 0 && (
+        <PickGroup title={`Friends, ${friends.length}`}>
+          {friends.map((f) => (
+            <PickRow key={f.id} name={f.name} checked={friendsOn.has(f.id)} onToggle={() => toggleFriend(f.id)} tag="Friend, tonight only" />
+          ))}
+        </PickGroup>
+      )}
 
       <input
         className="field"
@@ -225,7 +340,7 @@ export function SetupScreen({ onManage, plan, onBack }: Props) {
       )}
 
       {(shown.length > 0 || canAdd) && (
-        <ul className="pick-grid" aria-label="Saved players">
+        <ListWrap grouped={grouped}>
           {canAdd && (
             <li>
               <button type="button" className="pick pick-add" onClick={submitQuery}>
@@ -234,17 +349,11 @@ export function SetupScreen({ onManage, plan, onBack }: Props) {
             </li>
           )}
           {shown.map((p) => (
-            <li key={p.id}>
-              <label className="pick">
-                <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} />
-                <PlayerAvatar name={p.name} rosterId={p.id} size="sm" />
-                <span className="row-name">{p.name}</span>
-              </label>
-            </li>
+            <PickRow key={p.id} name={p.name} rosterId={p.id} checked={selected.has(p.id)} onToggle={() => toggle(p.id)} />
           ))}
-        </ul>
+        </ListWrap>
       )}
-      {typed !== '' && shown.length === 0 && !canAdd && <p className="muted">No one matches.</p>}
+      {typed !== '' && !anyMatch && !canAdd && <p className="muted">No one matches.</p>}
 
       {roster.length > 0 && (
         <button type="button" className="btn btn-ghost btn-small edit-players" onClick={onManage}>
@@ -285,7 +394,7 @@ export function SetupScreen({ onManage, plan, onBack }: Props) {
             disabled={!canStart}
             onClick={startSession}
           >
-            {canStart ? `Start ${chosen.length} players` : `Pick at least ${MIN_PLAYERS}`}
+            {canStart ? `Start ${total} players` : `Pick at least ${MIN_PLAYERS}`}
           </button>
         </div>
         {startError && (

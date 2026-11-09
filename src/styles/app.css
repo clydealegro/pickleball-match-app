@@ -1444,6 +1444,42 @@ caption {
   outline-offset: 2px;
 }
 
+/* The groups the attendance link fills in: Said In, Maybe, Friends, then everyone else. */
+.pick-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pick-group-title {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* A row with a tag takes the whole width, so the tag has room beside the name. */
+.pick-wide {
+  grid-column: 1 / -1;
+}
+
+.pick-tag {
+  margin-left: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  text-align: right;
+}
+
+.pick-wide .row-name {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
 /* ---------- Saved players rows ---------- */
 .saved-row {
   display: flex;

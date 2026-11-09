@@ -4,6 +4,10 @@ import { chipLabel, ctaGrade, doneEntry, sessionWeekday, sortedSlots, weeksPlaye
 import { useHistoryStore } from '../store/historyStore';
 import { useSessionStore } from '../store/sessionStore';
 import { effectiveSlot, nextSlot, timestampAt, useSlotsStore, type Slot } from '../store/slots';
+import { prefillFor, type AttendancePrefill } from '../sync/attendance/prefill';
+import { localDate } from '../sync/attendance/links';
+import { useAttendanceStore } from '../sync/attendance/store';
+import { useAuthStore } from '../sync/auth';
 import { AttendanceCard } from './AttendanceCard';
 import { EditSlotSheet, type SlotPatch, type SlotScope } from './EditSlotSheet';
 import { DoneCard, ViewSummaryRow, useSharePicture } from './HomeDone';
@@ -18,6 +22,8 @@ export interface SessionPlan {
   venue?: string;
   plannedEndAt?: number;
   courts?: number;
+  /** What the attendance link says, when it is safe to use it. */
+  attendance?: AttendancePrefill;
 }
 
 interface Props {
@@ -73,6 +79,10 @@ export function HomeScreen({ onStart, onResume, onHistory, onViewSummary, onSign
   const clearTonight = useSlotsStore((s) => s.clearTonight);
   const session = useSessionStore((s) => s.session);
   const entries = useHistoryStore((s) => s.entries);
+  const status = useAuthStore((s) => s.status);
+  const userId = useAuthStore((s) => s.userId);
+  const ownerId = useAttendanceStore((s) => s.ownerId);
+  const summaries = useAttendanceStore((s) => s.summaries);
   // A tapped chip wins over the default until the screen goes away.
   const [picked, setPicked] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -98,6 +108,12 @@ export function HomeScreen({ onStart, onResume, onHistory, onViewSummary, onSign
     if (e.venue !== undefined) plan.venue = e.venue;
     if (e.courts !== undefined) plan.courts = e.courts;
     if (e.endMin !== undefined) plan.plannedEndAt = timestampAt(e.endMin, Date.now());
+    // Only the signed-in organizer who owns the saved copy, and only for today's date at this slot.
+    if (status === 'signedIn' && userId !== null && ownerId === userId) {
+      const today = localDate(Date.now(), Intl.DateTimeFormat().resolvedOptions().timeZone);
+      const attendance = prefillFor(summaries[slot.id], today, slot.id);
+      if (attendance) plan.attendance = attendance;
+    }
     onStart(plan);
   }
 
