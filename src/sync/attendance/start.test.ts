@@ -80,6 +80,14 @@ describe('sending slot changes to their link', () => {
     expect(upserts.map((u) => u.slot_id).sort()).toEqual(['thu', 'tue']);
   });
 
+  it('sends a slot whose weekday changed', async () => {
+    seedCache(USER);
+    stop = startAttendanceSync();
+    useSlotsStore.setState({ slots: useSlotsStore.getState().slots.map((s) => (s.id === 'tue' ? { ...s, weekday: 3 } : s)) });
+    await vi.advanceTimersByTimeAsync(800);
+    expect(upserts).toHaveLength(1);
+  });
+
   it('never sends a this time only edit', async () => {
     seedCache(USER);
     stop = startAttendanceSync();

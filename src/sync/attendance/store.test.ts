@@ -221,13 +221,51 @@ describe('refresh', () => {
     let release!: () => void;
     const gate = new Promise<void>((resolve) => (release = resolve));
     const real = fakeAttendanceRemote(db, USER_A);
-    override = { view: async (code) => { await gate; return real.view(code); } };
+    let asked = 0;
+    override = { view: async (code) => { asked += 1; await gate; return real.view(code); } };
     const pending = state().refresh('tue');
+    await vi.waitFor(() => expect(asked).toBe(1));
     state().clear();
     release();
     await pending;
     expect(state().summaries).toEqual({});
     expect(state().links).toEqual({});
+  });
+});
+
+describe('refreshes that overlap', () => {
+  it('send one request while one is already running for the slot', async () => {
+    await state().ensureLink(TUE);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const real = fakeAttendanceRemote(db, USER_A);
+    let asked = 0;
+    override = { view: async (code) => { asked += 1; await gate; return real.view(code); } };
+    const first = state().refresh('tue');
+    const second = state().refresh('tue');
+    release();
+    await Promise.all([first, second]);
+    expect(asked).toBe(1);
+  });
+
+  it('drop an answer from before the cache was cleared, even when a new refresh has started since', async () => {
+    await state().ensureLink(TUE);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const real = fakeAttendanceRemote(db, USER_A);
+    let asked = 0;
+    override = { view: async (code) => { asked += 1; await gate; return real.view(code); } };
+    const old = state().refresh('tue');
+    await vi.waitFor(() => expect(asked).toBe(1));
+    state().clear();
+    signedIn = USER_B;
+    // Two refreshes, so the new account's request counter reaches the old request's number.
+    await state().refresh('tue');
+    await state().refresh('tue');
+    release();
+    await old;
+    expect(state().links).toEqual({});
+    expect(state().summaries).toEqual({});
   });
 });
 
@@ -342,9 +380,11 @@ describe('reset, cancel and undo', () => {
     expect(state().summaries.tue.cancelled).toBeNull();
   });
 
-  it('refuses to cancel before the date is known', async () => {
-    expect((await state().cancelWeek('tue', 'Rain')).ok).toBe(false);
-    expect((await state().undoCancel('tue')).ok).toBe(false);
+  it('refuses to cancel before the date is known, without asking the server', async () => {
+    const message = 'Could not find the date. Try again.';
+    expect(await state().cancelWeek('tue', 'Rain')).toEqual({ ok: false, message });
+    expect(await state().undoCancel('tue')).toEqual({ ok: false, message });
+    expect(flags.calls).toEqual([]);
     expect(await cancellationRows()).toEqual([]);
   });
 
@@ -458,6 +498,20 @@ describe('closing a date when a session ends', () => {
     await state().closeForSession(sessionFrom('tue', Date.UTC(2026, 10, 10, 4, 0)));
     await state().refresh('tue');
     expect(state().pendingClose).toEqual([{ slotId: 'tue', date: '2026-11-10' }]);
+  });
+
+  it('forgets an older queued close when a later one goes through, and keeps a later queued one', async () => {
+    await state().ensureLink(TUE);
+    flags.offline = true;
+    await state().closeForSession(sessionFrom('tue', Date.UTC(2026, 10, 3, 4, 0)));
+    flags.offline = false;
+    await state().closeForSession(sessionFrom('tue', Date.UTC(2026, 10, 10, 4, 0)));
+    expect(state().pendingClose).toEqual([]);
+    flags.offline = true;
+    await state().closeForSession(sessionFrom('tue', Date.UTC(2026, 10, 24, 4, 0)));
+    flags.offline = false;
+    await state().closeForSession(sessionFrom('tue', Date.UTC(2026, 10, 17, 4, 0)));
+    expect(state().pendingClose).toEqual([{ slotId: 'tue', date: '2026-11-24' }]);
   });
 
   it('keeps one queued close per slot, the latest date', async () => {
@@ -611,6 +665,19 @@ describe('reading a bad saved copy', () => {
     ]) {
       expect(parseAttendanceCache(JSON.stringify({ ...good, summaries: { tue: bad } }))!.summaries).toEqual({});
     }
+  });
+
+  it('drops a summary or last change for a slot that has no link, and a summary filed under the wrong slot', () => {
+    const note = { player: 'Ben', from: 'in', to: 'out', at: 1 };
+    const raw = JSON.stringify({
+      ...good,
+      links: { tue: { code: 'c' }, thu: { code: 'd' } },
+      summaries: { tue: summary, thu: { ...summary, slotId: 'tue' }, sat: { ...summary, slotId: 'sat' } },
+      lastChange: { tue: note, sat: note },
+    });
+    const parsed = parseAttendanceCache(raw)!;
+    expect(Object.keys(parsed.summaries)).toEqual(['tue']);
+    expect(Object.keys(parsed.lastChange)).toEqual(['tue']);
   });
 
   it('starts empty from a bad copy instead of crashing', async () => {

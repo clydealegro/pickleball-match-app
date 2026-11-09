@@ -17,6 +17,7 @@ import { resetAttendanceDeps, setAttendanceDeps, useAttendanceStore } from '../s
 
 type User = ReturnType<typeof userEvent.setup>;
 const realClose = useAttendanceStore.getState().closeForSession;
+const realApply = useSessionStore.getState().apply;
 
 beforeEach(async () => {
   localStorage.clear();
@@ -31,6 +32,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   resetAttendanceDeps();
   useAttendanceStore.setState({ closeForSession: realClose });
+  useSessionStore.setState({ apply: realApply });
   useAttendanceStore.getState().clear();
 });
 
@@ -465,6 +467,16 @@ describe('ending a session and the attendance link', () => {
     await endIt(userEvent.setup());
     expect(close).not.toHaveBeenCalled();
     expect(useSessionStore.getState().session?.endedAt).toBeUndefined();
+  });
+
+  it('does not close anything when the session could not be ended', async () => {
+    const close = vi.fn(async (_session: Session) => ({ ok: true as const }));
+    useAttendanceStore.setState({ closeForSession: close });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    startFromSlot('tue');
+    useSessionStore.setState({ apply: () => ({ ok: false, error: 'nope' }) });
+    await endIt(userEvent.setup());
+    expect(close).not.toHaveBeenCalled();
   });
 
   it('still ends the session when closing the date fails', async () => {
