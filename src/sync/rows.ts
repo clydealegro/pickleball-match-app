@@ -6,6 +6,7 @@ export interface PushRow {
   name: string;
   photo_version: number;
   photo_seq: number;
+  photo_revision?: string | null;
   last_played_at: string | null;
   deleted_at: string | null;
 }
@@ -24,6 +25,7 @@ export function pushRow(player: RosterPlayer): PushRow {
     name: player.name.trim(),
     photo_version: player.photoVersion,
     photo_seq: player.photoSeq,
+    photo_revision: player.photoRevision ?? null,
     last_played_at: player.lastPlayedAt === undefined ? null : new Date(player.lastPlayedAt).toISOString(),
     deleted_at: player.deletedAt === undefined ? null : new Date(player.deletedAt).toISOString(),
   };
@@ -52,6 +54,7 @@ export function parsePlayerRow(raw: unknown): PulledPlayer | null {
   if (typeof row.id !== 'string' || !UUID.test(row.id) || typeof row.name !== 'string') return null;
   const name = row.name.trim();
   if (name === '' || name.length > MAX_NAME) return null;
+  if (row.photo_revision != null && (typeof row.photo_revision !== 'string' || !UUID.test(row.photo_revision))) return null;
   const photoVersion = count(row.photo_version);
   const photoSeq = count(row.photo_seq);
   const lastPlayedAt = time(row.last_played_at);
@@ -64,6 +67,7 @@ export function parsePlayerRow(raw: unknown): PulledPlayer | null {
     name,
     photoVersion,
     photoSeq,
+    ...(typeof row.photo_revision === 'string' ? { photoRevision: row.photo_revision.toLowerCase() } : {}),
     updatedAt,
     ...(lastPlayedAt === undefined ? {} : { lastPlayedAt }),
     ...(deletedAt === undefined ? {} : { deletedAt }),

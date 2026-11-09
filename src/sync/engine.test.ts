@@ -54,7 +54,7 @@ describe('pushing', () => {
       ['Ann', 1, 1, false],
       ['Ben', 0, 0, true],
     ]);
-    expect(filesOf()).toEqual([`${USER_A}/${ann.id}/1.jpg`]);
+    expect(filesOf()).toEqual([`${USER_A}/${ann.id}/${(await a.roster.getRosterEntry(ann.id))!.photoRevision}.jpg`]);
     expect(await a.roster.listOutbox()).toEqual([]);
   });
 
@@ -91,13 +91,14 @@ describe('pushing', () => {
     expect(row.last_played_at?.toISOString()).toBe('2026-11-07T09:00:00.000Z');
   });
 
-  it('uploads a new photo under a new path and deletes the one it replaces', async () => {
+  it('uploads a new immutable revision without deleting a concurrent writer’s files', async () => {
     const ann = await a.roster.addRosterPlayer('Ann');
     await a.roster.setRosterPhoto(ann.id, jpeg(1));
     await syncA();
+    const previousFiles = filesOf();
     await a.roster.setRosterPhoto(ann.id, jpeg(2));
     await syncA();
-    expect(filesOf()).toEqual([`${USER_A}/${ann.id}/2.jpg`]);
+    expect(filesOf()).toEqual([...previousFiles, `${USER_A}/${ann.id}/${(await a.roster.getRosterEntry(ann.id))!.photoRevision}.jpg`].sort());
     expect((await serverRows())[0]).toMatchObject({ photo_version: 2, photo_seq: 2 });
   });
 
@@ -111,7 +112,7 @@ describe('pushing', () => {
     expect((await serverRows())[0]).toMatchObject({ photo_version: 0, photo_seq: 1 });
     await a.roster.setRosterPhoto(ann.id, jpeg(3));
     await syncA();
-    expect(filesOf()).toEqual([`${USER_A}/${ann.id}/2.jpg`]);
+    expect(filesOf()).toEqual([`${USER_A}/${ann.id}/${(await a.roster.getRosterEntry(ann.id))!.photoRevision}.jpg`]);
   });
 
   it('removes every photo file of a deleted player, and marks the row deleted', async () => {
@@ -307,7 +308,7 @@ describe('the same player saved on two devices', () => {
 
     expect((await serverRows())[0]).toMatchObject({ photo_version: 1, photo_seq: 1 });
     expect((await serverRows())[0].last_played_at?.getTime()).toBe(9_000);
-    expect(filesOf()).toEqual([`${USER_A}/${annA.id}/1.jpg`]);
+    expect(filesOf()).toEqual([`${USER_A}/${annA.id}/${(await b.roster.getRosterEntry(annA.id))!.photoRevision}.jpg`]);
     expect(bytesOf(await b.roster.getRosterPhoto(annA.id))).toEqual([5, 5]);
     expect(await syncA()).toMatchObject({ pulled: 1 });
     expect(bytesOf(await a.roster.getRosterPhoto(annA.id))).toEqual([5, 5]);
@@ -321,7 +322,7 @@ describe('the same player saved on two devices', () => {
     await syncA();
     await syncB();
     expect(bytesOf(await b.roster.getRosterPhoto(annA.id))).toEqual([1]);
-    expect(filesOf()).toEqual([`${USER_A}/${annA.id}/1.jpg`]);
+    expect(filesOf()).toEqual([`${USER_A}/${annA.id}/${(await b.roster.getRosterEntry(annA.id))!.photoRevision}.jpg`]);
   });
 
   it('merges every duplicate when a device with a whole roster signs in to an account that has one', async () => {
@@ -379,4 +380,28 @@ describe('when things go wrong', () => {
     await a.engine.syncOnce(server.remote(USER_A), USER_A.toUpperCase());
     expect(await syncA()).toMatchObject({ ok: true });
   });
+});
+
+it('converges after competing offline photo edits on two devices', async () => {
+  const ann = await a.roster.addRosterPlayer('Ann');
+  await a.roster.setRosterPhoto(ann.id, jpeg(1));
+  await syncA(); await syncB();
+  await a.roster.setRosterPhoto(ann.id, jpeg(2));
+  await b.roster.setRosterPhoto(ann.id, jpeg(3));
+  await syncA(); await syncB(); await syncA(); await syncB();
+  expect(bytesOf(await a.roster.getRosterPhoto(ann.id))).toEqual([3]);
+  expect(bytesOf(await b.roster.getRosterPhoto(ann.id))).toEqual([3]);
+});
+
+it('does not download an unchanged photo again when the server sequence sits below the local high-water mark', async () => {
+  const ann = await a.roster.addRosterPlayer('Ann');
+  await a.roster.setRosterPhoto(ann.id, jpeg(1));
+  await syncA(); await syncB();
+  // Another writer pushed last with a lower sequence; the revision, which names the file, is unchanged.
+  await server.db.query('update public.players set photo_seq = 0');
+  server.calls.length = 0;
+  await syncB();
+  await syncB();
+  expect(server.calls.filter((c) => c.startsWith('downloadPhoto:'))).toEqual([]);
+  expect(bytesOf(await b.roster.getRosterPhoto(ann.id))).toEqual([1]);
 });

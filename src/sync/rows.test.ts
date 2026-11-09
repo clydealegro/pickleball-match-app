@@ -65,6 +65,7 @@ describe('sending a player', () => {
       name: 'Ann',
       photo_version: 1,
       photo_seq: 2,
+      photo_revision: null,
       last_played_at: '1970-01-01T00:00:01.000Z',
       deleted_at: '1970-01-01T00:00:02.000Z',
     });

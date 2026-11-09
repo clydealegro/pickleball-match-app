@@ -96,3 +96,15 @@ describe('usePhotoUrl', () => {
     expect(revoke).toHaveBeenCalledWith(url);
   });
 });
+
+it('refreshes when the revision changes but the numeric version stays the same', async () => {
+  const ann = await useRosterStore.getState().add('Ann');
+  await useRosterStore.getState().setPhoto(ann.id, jpeg(1));
+  const { result } = renderHook(() => usePhotoUrl(ann.id));
+  await waitFor(() => expect(result.current).toBeDefined());
+  const previous = result.current;
+  await act(async () => {
+    useRosterStore.setState(s => ({ players: s.players.map(p => p.id === ann.id ? { ...p, photoRevision: 'changed-revision' } : p) }));
+  });
+  await waitFor(() => expect(result.current).not.toBe(previous));
+});

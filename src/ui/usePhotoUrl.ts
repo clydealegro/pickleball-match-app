@@ -10,6 +10,7 @@ export function usePhotoUrl(rosterId: string | undefined): string | undefined {
   const version = useRosterStore((s) =>
     rosterId ? (s.players.find((p) => p.id === rosterId)?.photoVersion ?? 0) : 0,
   );
+  const revision = useRosterStore(s => rosterId ? s.players.find(p => p.id === rosterId)?.photoRevision : undefined);
   // Remember whose photo this is, so one player's picture is never shown for another.
   const [loaded, setLoaded] = useState<{ id: string; url: string }>();
 
@@ -33,7 +34,7 @@ export function usePhotoUrl(rosterId: string | undefined): string | undefined {
     return () => {
       cancelled = true;
     };
-  }, [rosterId, version]);
+  }, [rosterId, version, revision]);
 
   // The cleanup runs when the URL is replaced and when the component unmounts.
   const url = loaded?.url;

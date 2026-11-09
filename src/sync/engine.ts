@@ -124,13 +124,15 @@ async function pushPlayer(remote: Remote, owner: string, mark: OutboxEntry): Pro
   let stale: string[] = [];
   if (player.photoSeq > 0) {
     const names = await remote.listPhotoFiles(folder);
-    const keep = player.deletedAt === undefined && player.photoVersion > 0 ? `${player.photoSeq}.jpg` : undefined;
+    const keep = player.deletedAt === undefined && player.photoVersion > 0 ? `${player.photoRevision ?? player.photoSeq}.jpg` : undefined;
     if (keep && !names.includes(keep)) {
       const photo = await getRosterPhoto(player.id);
       if (photo) await remote.uploadPhoto(`${folder}/${keep}`, photo);
     }
     // Earlier pictures of this player, and all of them once the player is deleted, are no longer needed.
-    stale = names.filter((name) => name !== keep).map((name) => `${folder}/${name}`);
+    // Immutable revisions may be referenced by a concurrent writer. Reclaim only on deletion;
+    // account purge also removes all revisions.
+    stale = names.filter(() => keep === undefined).map((name) => `${folder}/${name}`);
   }
 
   if ((await remote.upsertPlayer(pushRow(player))) === 'nameTaken') {
@@ -189,9 +191,12 @@ async function applyRemote(remote: Remote, owner: string, row: PulledPlayer): Pr
   let photo: PhotoData | null | undefined;
   if (row.deletedAt === undefined && row.photoVersion !== 0) {
     const local = await getRosterEntry(row.id);
-    const current = local !== undefined && local.photoSeq >= row.photoSeq && (await getRosterPhoto(row.id)) !== undefined;
+    // A revision names the exact file, so it alone decides. The sequence number only identifies the file for rows
+    // without one; locally it is kept as a high-water mark (see applyPulledPlayer) and can sit above the server's.
+    const sameFile = row.photoRevision !== undefined ? local?.photoRevision === row.photoRevision : local?.photoRevision === undefined && local?.photoSeq === row.photoSeq;
+    const current = local !== undefined && sameFile && (await getRosterPhoto(row.id)) !== undefined;
     if (!current) {
-      const bytes = await remote.downloadPhoto(photoPath(owner, row.id, row.photoSeq));
+      const bytes = await remote.downloadPhoto(photoPath(owner, row.id, row.photoRevision ?? row.photoSeq));
       // A row whose picture is gone is shown without one.
       photo = bytes ? { type: 'image/jpeg', data: bytes } : null;
     }

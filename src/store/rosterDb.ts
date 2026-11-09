@@ -6,8 +6,10 @@ export interface RosterPlayer {
   name: string;
   /** 0 = no photo; raised each time the photo changes, and set back to 0 when it is removed. */
   photoVersion: number;
-  /** Only ever goes up, even when the photo is removed. It names the photo's file online, so a path is never reused. */
+  /** Only ever goes up, even when the photo is removed. Legacy photos use it as their filename; new photos use photoRevision. */
   photoSeq: number;
+  /** Immutable identity for new photos; absent on legacy numeric paths. */
+  photoRevision?: string;
   lastPlayedAt?: number;
   /** Local edit time until synced (sync plan). */
   updatedAt: number;
@@ -466,7 +468,7 @@ export function setRosterPhoto(id: string, photo: PhotoData, now = Date.now()): 
   return write(async (tx) => {
     const current = await tx.get(id);
     if (!current || current.deletedAt) throw new Error('That player no longer exists.');
-    await tx.put({ ...current, photoVersion: current.photoVersion + 1, photoSeq: current.photoSeq + 1, updatedAt: now });
+    await tx.put({ ...current, photoVersion: current.photoVersion + 1, photoSeq: current.photoSeq + 1, photoRevision: newId(), updatedAt: now });
     await tx.markDirty(id);
     // Last, on purpose: if the bytes cannot be stored, the player and the mark written above are rolled back.
     await tx.putPhoto(id, photo);
@@ -543,6 +545,8 @@ export interface PulledPlayer {
   name: string;
   photoVersion: number;
   photoSeq: number;
+  /** Immutable identity for new photos; absent on legacy numeric paths. */
+  photoRevision?: string;
   lastPlayedAt?: number;
   deletedAt?: number;
   /** Server time of the last write. */
@@ -577,6 +581,7 @@ export function applyPulledPlayer(
         photoVersion: hasPhoto ? pulled.photoVersion : 0,
         // Only ever goes up, whatever the server says.
         photoSeq: Math.max(local?.photoSeq ?? 0, pulled.photoSeq),
+        photoRevision: pulled.photoRevision,
         updatedAt: pulled.updatedAt,
         ...(pulled.lastPlayedAt === undefined ? {} : { lastPlayedAt: pulled.lastPlayedAt }),
       };
@@ -586,6 +591,7 @@ export function applyPulledPlayer(
         local.name === next.name &&
         local.photoVersion === next.photoVersion &&
         local.photoSeq === next.photoSeq &&
+        local.photoRevision === next.photoRevision &&
         local.lastPlayedAt === next.lastPlayedAt;
       if (same && photo === undefined) return 'unchanged';
       await tx.put(next);
@@ -612,7 +618,7 @@ export function mergeLocalInto(localId: string, keepId: string, now = Date.now()
       let next = kept;
       const photo = retired.photoVersion > 0 ? await tx.getPhoto(localId) : undefined;
       if (kept.photoVersion === 0 && photo) {
-        next = { ...next, photoVersion: 1, photoSeq: kept.photoSeq + 1 };
+        next = { ...next, photoVersion: 1, photoSeq: kept.photoSeq + 1, photoRevision: newId() };
         await tx.putPhoto(keepId, photo);
       }
       if ((retired.lastPlayedAt ?? 0) > (kept.lastPlayedAt ?? 0)) next = { ...next, lastPlayedAt: retired.lastPlayedAt };

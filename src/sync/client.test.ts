@@ -71,6 +71,7 @@ describe('getSupabase', () => {
     const { getSupabase } = await import('./client');
     getSupabase();
     expect(createClient).toHaveBeenCalledWith('https://abc.supabase.co', 'sb_publishable_abc123', {
+      global: { headers: { 'x-pikl-sync-version': '2' } },
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     });
   });

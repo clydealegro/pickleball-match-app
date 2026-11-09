@@ -74,6 +74,7 @@ const SUPABASE_DEFAULT_GRANTS = `
 export async function createDb(options: { defaultGrants?: boolean } = {}): Promise<PGlite> {
   const db = new PGlite();
   await db.exec(SUPABASE_STANDINS);
+  await db.query("select set_config('request.headers', $1, false)", [JSON.stringify({ 'x-pikl-sync-version': '2' })]);
   if (options.defaultGrants !== false) await db.exec(SUPABASE_DEFAULT_GRANTS);
   for (const path of Object.keys(migrationFiles).sort()) {
     await db.exec(migrationFiles[path]);

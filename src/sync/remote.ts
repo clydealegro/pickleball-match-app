@@ -40,7 +40,7 @@ export interface Remote {
 
 /** Photos live at `{owner id}/{player id}/{photo_seq}.jpg`, with the owner id in lower case. */
 export const photoFolder = (ownerId: string, playerId: string) => `${ownerId.toLowerCase()}/${playerId.toLowerCase()}`;
-export const photoPath = (ownerId: string, playerId: string, seq: number) => `${photoFolder(ownerId, playerId)}/${seq}.jpg`;
+export const photoPath = (ownerId: string, playerId: string, seq: number | string) => `${photoFolder(ownerId, playerId)}/${seq}.jpg`;
 
 interface Failure {
   message?: string;

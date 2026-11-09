@@ -48,7 +48,7 @@ export async function createFakeServer(): Promise<FakeServer> {
         (await run(db, { user }, sql, params)).rows.map((row) =>
           Object.fromEntries(Object.entries(row as Record<string, unknown>).map(([k, v]) => [k, text(v)])),
         );
-      const columns = 'id, name, photo_version, photo_seq, last_played_at, deleted_at, updated_at';
+      const columns = 'id, name, photo_version, photo_seq, photo_revision, last_played_at, deleted_at, updated_at';
       return {
         async upsertPlayer(row: PushRow) {
           guard(`upsertPlayer:${row.id}`);
@@ -57,11 +57,11 @@ export async function createFakeServer(): Promise<FakeServer> {
             await run(
               db,
               { user },
-              `insert into public.players (owner_id, id, name, photo_version, photo_seq, last_played_at, deleted_at)
-               values ($1, $2, $3, $4, $5, $6, $7)
+              `insert into public.players (owner_id, id, name, photo_version, photo_seq, last_played_at, deleted_at, photo_revision)
+               values ($1, $2, $3, $4, $5, $6, $7, $8)
                on conflict (owner_id, id) do update set name = excluded.name, photo_version = excluded.photo_version,
-                 photo_seq = excluded.photo_seq, last_played_at = excluded.last_played_at, deleted_at = excluded.deleted_at`,
-              [user, row.id, row.name, row.photo_version, row.photo_seq, row.last_played_at, row.deleted_at],
+                 photo_seq = excluded.photo_seq, photo_revision = excluded.photo_revision, last_played_at = excluded.last_played_at, deleted_at = excluded.deleted_at`,
+              [user, row.id, row.name, row.photo_version, row.photo_seq, row.last_played_at, row.deleted_at, row.photo_revision ?? null],
             );
             return 'ok';
           } catch (error) {
