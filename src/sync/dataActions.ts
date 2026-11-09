@@ -2,6 +2,7 @@ import { clearHistory } from '../store/historyDb';
 import { useHistoryStore } from '../store/historyStore';
 import { clearRosterData } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
+import { useAttendanceStore } from './attendance/store';
 import { useAuthStore } from './auth';
 import { getSupabase } from './client';
 import { pauseSync, syncNow } from './coordinator';
@@ -64,6 +65,8 @@ export async function deleteAllMyData(deps: DataActionDeps = defaultDeps): Promi
     await clearRosterData();
     // Past sessions name the same people, so they go with the account's data.
     await clearHistory();
+    // The attendance copy is part of the account's data.
+    useAttendanceStore.getState().clear();
     void useHistoryStore.getState().load();
     useSyncStore.setState({ pending: 0, lastSyncedAt: null });
     deps.refresh();
@@ -89,6 +92,7 @@ export async function clearThisDevice(deps: DataActionDeps = defaultDeps): Promi
   const resume = await deps.pause();
   try {
     await clearRosterData();
+    useAttendanceStore.getState().clear();
     useSyncStore.setState({ pending: 0, lastSyncedAt: null });
     deps.refresh();
     return { ok: true };

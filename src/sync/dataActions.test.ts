@@ -15,6 +15,7 @@ import { clearThisDevice, deleteAllMyData, removeAllPhotoFiles, type DataActionD
 import { createSession } from '../engine';
 import { createFakeServer, type FakeServer } from './fakeServer';
 import { RemoteError } from './remote';
+import { ATTENDANCE_KEY, useAttendanceStore } from './attendance/store';
 
 let server: FakeServer;
 beforeAll(async () => {
@@ -170,5 +171,52 @@ describe('clearing this device', () => {
     );
     expect(result.ok).toBe(false);
     expect(events).toEqual(['pause', 'resume', 'syncNow']);
+  });
+});
+
+describe('the attendance cache', () => {
+  const memory = new Map<string, string>();
+  beforeEach(() => {
+    memory.clear();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => memory.get(k) ?? null,
+      setItem: (k: string, v: string) => void memory.set(k, v),
+      removeItem: (k: string) => void memory.delete(k),
+    });
+    useAttendanceStore.setState({
+      ownerId: USER_A,
+      links: { tue: { code: 'abc' } },
+      summaries: {},
+      lastChange: {},
+      lastError: {},
+      pendingClose: [{ slotId: 'tue', date: '2026-11-10' }],
+    });
+    memory.set(ATTENDANCE_KEY, '{"version":1}');
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    useAttendanceStore.getState().clear();
+  });
+  const cleared = () => useAttendanceStore.getState().ownerId === null && Object.keys(useAttendanceStore.getState().links).length === 0;
+
+  it('is cleared, with its queue, by delete all my data', async () => {
+    expect(await deleteAllMyData(deps())).toEqual({ ok: true });
+    expect(cleared()).toBe(true);
+    expect(useAttendanceStore.getState().pendingClose).toEqual([]);
+    expect(memory.has(ATTENDANCE_KEY)).toBe(false);
+  });
+
+  it('is cleared by clearing this device', async () => {
+    expect(await clearThisDevice(deps())).toEqual({ ok: true });
+    expect(cleared()).toBe(true);
+    expect(useAttendanceStore.getState().pendingClose).toEqual([]);
+    expect(memory.has(ATTENDANCE_KEY)).toBe(false);
+  });
+
+  it('is kept when delete all my data fails, because nothing on the device was removed', async () => {
+    server.offline = true;
+    await deleteAllMyData(deps());
+    expect(cleared()).toBe(false);
+    expect(memory.has(ATTENDANCE_KEY)).toBe(true);
   });
 });
