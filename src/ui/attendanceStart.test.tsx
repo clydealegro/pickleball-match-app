@@ -128,6 +128,12 @@ describe('Home hands the answers to Setup', () => {
     expect(await start()).not.toHaveProperty('attendance');
   });
 
+  it.each(['signedOut', 'linkSent', 'unknown'] as const)('adds nothing when sign-in is %s, even with a matching user and owner', async (status) => {
+    useAuthStore.setState({ status, userId: 'user-a' });
+    seed();
+    expect(await start()).not.toHaveProperty('attendance');
+  });
+
   it('adds nothing for a one-off session', async () => {
     seed();
     const onStart = vi.fn();

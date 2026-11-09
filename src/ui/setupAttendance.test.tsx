@@ -175,6 +175,13 @@ describe('Setup with a prefill: picking', () => {
     expect(screen.getByText('5 selected')).toBeInTheDocument();
   });
 
+  it('lets Start through when three players and a friend make four', async () => {
+    const user = setup(plan(prefill({ inIds: ['ana', 'ben', 'cai'], maybeIds: [] })));
+    expect(screen.getByRole('button', { name: 'Start 4 players' })).toBeEnabled();
+    await user.click(box('Rico'));
+    expect(screen.getByRole('button', { name: 'Pick at least 4' })).toBeDisabled();
+  });
+
   it('asks for four when fewer are ticked, friends included', async () => {
     const user = setup(plan(prefill()));
     await user.click(box('Ana'));

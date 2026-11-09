@@ -110,6 +110,14 @@ describe('the review button on the card', () => {
     expect(screen.getByRole('button', { name: '2 new names to review' })).toBeInTheDocument();
   });
 
+  it('has the full-width review class and the 44 px button class', () => {
+    seed({ waiting: WAITING });
+    setup();
+    const button = screen.getByRole('button', { name: '2 new names to review' });
+    expect(button).toHaveClass('attendance-btn');
+    expect(button).toHaveClass('attendance-review');
+  });
+
   it('is not there when nobody is waiting, or in the cancelled and signed-out states', () => {
     seed();
     const a = setup();
