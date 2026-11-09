@@ -9,9 +9,14 @@ import { useUpdateStore } from '../pwa';
 import { useSessionStore } from '../store/sessionStore';
 import { renderAtSetup } from '../test/renderAtSetup';
 import { newTestSession } from '../engine/testing';
+import type { Session } from '../engine';
 import { LiveScreen } from './LiveScreen';
+import App from './App';
+import type { AttendanceRemote } from '../sync/attendance/remote';
+import { resetAttendanceDeps, setAttendanceDeps, useAttendanceStore } from '../sync/attendance/store';
 
 type User = ReturnType<typeof userEvent.setup>;
+const realClose = useAttendanceStore.getState().closeForSession;
 
 beforeEach(async () => {
   localStorage.clear();
@@ -24,6 +29,9 @@ beforeEach(async () => {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  resetAttendanceDeps();
+  useAttendanceStore.setState({ closeForSession: realClose });
+  useAttendanceStore.getState().clear();
 });
 
 async function startSession(user: User, names: string) {
@@ -410,5 +418,60 @@ describe('extending the session', () => {
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(plannedEnd()).toBe(END);
+  });
+});
+
+describe('ending a session and the attendance link', () => {
+  const PLAYERS = ['Ann', 'Ben', 'Cy', 'Dee'].map((name) => ({ name }));
+  const startFromSlot = (slotId?: string) => {
+    expect(useSessionStore.getState().start({ name: 'Tuesday open play', mode: 'fairness', courtCount: 1, players: PLAYERS, slotId }).ok).toBe(true);
+  };
+  const endIt = async (user: User) => {
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: 'Menu' }));
+    await user.click(screen.getByRole('button', { name: 'End session' }));
+  };
+
+  it('closes the date of the session slot once it has really ended', async () => {
+    const close = vi.fn(async (_session: Session) => ({ ok: true as const }));
+    useAttendanceStore.setState({ closeForSession: close });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    startFromSlot('tue');
+    await endIt(userEvent.setup());
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(close.mock.calls[0][0]).toMatchObject({ slotId: 'tue' });
+    expect(useSessionStore.getState().session?.endedAt).toBeDefined();
+  });
+
+  it('sends the close to the link through the store', async () => {
+    const closeThrough = vi.fn(async () => undefined);
+    const stub = { closeThrough } as unknown as AttendanceRemote;
+    setAttendanceDeps({ server: () => ({ remote: stub, userId: 'u1' }), now: () => Date.now(), timezone: () => 'Asia/Manila' });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    startFromSlot('tue');
+    const startedAt = useSessionStore.getState().session!.createdAt;
+    await endIt(userEvent.setup());
+    await vi.waitFor(() => expect(closeThrough).toHaveBeenCalledTimes(1));
+    const [slot, date] = closeThrough.mock.calls[0] as unknown as [string, string];
+    expect(slot).toBe('tue');
+    expect(date).toBe(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(startedAt));
+  });
+
+  it('does not close anything when ending is not confirmed', async () => {
+    const close = vi.fn(async () => ({ ok: true as const }));
+    useAttendanceStore.setState({ closeForSession: close });
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    startFromSlot('tue');
+    await endIt(userEvent.setup());
+    expect(close).not.toHaveBeenCalled();
+    expect(useSessionStore.getState().session?.endedAt).toBeUndefined();
+  });
+
+  it('still ends the session when closing the date fails', async () => {
+    useAttendanceStore.setState({ closeForSession: () => Promise.reject(new Error('boom')) });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    startFromSlot('tue');
+    await endIt(userEvent.setup());
+    expect(useSessionStore.getState().session?.endedAt).toBeDefined();
   });
 });

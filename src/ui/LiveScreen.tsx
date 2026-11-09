@@ -5,6 +5,7 @@ import type { GameResult, Session } from '../engine';
 import { useRosterStore } from '../store/rosterStore';
 import { formatClock } from '../store/slots';
 import { useSessionStore, type SessionAction } from '../store/sessionStore';
+import { useAttendanceStore } from '../sync/attendance/store';
 import { AddPlayerSheet } from './AddPlayerSheet';
 import { CourtCard } from './CourtCard';
 import { CourtTabs } from './CourtTabs';
@@ -107,6 +108,8 @@ export function LiveScreen({ session, onHome, onSettings, onShowBoard }: { sessi
     const ended = run((s, ctx) => engine.endSession(s, ctx));
     // Only record "last played" if the session really ended; roster bookkeeping must never block ending it.
     if (ended) markPlayed(rosterIds, Date.now()).catch(() => {});
+    // The link moves on to the next date. It never blocks ending the session.
+    if (ended) useAttendanceStore.getState().closeForSession(session).catch(() => {});
   }
 
   // The planned end as a local clock time, while the session is still running.
