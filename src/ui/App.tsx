@@ -21,6 +21,8 @@ import { applyMotionPref } from './motion';
 import { KEEP_AWAKE_KEY, REDUCE_MOTION_KEY, useBoolPref } from './prefs';
 import { useSessionConflict } from './useSessionConflict';
 import { useScreenHistory } from './useScreenHistory';
+import { useViewportHeight } from './useViewportHeight';
+import { ViewportDebug, debugRequested } from './ViewportDebug';
 import { useWakeLock } from './useWakeLock';
 
 type View = 'home' | 'setup' | 'saved' | 'settings' | 'history' | 'summary' | 'live' | 'board';
@@ -185,6 +187,8 @@ export default function App() {
 
   // The screen stays on for as long as a session is running, however many screens the organizer visits.
   useWakeLock(!!session && !session.endedAt && keepAwake);
+  // Home is sized to what the screen really shows, not to 100dvh, which can include space behind the system bar.
+  useViewportHeight();
 
   // Keeps saved players backed up while signed in. It does nothing without a backend or a signed-in organizer.
   useEffect(() => startSyncCoordinator(), []);
@@ -267,6 +271,7 @@ export default function App() {
 
   return (
     <div className="app">
+      {debugRequested() && <ViewportDebug />}
       {!live && (
         <header className="app-header">
           <button type="button" className="app-logo-btn" aria-label="Home" aria-current={atHome ? 'page' : undefined} disabled={atHome} onClick={goHome}>

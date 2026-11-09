@@ -1866,7 +1866,9 @@ caption {
 .app:has(.home) {
   display: flex;
   flex-direction: column;
+  /* The measured height first: on some Android phones 100dvh runs past the bottom, behind the system bar. */
   height: 100dvh;
+  height: var(--app-height, 100dvh);
   padding-bottom: 0;
   /* The hero slides in from the side, which must not make the page scroll sideways. */
   overflow-x: clip;
