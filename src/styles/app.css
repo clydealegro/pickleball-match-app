@@ -2293,6 +2293,7 @@ caption {
 
 @media (prefers-reduced-motion: reduce) {
   .home-hero-in,
+  .home-hero-in-left,
   .home-live-dot {
     animation: none;
   }
@@ -2595,6 +2596,383 @@ caption {
   from {
     transform: scaleX(0);
   }
+}
+
+/* Decluttered Home: the time sits beside the day pill, and the attendance link is one row in the hero. */
+.home-hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.home-time {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.home-attend-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-ink);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Last session stats: one black card inside the lime hero. Black is only here, so it reads as a highlight. */
+.home-last-week {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--accent-ink);
+  color: #f4f4ef;
+}
+
+.home-last-head {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #a0a098;
+}
+
+.home-last-stats {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  margin: 0;
+}
+
+.home-last-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 10px;
+  border-left: 1px solid #2c2c29;
+  min-width: 0;
+}
+
+.home-last-stat:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+/* "Most" on one line and the word on the next, always, so the three numbers line up. */
+.home-last-stat dt {
+  height: 26px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  line-height: 1.25;
+  text-transform: uppercase;
+  color: #a0a098;
+}
+
+.home-last-stat dt span {
+  display: block;
+}
+
+.home-last-stat dd {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+
+.home-last-stat b {
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--accent);
+}
+
+.home-last-stat dd span {
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Who is in, and the Share button. */
+.home-attend-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.home-who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: color-mix(in srgb, #fff 55%, transparent);
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.home-who:disabled {
+  cursor: default;
+}
+
+.home-who-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-share {
+  min-height: 48px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent-ink);
+  color: var(--accent);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.home-share:disabled {
+  opacity: 0.6;
+}
+
+/* The hero holds its parts apart, so Share sits at the bottom edge. */
+.home-hero-split .home-hero-body {
+  flex: 1;
+}
+
+.home-hero-body > .home-attend-wrap {
+  margin-top: auto;
+}
+
+/* Venue drawer. */
+.venue-list {
+  max-height: 34vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.venue-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.venue-list li:last-child .venue-row {
+  border-bottom: 0;
+}
+
+.venue-radio {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--muted);
+  border-radius: 50%;
+}
+
+.venue-row.is-on .venue-radio {
+  border-color: var(--chip-ring);
+  background: radial-gradient(var(--chip-ring) 45%, transparent 50%);
+}
+
+.seg-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.seg-two button {
+  min-height: 44px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.seg-two button.is-on {
+  border-color: var(--chip-ring);
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface));
+}
+
+/* Attendance sheet: tabs with counts, then the names. No coloured pills, so nothing looks like a button. */
+.sheet .attendance {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.attendance-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+}
+
+.attendance-tab {
+  flex: 1;
+  min-height: 44px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.attendance-tab b {
+  font-weight: 800;
+}
+
+.attendance-tab[aria-selected='true'] {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+}
+
+.attendance-people {
+  display: flex;
+  flex-direction: column;
+  max-height: 32vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.attendance-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  border-bottom: 1px solid var(--line);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.attendance-person:last-child {
+  border-bottom: 0;
+}
+
+.attendance-person-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.attendance-empty {
+  padding: 14px 0;
+}
+
+.attendance-share {
+  width: 100%;
+}
+
+.attendance-more {
+  align-self: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.attendance-cancel {
+  color: var(--danger);
+}
+
+/* Swiping between sessions. Vertical scrolling still works; only sideways drags move the card. */
+.home-swipe {
+  touch-action: pan-y;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.home-hero-in-left {
+  animation-name: home-hero-in-left;
+}
+
+@keyframes home-hero-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.home-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex: none;
+}
+
+.home-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+.home-dots i.on {
+  width: 18px;
+  border-radius: 4px;
+  background: var(--ink);
+}
+
+.home-line-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 /* Attendance card */

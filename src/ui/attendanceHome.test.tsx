@@ -2,7 +2,6 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { newTestSession } from '../engine/testing';
-import type { HistoryEntry } from '../store/historyDb';
 import { useHistoryStore } from '../store/historyStore';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
@@ -68,47 +67,54 @@ function setup(onSignIn?: () => void) {
   return user;
 }
 
-const card = () => screen.queryByRole('heading', { name: 'Attendance link' });
+const openCard = (user: ReturnType<typeof userEvent.setup>) => user.click(screen.getByRole('button', { name: /^Attendance:/ }));
+const card = () => screen.queryByRole('region', { name: 'Attendance link' });
 const inCard = () => within(document.querySelector<HTMLElement>('.attendance')!);
 
 describe('the attendance card on Home', () => {
-  it('shows for the selected slot, between the hero and the last-session row', () => {
-    useHistoryStore.setState({
-      entries: [{ id: 'e1', name: 'Open play', createdAt: NOW - 3 * 86_400_000, endedAt: NOW - 3 * 86_400_000 + 3_600_000, games: 3, session: newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }) } as HistoryEntry],
-    });
-    setup();
+  it('shows one slim row inside the hero, and opens the full card from it', async () => {
+    const user = setup();
+    const row = screen.getByRole('button', { name: 'Attendance: 4 in · 1 maybe' });
+    expect(document.querySelector('.home-hero')!.contains(row)).toBe(true);
+    expect(card()).not.toBeInTheDocument();
+    await openCard(user);
     expect(card()).toBeInTheDocument();
-    expect(inCard().getByText('Saturday')).toBeInTheDocument();
-    expect(screen.getByText('4 in')).toBeInTheDocument();
-    const hero = document.querySelector('.home-hero')!;
-    const section = document.querySelector('.attendance')!;
-    const last = document.querySelector('.home-last')!;
-    expect(hero.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(section.compareDocumentPosition(last) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Saturday attendance' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '4 In' })).toBeInTheDocument();
+  });
+
+  it('shows the count of new names to review on the row', () => {
+    useAttendanceStore.setState({ summaries: { sat: { ...summary('sat'), waiting: [{ id: 'a', name: 'Al', broughtBy: null }, { id: 'b', name: 'Bo', broughtBy: null }] } } });
+    setup();
+    expect(screen.getByText('2 new')).toBeInTheDocument();
   });
 
   it('follows the chip that is picked', async () => {
     const user = setup();
     await user.click(screen.getByRole('radio', { name: 'Tue 10' }));
-    expect(inCard().getByText('Tuesday')).toBeInTheDocument();
+    await openCard(user);
+    expect(screen.getByRole('dialog', { name: 'Tuesday attendance' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
     await user.click(screen.getByRole('radio', { name: 'Thu 12' }));
     // Thursday has no link and nothing saved: it is checking, and it still shows its own weekday.
-    expect(inCard().getByText('Thursday')).toBeInTheDocument();
+    await openCard(user);
+    expect(screen.getByRole('dialog', { name: 'Thursday attendance' })).toBeInTheDocument();
     expect(inCard().getByText('Checking answers')).toBeInTheDocument();
-    expect(screen.queryByText('4 in')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: '4 In' })).not.toBeInTheDocument();
   });
 
   it('does not show for a one-off session', async () => {
     const user = setup();
     await user.click(screen.getByRole('radio', { name: 'One-off session' }));
-    expect(card()).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Attendance:/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Share link' })).not.toBeInTheDocument();
   });
 
   it('does not show while a session is live', () => {
     useSessionStore.setState({ session: { ...newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }), createdAt: NOW - 1_800_000 } });
     setup();
     expect(screen.getByRole('button', { name: 'Back to session' })).toBeInTheDocument();
-    expect(card()).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Attendance:/ })).not.toBeInTheDocument();
   });
 
   it('does not show on the done card', () => {
@@ -118,21 +124,22 @@ describe('the attendance card on Home', () => {
     });
     setup();
     expect(document.querySelector('.home-hero-done')).toBeInTheDocument();
-    expect(card()).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Attendance:/ })).not.toBeInTheDocument();
   });
 
-  it('calls onSignIn from the sign-in prompt', async () => {
+  it('calls onSignIn from the Sign in button in the card', async () => {
     useAuthStore.setState({ status: 'signedOut', userId: null });
     const onSignIn = vi.fn();
     const user = setup(onSignIn);
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(screen.queryByRole('button', { name: /^Attendance:/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Sign in to share' }));
     expect(onSignIn).toHaveBeenCalledTimes(1);
   });
 
   it('does not fail when no onSignIn is given', async () => {
     useAuthStore.setState({ status: 'signedOut', userId: null });
     const user = setup();
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-    expect(card()).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Sign in to share' }));
+    expect(screen.getByRole('button', { name: 'Sign in to share' })).toBeInTheDocument();
   });
 });

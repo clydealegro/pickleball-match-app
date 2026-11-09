@@ -167,9 +167,9 @@ describe('HomeScreen while a session runs', () => {
     expect(pill()).toBe('Live · 1h 12m');
     expect(screen.queryByRole('button', { name: 'Share as picture' })).not.toBeInTheDocument();
     expect(screen.queryByText('Good session, Saturday')).not.toBeInTheDocument();
-    // The slim row stays the Last session row; View summary belongs to the done card only.
+    // View summary belongs to the done card only.
     expect(screen.queryByRole('button', { name: 'View summary' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Last:/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Last:/ })).not.toBeInTheDocument();
   });
 
   it('is not live for a session that has ended', () => {
@@ -342,7 +342,7 @@ describe('HomeScreen after a session', () => {
     await user.click(chip('Thu 12'));
     expect(screen.getByRole('heading', { level: 1, name: 'Thursday' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Share as picture' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Last:/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Last:/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Start session, Thursday' }));
     expect(onStart).toHaveBeenCalledWith({ slotId: 'thu', weekday: 4 });
     await user.click(chip('One-off session'));

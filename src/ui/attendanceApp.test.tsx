@@ -46,7 +46,7 @@ describe('App and the attendance link', () => {
   it('sends the card\'s Sign in to Settings', async () => {
     const user = userEvent.setup();
     await startApp();
-    await user.click(await screen.findByRole('button', { name: 'Sign in' }));
+    await user.click(await screen.findByRole('button', { name: 'Sign in to share' }));
     expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument();
   });
 });

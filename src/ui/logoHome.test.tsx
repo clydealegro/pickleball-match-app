@@ -142,10 +142,11 @@ describe('the logo from other screens', () => {
     await pastSession(group, await seed(group), 2026, 10, 5);
     const user = setup();
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: /^Last:/ }));
+    await user.click(await screen.findByRole('button', { name: /^Settings/ }));
+    await user.click(screen.getByRole('button', { name: 'Past sessions' }));
     await user.click(logo());
     expect(sessions()).toBeInTheDocument();
-    expect(state()).toEqual({ pk: 2, view: 'home' });
+    expect(state()).toEqual({ pk: 3, view: 'home' });
     phoneBack();
     expect(await screen.findByRole('heading', { name: 'Past sessions' })).toBeInTheDocument();
   });
@@ -155,11 +156,12 @@ describe('the logo from other screens', () => {
     await pastSession(group, await seed(group), 2026, 10, 5);
     const user = setup();
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: /^Last:/ }));
+    await user.click(await screen.findByRole('button', { name: /^Settings/ }));
+    await user.click(screen.getByRole('button', { name: 'Past sessions' }));
     await user.click(screen.getByRole('button', { name: /Open play/ }));
     await user.click(logo());
     expect(sessions()).toBeInTheDocument();
-    expect(state()).toEqual({ pk: 3, view: 'home' });
+    expect(state()).toEqual({ pk: 4, view: 'home' });
     phoneBack();
     expect(await screen.findByText('Session summary')).toBeInTheDocument();
   });

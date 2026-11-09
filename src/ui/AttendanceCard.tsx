@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { shortDate } from '../store/attendance';
 import { formatClock, type Slot } from '../store/slots';
-import { listText, nudgeText } from '../sync/attendance/copy';
+import { nudgeText } from '../sync/attendance/copy';
 import { shareUrl, titleFor, weekdayName } from '../sync/attendance/links';
 import { useAttendanceStore, type AttendanceResult } from '../sync/attendance/store';
 import type { AttendanceStatus } from '../sync/attendance/types';
 import { useAuthStore } from '../sync/auth';
+import { PlayerAvatar } from './PlayerAvatar';
+import { shareOrCopy } from './shareLink';
 import { CancelSheet, ResetSheet, ReviewSheet } from './AttendanceSheets';
 import { useAttendance } from './useAttendance';
 
@@ -39,19 +41,15 @@ const rowsFor = (text: string) =>
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-function Shell({ weekday, children }: { weekday?: string; children: ReactNode }) {
+function Shell({ children }: { weekday?: string; children: ReactNode }) {
   return (
-    <section className="attendance" aria-labelledby="attendance-title">
-      <div className="attendance-head">
-        <h2 id="attendance-title" className="section-title">
-          Attendance link
-        </h2>
-        {weekday && <span className="muted">{weekday}</span>}
-      </div>
+    <section className="attendance" aria-label="Attendance link">
       {children}
     </section>
   );
 }
+
+const TABS: AttendanceStatus[] = ['in', 'maybe', 'out'];
 
 /** The organizer's attendance link for one saved slot, under the hero on Home. */
 export function AttendanceCard({ slot, onSignIn }: Props) {
@@ -67,7 +65,9 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
   const [sheet, setSheet] = useState<'reset' | 'cancel' | 'review' | null>(null);
   // The review sheet closed on its own because the last name was dealt with.
   const [reviewed, setReviewed] = useState(false);
-  const [copied, setCopied] = useState<{ kind: 'list' | 'nudge'; ok: boolean; text: string } | null>(null);
+  const [copied, setCopied] = useState<{ ok: boolean; text: string } | null>(null);
+  const [tab, setTab] = useState<AttendanceStatus>('in');
+  const [more, setMore] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [shared, setShared] = useState<'copied' | 'field' | null>(null);
   const fieldRef = useRef<HTMLInputElement>(null);
@@ -123,15 +123,15 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
     else setProblem(result.message);
   }
 
-  async function copy(kind: 'list' | 'nudge', text: string) {
+  async function copy(text: string) {
     setShared(null);
     setReviewed(false);
     setProblem(null);
     try {
       await navigator.clipboard.writeText(text);
-      setCopied({ kind, ok: true, text });
+      setCopied({ ok: true, text });
     } catch {
-      setCopied({ kind, ok: false, text });
+      setCopied({ ok: false, text });
     }
   }
 
@@ -139,21 +139,9 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
     setShared(null);
     setCopied(null);
     setProblem(null);
-    if (typeof navigator.share === 'function') {
-      try {
-        await navigator.share({ title: titleFor(slot), url });
-        return;
-      } catch (e) {
-        // The person closed the share sheet: nothing went wrong.
-        if (e instanceof DOMException && e.name === 'AbortError') return;
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      setShared('copied');
-    } catch {
-      setShared('field');
-    }
+    const outcome = await shareOrCopy(url, titleFor(slot));
+    if (outcome === 'copied') setShared('copied');
+    if (outcome === 'field') setShared('field');
   }
 
   function closeSheet() {
@@ -247,17 +235,40 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
   const url = shareUrl(window.location.origin, link.code);
   const { counts, waiting } = summary;
   const nudge = counts.maybe > 0 ? nudgeText(slot, summary) : '';
+  const late = new Set(summary.lateIds);
+  const people = (status_: AttendanceStatus) =>
+    Object.entries(summary.answers)
+      .filter(([id, answer]) => answer === status_ && id in summary.names)
+      .map(([id]) => ({ id, name: summary.names[id] }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  const rows = people(tab);
+  const friends = tab === 'in' ? summary.tonight : [];
   return (
     <Shell weekday={weekdayName(slot.weekday)}>
-      <ul className="attendance-pills" aria-label="Answers">
-        <li className="attendance-pill" data-kind="in">{`${counts.in} in`}</li>
-        <li className="attendance-pill" data-kind="maybe">{`${counts.maybe} maybe`}</li>
-        <li className="attendance-pill" data-kind="out">{`${counts.out} out`}</li>
-        {summary.friends > 0 && (
-          <li className="attendance-pill" data-kind="friend">
-            {plural(summary.friends, 'friend', 'friends')}
+      <div className="attendance-tabs" role="tablist" aria-label="Answers">
+        {TABS.map((t) => (
+          <button key={t} type="button" role="tab" id={`attendance-tab-${t}`} aria-selected={tab === t} aria-controls="attendance-panel" className="attendance-tab" onClick={() => setTab(t)}>
+            <b>{counts[t]}</b> {STATUS_LABEL[t]}
+          </button>
+        ))}
+      </div>
+      <ul id="attendance-panel" className="attendance-people" role="tabpanel" aria-labelledby={`attendance-tab-${tab}`}>
+        {rows.map((p) => (
+          <li key={p.id} className="attendance-person">
+            <PlayerAvatar name={p.name} rosterId={p.id} size="sm" />
+            <span className="attendance-person-name">{p.name}</span>
+            {tab === 'in' && late.has(p.id) && <span className="muted">late</span>}
           </li>
-        )}
+        ))}
+        {friends.map((f) => (
+          <li key={f.id} className="attendance-person">
+            <PlayerAvatar name={f.name} size="sm" />
+            <span className="attendance-person-name">{f.name}</span>
+            <span className="muted">friend</span>
+          </li>
+        ))}
+        {tab === 'in' && summary.friends > 0 && <li className="muted attendance-person">{plural(summary.friends, 'friend', 'friends')} coming</li>}
+        {rows.length === 0 && friends.length === 0 && !(tab === 'in' && summary.friends > 0) && <li className="muted attendance-empty">Nobody yet.</li>}
       </ul>
       {meta(
         stale || !!change || waiting.length > 0,
@@ -278,26 +289,29 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
           )}
         </>,
       )}
-      <p className="attendance-link">{url}</p>
       <div className="attendance-actions">
-        <button type="button" className="btn btn-live attendance-btn" disabled={busy} onClick={() => void share(url)}>
-          Share
+        <button type="button" className="btn btn-live attendance-btn attendance-share" disabled={busy} onClick={() => void share(url)}>
+          Share link
         </button>
-        <button type="button" className="btn attendance-btn" disabled={busy} onClick={() => setSheet('reset')}>
-          Reset link
-        </button>
-        <button type="button" className="btn attendance-btn" disabled={busy} onClick={() => setSheet('cancel')}>
-          Cancel this week
-        </button>
-        <button type="button" className="btn attendance-btn" onClick={() => void copy('list', listText(slot, summary))}>
-          Copy list for the group chat
-        </button>
-        {nudge && (
-          <button type="button" className="btn attendance-btn" onClick={() => void copy('nudge', nudge)}>
-            Nudge the maybes
-          </button>
-        )}
       </div>
+      <button type="button" className="attendance-more" aria-expanded={more} onClick={() => setMore((m) => !m)}>
+        More
+      </button>
+      {more && (
+        <div className="attendance-actions">
+          {nudge && (
+            <button type="button" className="btn attendance-btn" onClick={() => void copy(nudge)}>
+              Nudge the maybes
+            </button>
+          )}
+          <button type="button" className="btn attendance-btn" disabled={busy} onClick={() => setSheet('reset')}>
+            Reset link
+          </button>
+          <button type="button" className="btn attendance-btn attendance-cancel" disabled={busy} onClick={() => setSheet('cancel')}>
+            Cancel this week
+          </button>
+        </div>
+      )}
       {reviewed && waiting.length === 0 && (
         <p className="attendance-line" role="status">
           All done.
@@ -305,7 +319,7 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
       )}
       {copied?.ok && (
         <p className="attendance-line" role="status">
-          {copied.kind === 'list' ? 'List copied' : 'Message copied'}
+          Message copied
         </p>
       )}
       {copied && !copied.ok && (

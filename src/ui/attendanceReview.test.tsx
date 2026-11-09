@@ -1,5 +1,5 @@
 import type { PGlite } from '@electric-sql/pglite';
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useHistoryStore } from '../store/historyStore';
@@ -75,6 +75,9 @@ function seed(over: Partial<Summary> = {}) {
 function setup() {
   const user = userEvent.setup({ advanceTimers: () => {} });
   const view = render(<AttendanceCard slot={TUE} onSignIn={vi.fn()} />);
+  // Nudge the maybes sits under More, so More starts open.
+  const more = screen.queryByRole('button', { name: 'More' });
+  if (more) fireEvent.click(more);
   return { user, ...view };
 }
 
@@ -380,55 +383,45 @@ describe('the review sheet against the real store', () => {
   });
 });
 
-describe('the copy buttons', () => {
+describe('the nudge button', () => {
   const answers = { a: 'in', b: 'in', c: 'maybe', d: 'maybe', e: 'out' } as const;
   const names = { a: 'Ana', b: 'Ben', c: 'Cai', d: 'Dee', e: 'Eli' };
   const full = (over: Partial<Summary> = {}) =>
     seed({ counts: { in: 2, maybe: 2, out: 1, late: 0 }, answers: { ...answers }, names, ...over });
-  const LIST = 'Tuesday open play, Tue 10 Nov, 7:00 to 9:00 pm, Hall\nIn (2): Ana, Ben\nMaybe (2): Cai, Dee';
+  const NUDGE = 'Cai and Dee, are you in for Tuesday?';
 
-  it('shows both buttons in the action row after the existing three', () => {
+  it('sits under More with Reset link and Cancel this week, after the Share link button', () => {
     full();
     setup();
-    const names = within(document.querySelector('.attendance-actions') as HTMLElement)
+    expect(screen.getByRole('button', { name: 'Share link' })).toBeInTheDocument();
+    const rows = [...document.querySelectorAll('.attendance-actions')];
+    const names_ = within(rows[rows.length - 1] as HTMLElement)
       .getAllByRole('button')
       .map((b) => b.textContent);
-    expect(names).toEqual(['Share', 'Reset link', 'Cancel this week', 'Copy list for the group chat', 'Nudge the maybes']);
+    expect(names_).toEqual(['Nudge the maybes', 'Reset link', 'Cancel this week']);
   });
 
-  it('hides Nudge the maybes at zero maybes and keeps the list button', () => {
+  it('hides Nudge the maybes at zero maybes', () => {
     seed({ counts: { in: 2, maybe: 0, out: 0, late: 0 }, answers: { a: 'in' }, names });
     setup();
-    expect(screen.getByRole('button', { name: 'Copy list for the group chat' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Nudge the maybes' })).not.toBeInTheDocument();
   });
 
-  it('has neither button in the cancelled state, signed out, or while the link is missing', () => {
+  it('is not there in the cancelled state, signed out, or while the link is missing', () => {
     full({ cancelled: { reason: null } });
     const a = setup();
-    expect(screen.queryByRole('button', { name: /Copy list|Nudge/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Nudge/ })).not.toBeInTheDocument();
     a.unmount();
     useAuthStore.setState({ status: 'signedOut', userId: null });
     full();
     const b = setup();
-    expect(screen.queryByRole('button', { name: /Copy list|Nudge/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Nudge/ })).not.toBeInTheDocument();
     b.unmount();
     useAuthStore.setState({ status: 'signedIn', userId: USER_A });
     useAttendanceStore.getState().clear();
     useAttendanceStore.setState({ lastError: { tue: null } });
     setup();
-    expect(screen.queryByRole('button', { name: /Copy list|Nudge/ })).not.toBeInTheDocument();
-  });
-
-  it('copies the list and says so', async () => {
-    full();
-    const { user } = setup();
-    const writeText = vi.fn(async () => {});
-    stubClipboard(writeText);
-    await user.click(screen.getByRole('button', { name: 'Copy list for the group chat' }));
-    expect(writeText).toHaveBeenCalledWith(LIST);
-    expect(await screen.findByRole('status')).toHaveTextContent('List copied');
-    expect(screen.queryByLabelText('Text to copy')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Nudge/ })).not.toBeInTheDocument();
   });
 
   it('copies the nudge and says so', async () => {
@@ -437,7 +430,7 @@ describe('the copy buttons', () => {
     const writeText = vi.fn(async () => {});
     stubClipboard(writeText);
     await user.click(screen.getByRole('button', { name: 'Nudge the maybes' }));
-    expect(writeText).toHaveBeenCalledWith('Cai and Dee, are you in for Tuesday?');
+    expect(writeText).toHaveBeenCalledWith(NUDGE);
     expect(await screen.findByRole('status')).toHaveTextContent('Message copied');
   });
 
@@ -445,85 +438,54 @@ describe('the copy buttons', () => {
     full();
     const { user } = setup();
     stubClipboard(vi.fn(async () => { throw new Error('denied'); }));
-    await user.click(screen.getByRole('button', { name: 'Copy list for the group chat' }));
+    await user.click(screen.getByRole('button', { name: 'Nudge the maybes' }));
     expect(await screen.findByText('Could not copy. Select the text below.')).toBeInTheDocument();
     const box = screen.getByLabelText('Text to copy') as HTMLTextAreaElement;
-    expect(box.tagName).toBe('TEXTAREA');
     expect(box).toHaveAttribute('readonly');
-    expect(box.value).toBe(LIST);
+    expect(box.value).toBe(NUDGE);
     expect(box.selectionStart).toBe(0);
-    expect(box.selectionEnd).toBe(LIST.length);
-    expect(screen.queryByText('List copied')).not.toBeInTheDocument();
+    expect(box.selectionEnd).toBe(NUDGE.length);
+    expect(screen.queryByText('Message copied')).not.toBeInTheDocument();
   });
 
-  it('gives the fallback box a row for every line of a long list, so nothing is cut off, up to a limit', async () => {
-    const many = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`p${i}`, `Player${i}`]));
-    const inAnswers = Object.fromEntries(Object.keys(many).map((id) => [id, 'in' as const]));
-    seed({ counts: { in: 40, maybe: 0, out: 0, late: 0 }, answers: inAnswers, names: many });
-    const { user } = setup();
-    stubClipboard(vi.fn(async () => { throw new Error('denied'); }));
-    await user.click(screen.getByRole('button', { name: 'Copy list for the group chat' }));
-    expect(Number((await screen.findByLabelText('Text to copy')).getAttribute('rows'))).toBe(12);
-  });
-
-  it('sizes the fallback box to a short nudge too', async () => {
+  it('falls back the same way when there is no clipboard at all, and sizes the box to a short message', async () => {
     full();
     const { user } = setup();
     stubClipboard(undefined);
     await user.click(screen.getByRole('button', { name: 'Nudge the maybes' }));
-    const rows = Number((await screen.findByLabelText('Text to copy')).getAttribute('rows'));
-    expect(rows).toBeGreaterThanOrEqual(3);
-    expect(rows).toBeLessThanOrEqual(4);
+    const box = (await screen.findByLabelText('Text to copy')) as HTMLTextAreaElement;
+    expect(box).toHaveValue(NUDGE);
+    expect(Number(box.getAttribute('rows'))).toBeGreaterThanOrEqual(3);
+    expect(Number(box.getAttribute('rows'))).toBeLessThanOrEqual(4);
   });
 
-  it('falls back the same way for the nudge, and when there is no clipboard at all', async () => {
-    full();
-    const { user } = setup();
-    stubClipboard(undefined);
-    await user.click(screen.getByRole('button', { name: 'Nudge the maybes' }));
-    expect((await screen.findByLabelText('Text to copy')) as HTMLTextAreaElement).toHaveValue('Cai and Dee, are you in for Tuesday?');
-  });
-
-  it('replaces the last message with the next one, and drops it when Share is pressed', async () => {
+  it('drops the message line when Share link is pressed', async () => {
     full();
     const { user } = setup();
     stubClipboard(vi.fn(async () => {}));
-    await user.click(screen.getByRole('button', { name: 'Copy list for the group chat' }));
-    await screen.findByText('List copied');
     await user.click(screen.getByRole('button', { name: 'Nudge the maybes' }));
     expect(await screen.findByText('Message copied')).toBeInTheDocument();
-    expect(screen.queryByText('List copied')).not.toBeInTheDocument();
     Object.defineProperty(navigator, 'share', { value: vi.fn(async () => {}), configurable: true, writable: true });
-    await user.click(screen.getByRole('button', { name: 'Share' }));
+    await user.click(screen.getByRole('button', { name: 'Share link' }));
     expect(screen.queryByText('Message copied')).not.toBeInTheDocument();
     delete (navigator as unknown as Record<string, unknown>).share;
   });
 
-  it('drops the Link copied line when a list is copied', async () => {
+  it('drops the Link copied line when the nudge is copied', async () => {
     full();
     const { user } = setup();
     stubClipboard(vi.fn(async () => {}));
-    await user.click(screen.getByRole('button', { name: 'Share' }));
+    await user.click(screen.getByRole('button', { name: 'Share link' }));
     await screen.findByText('Link copied');
-    await user.click(screen.getByRole('button', { name: 'Copy list for the group chat' }));
-    await screen.findByText('List copied');
+    await user.click(screen.getByRole('button', { name: 'Nudge the maybes' }));
+    await screen.findByText('Message copied');
     expect(screen.queryByText('Link copied')).not.toBeInTheDocument();
   });
 
-  it('keeps the buttons usable while a write is running', () => {
+  it('keeps the nudge usable while a write is running', () => {
     full();
     useAttendanceStore.setState({ busy: { tue: true } });
     setup();
-    expect(screen.getByRole('button', { name: 'Copy list for the group chat' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Nudge the maybes' })).toBeEnabled();
-  });
-
-  it('puts late names and friends in the list', async () => {
-    full({ lateIds: ['b'], tonight: [guest('g1', 'Rico', 'a')] });
-    const { user } = setup();
-    const writeText = vi.fn(async () => {});
-    stubClipboard(writeText);
-    await user.click(screen.getByRole('button', { name: 'Copy list for the group chat' }));
-    expect(writeText).toHaveBeenCalledWith(`${LIST}\nFriends (1): Rico`.replace('Ana, Ben', 'Ana, Ben (late)'));
   });
 });

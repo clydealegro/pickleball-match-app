@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home declutter, sketch v7</title>
+<style>
+:root{--bg:#fafaf7;--surface:#fff;--ink:#111;--muted:#66665f;--line:#e6e5df;--accent:#c8f03c;--ring:#4f6a00;--danger:#b3261e}
+*{box-sizing:border-box;margin:0}
+body{background:#e9e8e2;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink);padding:24px 20px 40px}
+h1{font-size:22px;font-weight:700}
+.sub{color:var(--muted);font-size:14px;margin:4px 0 18px;max-width:900px;line-height:1.4}
+.row{display:flex;gap:24px;flex-wrap:wrap;padding-bottom:12px}
+.col{flex:none;width:340px}
+.cap{font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#33332f}
+.why{font-size:13px;color:var(--muted);margin:3px 0 10px;min-height:54px;line-height:1.35}
+.phone{position:relative;width:340px;height:700px;background:var(--bg);border-radius:32px;border:8px solid #1b1b19;overflow:hidden;display:flex;flex-direction:column;padding:34px 14px 14px;gap:10px}
+.top{display:flex;justify-content:space-between;align-items:center}
+.logo{width:34px;height:34px;border-radius:9px;background:#111}
+.acct{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#fff}
+.chips{display:flex;gap:8px}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:700}
+.chip.on{background:#f2fadc;border-color:var(--ring)}
+.chip.plus{border-style:dashed;color:var(--muted)}
+.hero{background:var(--accent);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden}
+.hero.tall{flex:1}
+.htop{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tags{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pill{background:#111;color:var(--accent);font-size:12px;font-weight:700;padding:5px 11px;border-radius:999px}
+.time{font-size:14px;font-weight:700}
+.dash{border:1.5px dashed rgba(17,17,17,.6);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600}
+.edit{width:34px;height:34px;border-radius:50%;background:rgba(17,17,17,.14);flex:none}
+.day{font-size:40px;font-weight:800;letter-spacing:-.02em;line-height:1}
+.line{font-size:17px;font-weight:600}
+.regs{display:flex;align-items:center;gap:8px;font-size:13px}
+.av{display:flex}.av i{width:24px;height:24px;border-radius:50%;border:2px solid var(--accent);background:#4f6a00;margin-left:-6px}.av i:first-child{margin-left:0}
+.att{display:flex;align-items:center;gap:8px;border:1px solid rgba(17,17,17,.3);background:rgba(17,17,17,.08);border-radius:12px;min-height:40px;padding:0 12px;font-size:14px;font-weight:700}
+.att .t{flex:1}.att .badge{background:#111;color:var(--accent);border-radius:999px;font-size:11px;padding:2px 7px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.card h2{font-size:15px;font-weight:700;display:flex;justify-content:space-between}
+.card h2 span{font-weight:500;color:var(--muted)}
+.pills{display:flex;gap:6px}
+.p{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px}
+.pin{background:var(--accent)}.pmb{background:#fff4dc;color:#8a5a00}.pout{background:#fde8e6;color:var(--danger)}
+.url{font-size:12px;color:var(--muted);word-break:break-all}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.b{font-size:13px;font-weight:700;border:1.5px solid var(--line);border-radius:999px;padding:8px 12px;background:#fff}
+.b.g{background:var(--accent);border-color:var(--ring)}
+.last{border:1px solid var(--line);background:#fff;border-radius:14px;padding:10px 14px;font-size:14px;display:flex;flex-direction:column}
+.last small{color:var(--muted)}
+.start{margin-top:auto;border:2px solid #555;border-radius:999px;height:48px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;background:#fff}
+.gone{outline:2px dashed var(--danger);outline-offset:2px;position:relative}
+.gone::after{content:"removed";position:absolute;right:6px;top:-9px;background:var(--danger);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:6px}
+.moved{outline:2px dashed var(--ring);outline-offset:2px}
+.scrim{position:absolute;z-index:4;inset:0;background:rgba(0,0,0,.45)}
+.sheet{position:absolute;z-index:5;left:0;right:0;bottom:0;background:#fff;border-radius:22px 22px 0 0;padding:14px;display:flex;flex-direction:column;gap:10px}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line);align-self:center}
+.sheet .ttl{font-size:17px;font-weight:700;display:flex;justify-content:space-between}
+.pg{display:flex;flex-direction:column;gap:10px;flex:1}
+.back{font-size:14px;font-weight:700}
+.h1{font-size:24px;font-weight:800}
+.note{font-size:13px;color:var(--muted);line-height:1.4;margin-top:14px;max-width:1100px}
+.note b{color:var(--ink)}
+
+.pen{width:34px;height:34px;border-radius:50%;background:rgba(17,17,17,.14);flex:none;display:grid;place-items:center}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stat{padding:10px 12px;display:flex;flex-direction:column;gap:2px;border-left:1px solid var(--line)}
+.stat:first-child{border-left:0}
+.stat b{font-size:24px;font-weight:800;line-height:1}
+.stat span{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.stat i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.vlist{display:flex;flex-direction:column}
+.vrow{display:flex;align-items:center;gap:10px;padding:12px 2px;border-bottom:1px solid var(--line);font-size:16px;font-weight:600}
+.vrow:last-child{border:0}
+.vrow .nm{flex:1}
+.vrow small{color:var(--muted);font-weight:500;font-size:12px}
+.radio{width:22px;height:22px;border-radius:50%;border:2px solid var(--muted);flex:none}
+.radio.on{border-color:var(--ring);background:radial-gradient(var(--ring) 45%,transparent 50%)}
+.field{border:1px solid var(--line);background:#fff;border-radius:12px;padding:12px 14px;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+.field.ph{color:var(--muted)}.caret{border-left:2px solid #111;height:18px;margin-left:1px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.seg div{border:1.5px solid var(--line);border-radius:12px;padding:9px;text-align:center;font-size:13px;font-weight:700;background:#fff}
+.seg .on{background:#f2fadc;border-color:var(--ring)}
+.cta{height:48px;border-radius:999px;background:var(--accent);border:2px solid var(--ring);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px}
+.cta.off{background:#f1f0ea;border-color:var(--line);color:var(--muted)}
+.new{outline:2px dashed var(--ring);outline-offset:2px}
+.pencil{width:18px;height:18px}
+
+.court{position:absolute;right:-14px;bottom:70px;width:170px;opacity:.22}
+.mid{flex:1;display:flex;flex-direction:column;justify-content:center;gap:8px;position:relative;z-index:1}
+.big{font-size:64px;font-weight:800;letter-spacing:-.03em;line-height:.9}
+.big small{font-size:18px;font-weight:700;letter-spacing:0;margin-left:6px}
+.sub2{font-size:14px;font-weight:600}
+.faces{display:flex;flex-wrap:wrap;gap:6px}
+.fc{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:800;color:#fff;border:2px solid #111}
+.fc.in{background:#111;color:var(--accent)}
+.fc.maybe{background:transparent;color:#111;border:2px dashed #111}
+.fc.ghost{background:rgba(17,17,17,.1);color:rgba(17,17,17,.45);border:2px dotted rgba(17,17,17,.35)}
+.legend{font-size:12px;font-weight:600;display:flex;gap:12px}
+.sharebtn{align-self:flex-start;background:#111;color:var(--accent);border-radius:999px;padding:11px 18px;font-weight:700;font-size:15px}
+.chiprow{display:flex;gap:8px;flex-wrap:wrap;position:relative;z-index:1}
+.more{font-size:13px;font-weight:700;color:var(--muted);text-align:center;padding:6px}
+.more.red{color:var(--danger)}
+.scroll{max-height:190px;overflow:hidden;position:relative;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.scroll::after{content:"";position:absolute;left:0;right:0;bottom:0;height:34px;background:linear-gradient(transparent,#fff)}
+.search{border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px 14px;font-size:14px;color:var(--muted)}
+.tag2{font-size:11px;color:var(--muted);font-weight:600;margin-left:6px}
+.stepper{display:flex;align-items:center;gap:10px}
+.step{width:34px;height:34px;border-radius:10px;border:1.5px solid var(--line);display:grid;place-items:center;font-weight:800}
+.lbl{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.tm{display:flex;gap:8px;align-items:center}.tm .field{flex:1}
+
+.stack{display:flex}.stack i{width:30px;height:30px;border-radius:50%;border:2.5px solid var(--accent);margin-left:-9px;display:grid;place-items:center;font-style:normal;font-size:11px;font-weight:800;color:#fff}
+.stack i:first-child{margin-left:0}.stack .more{background:#111;color:var(--accent)}
+.stack.w i{border-color:#fff}
+.glass{background:rgba(255,255,255,.5);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.glassrow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.gl{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;opacity:.65}
+.cnt{font-size:16px;font-weight:800}
+.pillbtn{background:rgba(17,17,17,.14);border-radius:999px;padding:10px 16px;font-weight:700;font-size:14px;text-align:center}
+.pillbtn.dk{background:#111;color:var(--accent)}
+.giant{font-size:132px;font-weight:900;letter-spacing:-.05em;line-height:.78;margin-left:-4px}
+.giant2{font-size:22px;font-weight:800;letter-spacing:.02em}
+.tile{width:54px;background:#fff;border-radius:12px;text-align:center;overflow:hidden;flex:none;border:1.5px solid #111}
+.tile b{display:block;background:#111;color:var(--accent);font-size:11px;padding:3px 0;letter-spacing:.06em}
+.tile span{display:block;font-size:26px;font-weight:800;line-height:1.15}
+.tile small{display:block;font-size:11px;color:var(--muted);padding-bottom:4px}
+.cgrp{display:flex;gap:10px;align-items:flex-end}
+.ct{width:62px;height:78px;border:2.5px solid #111;border-radius:10px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:6px;padding:9px;position:relative}
+.ct::after{content:"";position:absolute;left:4px;right:4px;top:50%;border-top:2px solid #111;opacity:.5}
+.ct b{border-radius:50%;background:#111}.ct b.e{background:transparent;border:2px dashed #111}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tabs div{flex:1;text-align:center;padding:10px 0;font-size:14px;font-weight:600;color:var(--muted)}
+.tabs div b{font-weight:800}
+.tabs .on{color:#111;border-bottom:3px solid #111;margin-bottom:-1px}
+.prow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px;font-weight:600}
+.prow:last-child{border:0}.prow .a{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:800;flex:none}
+.prow .nm{flex:1}.prow small{color:var(--muted);font-weight:500;font-size:12px}
+.sech{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;padding:6px 0 2px}
+.dim{opacity:.55}
+.rec{outline:2px solid var(--ring);outline-offset:3px}
+.recl{display:inline-block;background:var(--ring);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:6px;margin-left:6px;vertical-align:middle;text-transform:none;letter-spacing:0}
+.tx{font-size:13px;line-height:1.45;max-width:1150px;margin-top:10px}
+.tx a{color:var(--ring)}
+
+.stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:0;background:rgba(17,17,17,.08);border-radius:14px;overflow:hidden}
+.st{padding:9px 10px;display:flex;flex-direction:column;gap:2px;border-left:1px solid rgba(17,17,17,.14)}
+.st:first-child{border-left:0}
+.st small{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;opacity:.65}
+.st b{font-size:15px;font-weight:800}
+.st span{font-size:12px;font-weight:600;opacity:.75}
+.lastlab{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;opacity:.65;display:flex;justify-content:space-between}
+.dots{display:flex;gap:6px;justify-content:center}.dots i{width:7px;height:7px;border-radius:50%;background:#c9c8c0}.dots i.on{background:#111;width:18px;border-radius:4px}
+.track{display:flex;gap:10px;flex:1;min-height:0;margin:0 -14px;padding:0 14px;transform:translateX(-74px)}
+.track .hero{flex:none;width:312px}
+.hand{position:absolute;right:46px;top:300px;z-index:6;font-size:12px;font-weight:700;background:#111;color:var(--accent);border-radius:999px;padding:6px 12px}
+.chip.half{border-color:var(--ring);background:linear-gradient(90deg,#f2fadc 50%,#fff 50%)}
+
+.hero2{border-radius:20px;overflow:hidden;display:flex;flex-direction:column;flex:1;background:var(--accent);position:relative}
+.hero2 .up{padding:14px;display:flex;flex-direction:column;gap:10px;position:relative}
+.hero2 .low{background:#111;color:#f4f4ef;padding:14px;display:flex;flex-direction:column;gap:12px;flex:1;border-radius:22px 22px 0 0;margin-top:auto}
+.sc3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sc{background:rgba(255,255,255,.6);border-radius:16px;padding:0 0 10px;display:flex;flex-direction:column;align-items:center;gap:3px;overflow:hidden;text-align:center}
+.sc .rb{align-self:stretch;background:#111;color:var(--accent);font-size:9.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:5px 0}
+.sc .av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px;margin-top:8px;border:2.5px solid #fff}
+.sc b{font-size:30px;font-weight:900;letter-spacing:-.03em;line-height:1}
+.sc .n{font-size:13px;font-weight:800}
+.sc small{font-size:11px;font-weight:600;opacity:.65}
+.board{background:#111;color:#f4f4ef;border-radius:16px;padding:4px 14px}
+.brow{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #2c2c29}
+.brow:last-child{border:0}
+.brow b{font-size:30px;font-weight:900;color:var(--accent);width:38px;letter-spacing:-.03em;line-height:1}
+.brow .n{flex:1;font-size:15px;font-weight:700}
+.brow small{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#a0a098}
+.darkpanel{background:#111;color:#f4f4ef;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.darkpanel .gl{opacity:.6}
+.stack.d i{border-color:#111}.stack.d .more{background:var(--accent);color:#111}
+.limebtn{background:var(--accent);color:#111;border-radius:999px;padding:11px 16px;font-weight:800;font-size:14px;text-align:center}
+.cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:0}
+.cc{display:flex;flex-direction:column;gap:2px;padding:0 10px;border-left:1px solid #2c2c29}
+.cc:first-child{border-left:0;padding-left:0}
+.cc small{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#a0a098}
+.cc b{font-size:34px;font-weight:900;color:var(--accent);letter-spacing:-.03em;line-height:1}
+.cc .n{font-size:14px;font-weight:700}
+.dlab{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#a0a098;display:flex;justify-content:space-between}
+.hr{height:1px;background:#2c2c29}
+.ghostd i{background:#2c2c29!important;color:#777!important}
+
+.low2{background:#fff;color:#111;padding:14px;display:flex;flex-direction:column;gap:12px;flex:1;border-radius:22px 22px 0 0;margin-top:6px}
+.low2 .dlab{color:var(--muted)}
+.low2 .hr{background:var(--line)}
+.cols3b{display:grid;grid-template-columns:repeat(3,1fr)}
+.cb{display:flex;flex-direction:column;gap:3px;padding:0 10px;border-left:1px solid var(--line)}
+.cb:first-child{border-left:0;padding-left:0}
+.cb small{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);line-height:1.25;height:25px}
+.cb b{font-size:34px;font-weight:900;letter-spacing:-.03em;line-height:1;display:inline-block;align-self:flex-start;background:linear-gradient(transparent 58%,var(--accent) 58%);padding:0 3px;margin-left:-3px}
+.cb .n{font-size:14px;font-weight:700}
+.sharebtn2{margin-top:auto;border-radius:999px;padding:12px 16px;font-weight:800;font-size:15px;text-align:center;background:var(--accent);border:2px solid var(--ring);color:#111}
+.inset{background:#111;color:#f4f4ef;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.inset .cols3 .cc small{height:25px;line-height:1.25}
+.cc small{height:25px;line-height:1.25}
+.phone.dm{background:#0f0f0e}
+.dm .chip{background:#1a1a18;border-color:#2c2c29;color:#f4f4ef}.dm .chip.on{background:#2a3410;border-color:var(--accent)}
+.dm .start{background:#1a1a18;border-color:#555;color:#f4f4ef}
+.dm .low2{background:#1a1a18;color:#f4f4ef}.dm .low2 .dlab{color:#a0a098}.dm .cb small{color:#a0a098}.dm .cb{border-color:#2c2c29}.dm .low2 .hr{background:#2c2c29}
+.dm .cb b{background:linear-gradient(transparent 58%,#4f6a00 58%)}
+.dm .low2 .stack i{border-color:#1a1a18}
+.dm .dots i{background:#444}.dm .dots i.on{background:#f4f4ef}
+.dm .logo{background:#f4f4ef}
+</style></head><body>
+<h1>Home declutter, sketch v7</h1>
+<div class="sub">Two-tone card, refined. Fixes: Share link pinned to the bottom, stat labels aligned (always two lines), less black. Two lighter options plus a dark-mode check.</div>
+
+<div class="row"><div class="col"><div class="cap">C1 · Light base<span class="recl">my pick</span></div><div class="why">Lime top, white base. Numbers are ink with a lime marker stroke. Labels always sit on two lines so the numbers line up. Share link is pinned to the bottom.</div><div class="phone "><div class="top"><div class="logo"></div><div class="acct"></div></div><div class="chips"><span class="chip on">Tue 10</span><span class="chip">Thu 12</span><span class="chip">Sat 14</span><span class="chip plus">+</span></div><div class="hero2"><div class="up"><div class="htop"><div class="tags"><span class="pill">Tomorrow</span><span class="time">4:00 to 6:00 pm</span></div><span class="pen"><svg class="pencil" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></span></div><div><div style="font-size:38px;font-weight:800;line-height:1;letter-spacing:-.02em">Tuesday</div><div class="line" style="margin-top:4px">Park</div></div></div><div class="low2"><div class="dlab"><span>Last Tuesday · 3 Nov</span><span>8 games</span></div><div class="cols3b"><div class="cb"><small>Most<br>played</small><b>8</b><span class="n">Ana</span></div><div class="cb"><small>Most<br>wins</small><b>6</b><span class="n">Ben</span></div><div class="cb"><small>Most<br>losses</small><b>5</b><span class="n">Carlo</span></div></div><div class="hr"></div><div class="glassrow"><div class="stack"><i style="background:#2e7d6b;border-color:#fff">A</i><i style="background:#4f6a00;border-color:#fff">B</i><i style="background:#8a5a00;border-color:#fff">C</i><i style="background:#7a1f5c;border-color:#fff">D</i><i style="background:#1f4f7a;border-color:#fff">E</i><i class="more" style="border-color:#fff;background:#111;color:#c8f03c">+3</i></div><span style="font-size:15px;font-weight:800">6 in · 2 maybe ›</span></div><div class="sharebtn2">Share link</div></div></div><div class="dots"><i class="on"></i><i></i><i></i><i></i></div><div class="start">Start Tuesday session</div></div></div><div class="col"><div class="cap">C1 · Nobody yet</div><div class="why">Same layout and the same pinned button. Ghost faces and one instruction.</div><div class="phone "><div class="top"><div class="logo"></div><div class="acct"></div></div><div class="chips"><span class="chip on">Tue 10</span><span class="chip">Thu 12</span><span class="chip">Sat 14</span><span class="chip plus">+</span></div><div class="hero2"><div class="up"><div class="htop"><div class="tags"><span class="pill">Tomorrow</span><span class="time">4:00 to 6:00 pm</span></div><span class="pen"><svg class="pencil" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></span></div><div><div style="font-size:38px;font-weight:800;line-height:1;letter-spacing:-.02em">Tuesday</div><div class="line" style="margin-top:4px">Park</div></div></div><div class="low2"><div class="dlab"><span>Last Tuesday · 3 Nov</span><span>8 games</span></div><div class="cols3b"><div class="cb"><small>Most<br>played</small><b>8</b><span class="n">Ana</span></div><div class="cb"><small>Most<br>wins</small><b>6</b><span class="n">Ben</span></div><div class="cb"><small>Most<br>losses</small><b>5</b><span class="n">Carlo</span></div></div><div class="hr"></div><div class="glassrow"><span style="font-size:15px;font-weight:800">Nobody yet</span><div class="stack"><i style="background:#ecebe5;color:#a0a098;border-color:#fff">A</i><i style="background:#ecebe5;color:#a0a098;border-color:#fff">B</i><i style="background:#ecebe5;color:#a0a098;border-color:#fff">C</i><i style="background:#ecebe5;color:#a0a098;border-color:#fff">D</i><i style="background:#ecebe5;color:#a0a098;border-color:#fff">E</i></div></div><div style="font-size:12.5px;color:#66665f;font-weight:600">Share the link in your group chat. Answers show here.</div><div class="sharebtn2">Share link</div></div></div><div class="dots"><i class="on"></i><i></i><i></i><i></i></div><div class="start">Start Tuesday session</div></div></div><div class="col"><div class="cap">C2 · Black only on the stats</div><div class="why">Lime throughout. Black is limited to one compact stats card, so the colour is a highlight, not a base. Share is the dark pill at the bottom.</div><div class="phone "><div class="top"><div class="logo"></div><div class="acct"></div></div><div class="chips"><span class="chip on">Tue 10</span><span class="chip">Thu 12</span><span class="chip">Sat 14</span><span class="chip plus">+</span></div><div class="hero tall" style="gap:12px"><div class="htop"><div class="tags"><span class="pill">Tomorrow</span><span class="time">4:00 to 6:00 pm</span></div><span class="pen"><svg class="pencil" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></span></div><div><div style="font-size:38px;font-weight:800;line-height:1;letter-spacing:-.02em">Tuesday</div><div class="line" style="margin-top:4px">Park</div></div><div style="margin-top:auto"><div class="inset"><div class="dlab"><span>Last Tuesday · 3 Nov</span><span>8 games</span></div><div class="cols3"><div class="cc"><small>Most<br>played</small><b>8</b><span class="n">Ana</span></div><div class="cc"><small>Most<br>wins</small><b>6</b><span class="n">Ben</span></div><div class="cc"><small>Most<br>losses</small><b>5</b><span class="n">Carlo</span></div></div></div></div><div class="glassrow" style="background:rgba(255,255,255,.55);border-radius:14px;padding:10px 12px"><div class="stack"><i style="background:#2e7d6b;border-color:#d9f56b">A</i><i style="background:#4f6a00;border-color:#d9f56b">B</i><i style="background:#8a5a00;border-color:#d9f56b">C</i><i style="background:#7a1f5c;border-color:#d9f56b">D</i><i class="more" style="border-color:#d9f56b;background:#111;color:#c8f03c">+4</i></div><span class="cnt">6 in · 2 maybe ›</span></div><div class="pillbtn dk">Share link</div></div><div class="dots"><i class="on"></i><i></i><i></i><i></i></div><div class="start">Start Tuesday session</div></div></div><div class="col"><div class="cap">C1 · Dark mode</div><div class="why">How C1 behaves with the app theme set to dark: the base becomes the dark surface, the marker stroke turns dark green, the lime top stays.</div><div class="phone dm"><div class="top"><div class="logo"></div><div class="acct"></div></div><div class="chips"><span class="chip on">Tue 10</span><span class="chip">Thu 12</span><span class="chip">Sat 14</span><span class="chip plus">+</span></div><div class="hero2"><div class="up"><div class="htop"><div class="tags"><span class="pill">Tomorrow</span><span class="time">4:00 to 6:00 pm</span></div><span class="pen"><svg class="pencil" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></span></div><div><div style="font-size:38px;font-weight:800;line-height:1;letter-spacing:-.02em">Tuesday</div><div class="line" style="margin-top:4px">Park</div></div></div><div class="low2"><div class="dlab"><span>Last Tuesday · 3 Nov</span><span>8 games</span></div><div class="cols3b"><div class="cb"><small>Most<br>played</small><b>8</b><span class="n">Ana</span></div><div class="cb"><small>Most<br>wins</small><b>6</b><span class="n">Ben</span></div><div class="cb"><small>Most<br>losses</small><b>5</b><span class="n">Carlo</span></div></div><div class="hr"></div><div class="glassrow"><div class="stack"><i style="background:#2e7d6b;border-color:#1a1a18">A</i><i style="background:#4f6a00;border-color:#1a1a18">B</i><i style="background:#8a5a00;border-color:#1a1a18">C</i><i style="background:#7a1f5c;border-color:#1a1a18">D</i><i style="background:#1f4f7a;border-color:#1a1a18">E</i><i class="more" style="border-color:#1a1a18;background:#111;color:#c8f03c">+3</i></div><span style="font-size:15px;font-weight:800">6 in · 2 maybe ›</span></div><div class="sharebtn2">Share link</div></div></div><div class="dots"><i class="on"></i><i></i><i></i><i></i></div><div class="start">Start Tuesday session</div></div></div></div><div class="tx"><b>Alignment:</b> in v6 "MOST PLAYED" wrapped to two lines but "MOST WINS" did not, which pushed the numbers out of line. Every label is now "Most" on line one and the word on line two, with a fixed height, so all three numbers and names sit on one baseline.<br>
+<b>Share link:</b> the button is the last item in a column that fills the card, so it always sits at the bottom edge regardless of how many answers there are.<br>
+<b>Black:</b> C1 removes it entirely and keeps the contrast through the lime marker behind the numbers. C2 keeps a small black card if you want one strong block.</div></body></html>

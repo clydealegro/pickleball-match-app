@@ -147,7 +147,8 @@ interface SlotsState extends SlotsData {
   persistent: boolean;
   saveSlot: (id: string, patch: SlotEdit) => void;
   setTonight: (id: string, patch: SlotEdit) => void;
-  clearTonight: (id: string) => void;
+  /** Drops this-time-only edits for a slot: all of them, or only the named fields. */
+  clearTonight: (id: string, keys?: (keyof SlotEdit)[]) => void;
   /** Returns the name as stored, or an empty string when nothing was stored. */
   addVenue: (name: string) => string;
 }
@@ -170,10 +171,13 @@ export const useSlotsStore = create<SlotsState>()((set, get) => ({
   setTonight(id, patch) {
     set((st) => ({ tonight: { ...st.tonight, [id]: { ...st.tonight[id], ...patch } } }));
   },
-  clearTonight(id) {
+  clearTonight(id, keys) {
     set((st) => {
-      const { [id]: _gone, ...rest } = st.tonight;
-      return { tonight: rest };
+      const { [id]: gone, ...rest } = st.tonight;
+      if (!keys || !gone) return { tonight: rest };
+      const kept = { ...gone };
+      for (const k of keys) delete kept[k];
+      return { tonight: Object.keys(kept).length > 0 ? { ...rest, [id]: kept } : rest };
     });
   },
   addVenue(name) {

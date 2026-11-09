@@ -1,5 +1,5 @@
 import type { PGlite } from '@electric-sql/pglite';
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useHistoryStore } from '../store/historyStore';
@@ -70,6 +70,9 @@ function setup(slot: Slot = TUE) {
   const onSignIn = vi.fn();
   const user = userEvent.setup({ advanceTimers: () => {} });
   const view = render(<AttendanceCard slot={slot} onSignIn={onSignIn} />);
+  // Reset link and Cancel this week sit under More. Most tests are about them, so More starts open.
+  const more = screen.queryByRole('button', { name: 'More' });
+  if (more) fireEvent.click(more);
   return { user, onSignIn, ...view };
 }
 
@@ -106,9 +109,9 @@ describe('which states show', () => {
     useAuthStore.setState({ status });
     seed();
     const { user, onSignIn } = setup();
-    expect(screen.getByRole('heading', { name: 'Attendance link' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Attendance link' })).toBeInTheDocument();
     expect(screen.getByText('Sign in to share an attendance link with your players.')).toBeInTheDocument();
-    expect(screen.queryByText('11 in')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: '11 In' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
     expect(onSignIn).toHaveBeenCalledTimes(1);
   });
@@ -117,7 +120,7 @@ describe('which states show', () => {
     signIn('unknown');
     seed();
     setup();
-    expect(screen.getByText('11 in')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '11 In' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Sign in' })).not.toBeInTheDocument();
   });
 
@@ -132,7 +135,7 @@ describe('which states show', () => {
     seed();
     useAttendanceStore.setState({ ownerId: 'someone-else' });
     setup();
-    expect(screen.queryByText('11 in')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: '11 In' })).not.toBeInTheDocument();
     expect(screen.getByText('Checking answers')).toBeInTheDocument();
   });
 
@@ -148,14 +151,14 @@ describe('which states show', () => {
     useAttendanceStore.setState({ ownerId: USER_A, links: { tue: { code: 'abc123' } }, lastError: { tue: null } });
     setup();
     expect(screen.getByText('Checking answers')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Share' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Share link' })).not.toBeInTheDocument();
   });
 
   it('offers Create link once it is known there is none', () => {
     signIn();
     useAttendanceStore.setState({ lastError: { tue: null } });
     setup();
-    expect(screen.getByRole('heading', { name: 'Attendance link' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Attendance link' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create link' })).toBeEnabled();
     expect(screen.queryByText('Checking answers')).not.toBeInTheDocument();
   });
@@ -206,36 +209,65 @@ describe('which states show', () => {
 describe('the link state', () => {
   beforeEach(() => signIn());
 
-  it('shows the heading, the weekday, the pills, the link and the three buttons', () => {
+  it('shows the answer tabs with their counts, Share link, and Reset link and Cancel this week under More', () => {
     seed();
     setup();
-    expect(screen.getByRole('heading', { name: 'Attendance link' })).toBeInTheDocument();
-    expect(screen.getByText('Tuesday')).toBeInTheDocument();
-    const pills = within(screen.getByRole('list', { name: 'Answers' })).getAllByRole('listitem');
-    expect(pills.map((p) => p.textContent)).toEqual(['11 in', '3 maybe', '2 out', '1 friend']);
-    expect(screen.getByText(`${window.location.origin}/#/j/abc123`)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled();
+    expect(screen.getByRole('region', { name: 'Attendance link' })).toBeInTheDocument();
+    const tabs = within(screen.getByRole('tablist', { name: 'Answers' })).getAllByRole('tab');
+    expect(tabs.map((t) => t.textContent)).toEqual(['11 In', '3 Maybe', '2 Out']);
+    expect(screen.getByRole('tab', { name: '11 In' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('button', { name: 'Share link' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Reset link' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Cancel this week' })).toBeEnabled();
   });
 
-  it('names the weekday of the slot it is given', () => {
+  it('keeps Reset link and Cancel this week out of the way until More is pressed', async () => {
     seed();
-    setup({ id: 'tue', weekday: 4 });
-    expect(screen.getByText('Thursday')).toBeInTheDocument();
+    const { user } = setup();
+    // The helper opens More; close it again.
+    await user.click(screen.getByRole('button', { name: 'More' }));
+    expect(screen.queryByRole('button', { name: 'Reset link' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancel this week' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('shows zero counts for in, maybe and out, and no friend pill when there are none', () => {
-    seed({ counts: { in: 0, maybe: 0, out: 0, late: 0 }, friends: 0 });
+  it('has no Copy list button: Share link is the only way to send', () => {
+    seed();
     setup();
-    const pills = within(screen.getByRole('list', { name: 'Answers' })).getAllByRole('listitem');
-    expect(pills.map((p) => p.textContent)).toEqual(['0 in', '0 maybe', '0 out']);
+    expect(screen.queryByRole('button', { name: /Copy list/ })).not.toBeInTheDocument();
   });
 
-  it('pluralises friends', () => {
+  it('shows zero counts on all three tabs and says nobody yet', () => {
+    seed({ counts: { in: 0, maybe: 0, out: 0, late: 0 }, friends: 0, answers: {}, tonight: [] });
+    setup();
+    const tabs = within(screen.getByRole('tablist', { name: 'Answers' })).getAllByRole('tab');
+    expect(tabs.map((t) => t.textContent)).toEqual(['0 In', '0 Maybe', '0 Out']);
+    expect(screen.getByText('Nobody yet.')).toBeInTheDocument();
+  });
+
+  it('lists the names for the selected tab, with late and friend tags', async () => {
+    seed({
+      counts: { in: 2, maybe: 1, out: 0, late: 1 },
+      answers: { a: 'in', b: 'in', c: 'maybe' },
+      names: { a: 'Ana', b: 'Ben', c: 'Cy' },
+      lateIds: ['b'],
+      tonight: [{ id: 'f1', name: 'Fay', broughtBy: 'a' }],
+      friends: 0,
+    });
+    const { user } = setup();
+    const panel = screen.getByRole('tabpanel');
+    const names = (el: HTMLElement) => [...el.querySelectorAll('.attendance-person-name')].map((n) => n.textContent);
+    expect(names(panel)).toEqual(['Ana', 'Ben', 'Fay']);
+    expect(panel.textContent).toContain('late');
+    expect(panel.textContent).toContain('friend');
+    await user.click(screen.getByRole('tab', { name: '1 Maybe' }));
+    expect(names(screen.getByRole('tabpanel'))).toEqual(['Cy']);
+  });
+
+  it('pluralises friends members said they are bringing', () => {
     seed({ friends: 2 });
     setup();
-    expect(screen.getByText('2 friends')).toBeInTheDocument();
+    expect(screen.getByText('2 friends coming')).toBeInTheDocument();
   });
 
   it('shows no stale line while the answers are fresh', () => {
@@ -279,7 +311,7 @@ describe('the link state', () => {
     setup();
     expect(screen.getByText('Updated 4:20 pm')).toBeInTheDocument();
     expect(screen.getByText('Offline, showing the last list')).toBeInTheDocument();
-    expect(screen.getByText('11 in')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '11 In' })).toBeInTheDocument();
   });
 
   it.each(['auth', 'server'] as const)('shows the update time but not the offline line after a %s failure', (error) => {
@@ -333,11 +365,11 @@ describe('the link state', () => {
     expect(screen.queryByText(/to review/)).not.toBeInTheDocument();
   });
 
-  it('puts the lines in order: pills, stale, change, review button, link, buttons, copy buttons', () => {
+  it('puts the lines in order: tabs, stale, change, review button, Share link, More', () => {
     seed({ fetchedAt: new Date(2026, 10, 9, 16, 12).getTime(), waiting: [{ id: 'g1', name: 'Mika', broughtBy: null }] }, { change: { player: 'Ben', from: 'in', to: 'out', at: NOW } });
     const { container } = setup();
     const text = container.textContent!;
-    const order = ['Attendance link', '11 in', 'Updated 4:12 pm', 'Ben changed to Out', '1 new name to review', '/#/j/abc123', 'Share', 'Copy list for the group chat'].map((t) => text.indexOf(t));
+    const order = ['11 In', 'Updated 4:12 pm', 'Ben changed to Out', '1 new name to review', 'Share link', 'More'].map((t) => text.indexOf(t));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
@@ -363,7 +395,7 @@ describe('the link state', () => {
   it('disables every button while a write is running', () => {
     seed({}, { busy: true });
     setup();
-    for (const name of ['Share', 'Reset link', 'Cancel this week']) expect(screen.getByRole('button', { name })).toBeDisabled();
+    for (const name of ['Share link', 'Reset link', 'Cancel this week']) expect(screen.getByRole('button', { name })).toBeDisabled();
   });
 
   it('disables Create link while it runs', () => {
@@ -381,9 +413,9 @@ describe('a cancelled week', () => {
     setup();
     expect(screen.getByText('Cancelled for Tue 10 Nov. Venue closed')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Undo' })).toBeEnabled();
-    expect(screen.queryByText('11 in')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: '11 In' })).not.toBeInTheDocument();
     expect(screen.queryByText(/to review/)).not.toBeInTheDocument();
-    for (const name of ['Share', 'Reset link', 'Cancel this week']) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    for (const name of ['Share link', 'Reset link', 'Cancel this week']) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
   });
 
   it('shows the notice without a reason', () => {
@@ -481,7 +513,7 @@ describe('Share', () => {
     const share = vi.fn(async () => {});
     const writeText = vi.fn(async () => {});
     stubShare(share, writeText);
-    await user.click(screen.getByRole('button', { name: 'Share' }));
+    await user.click(screen.getByRole('button', { name: 'Share link' }));
     expect(share).toHaveBeenCalledWith({ title: 'Tuesday open play', url: URL() });
     expect(writeText).not.toHaveBeenCalled();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -492,7 +524,7 @@ describe('Share', () => {
     const { user } = setup();
     const writeText = vi.fn(async () => {});
     stubShare(vi.fn(async () => { throw new DOMException('cancelled', 'AbortError'); }), writeText);
-    await user.click(screen.getByRole('button', { name: 'Share' }));
+    await user.click(screen.getByRole('button', { name: 'Share link' }));
     expect(writeText).not.toHaveBeenCalled();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByText('Link copied')).not.toBeInTheDocument();
@@ -503,7 +535,7 @@ describe('Share', () => {
     const { user } = setup();
     const writeText = vi.fn(async () => {});
     stubShare(vi.fn(async () => { throw new Error('nope'); }), writeText);
-    await user.click(screen.getByRole('button', { name: 'Share' }));
+    await user.click(screen.getByRole('button', { name: 'Share link' }));
     expect(writeText).toHaveBeenCalledWith(URL());
     expect(await screen.findByText('Link copied')).toBeInTheDocument();
   });
@@ -512,7 +544,7 @@ describe('Share', () => {
     const { user } = setup();
     const writeText = vi.fn(async () => {});
     stubShare(undefined, writeText);
-    await user.click(screen.getByRole('button', { name: 'Share' }));
+    await user.click(screen.getByRole('button', { name: 'Share link' }));
     expect(writeText).toHaveBeenCalledWith(URL());
     expect(await screen.findByText('Link copied')).toBeInTheDocument();
     expect(screen.queryByLabelText('Link')).not.toBeInTheDocument();
@@ -521,7 +553,7 @@ describe('Share', () => {
   it('shows the link selected in a read-only field when nothing else works', async () => {
     const { user } = setup();
     stubShare(undefined, undefined);
-    await user.click(screen.getByRole('button', { name: 'Share' }));
+    await user.click(screen.getByRole('button', { name: 'Share link' }));
     const field = (await screen.findByLabelText('Link')) as HTMLInputElement;
     expect(field).toHaveValue(URL());
     expect(field).toHaveAttribute('readonly');
@@ -533,7 +565,7 @@ describe('Share', () => {
   it('shows the field when copying is refused', async () => {
     const { user } = setup();
     stubShare(undefined, vi.fn(async () => { throw new Error('denied'); }));
-    await user.click(screen.getByRole('button', { name: 'Share' }));
+    await user.click(screen.getByRole('button', { name: 'Share link' }));
     expect(await screen.findByLabelText('Link')).toHaveValue(URL());
     expect(screen.queryByText('Link copied')).not.toBeInTheDocument();
   });
@@ -541,10 +573,10 @@ describe('Share', () => {
   it('forgets the last result when Share is pressed again', async () => {
     const { user } = setup();
     stubShare(undefined, vi.fn(async () => {}));
-    await user.click(screen.getByRole('button', { name: 'Share' }));
+    await user.click(screen.getByRole('button', { name: 'Share link' }));
     expect(await screen.findByText('Link copied')).toBeInTheDocument();
     stubShare(vi.fn(async () => {}), undefined);
-    await user.click(screen.getByRole('button', { name: 'Share' }));
+    await user.click(screen.getByRole('button', { name: 'Share link' }));
     expect(screen.queryByText('Link copied')).not.toBeInTheDocument();
   });
 });
@@ -725,54 +757,58 @@ describe('against the real rules', () => {
   it('finds there is no link, creates one and shows the empty counts', async () => {
     const { user } = setup();
     await user.click(await screen.findByRole('button', { name: 'Create link' }));
-    expect(await screen.findByText('0 in')).toBeInTheDocument();
-    expect(screen.getByText(`${window.location.origin}/#/j/${await code()}`)).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: '0 In' })).toBeInTheDocument();
+    expect(await code()).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Share link' })).toBeInTheDocument();
   });
 
   it('shows the answers a member gave, after a refresh', async () => {
     const { user } = setup();
     await user.click(await screen.findByRole('button', { name: 'Create link' }));
-    await screen.findByText('0 in');
+    await screen.findByRole('tab', { name: '0 In' });
     await run(db, 'anon', 'select public.attendance_answer($1, $2, $3, $4)', [await code(), '11111111-1111-4111-8111-111111111111', 'in', false]);
     await act(async () => {
       await useAttendanceStore.getState().refresh('tue');
     });
-    expect(screen.getByText('1 in')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '1 In' })).toBeInTheDocument();
   });
 
   it('resets the link through the sheet and shows the new code', async () => {
     const { user } = setup();
     await user.click(await screen.findByRole('button', { name: 'Create link' }));
-    await screen.findByText('0 in');
+    await screen.findByRole('tab', { name: '0 In' });
     const before = await code();
+    await user.click(screen.getByRole('button', { name: 'More' }));
     await user.click(screen.getByRole('button', { name: 'Reset link' }));
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reset link' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     const after = await code();
     expect(after).not.toBe(before);
-    expect(await screen.findByText(`${window.location.origin}/#/j/${after}`)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Share link' })).toBeInTheDocument();
   });
 
   it('cancels the week with a reason, then undoes it', async () => {
     const { user } = setup();
     await user.click(await screen.findByRole('button', { name: 'Create link' }));
-    await screen.findByText('0 in');
+    await screen.findByRole('tab', { name: '0 In' });
+    await user.click(screen.getByRole('button', { name: 'More' }));
     await user.click(screen.getByRole('button', { name: 'Cancel this week' }));
     await user.type(screen.getByLabelText('Reason (optional)'), 'Venue closed');
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel this week' }));
     expect(await screen.findByText(/^Cancelled for \w{3} \d{1,2} \w{3}\. Venue closed$/)).toBeInTheDocument();
-    expect(screen.queryByText('0 in')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: '0 In' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Undo' }));
-    expect(await screen.findByText('0 in')).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: '0 In' })).toBeInTheDocument();
     expect(screen.queryByText(/Cancelled for/)).not.toBeInTheDocument();
   });
 
   it('shows the offline message and keeps the sheet open when a reset cannot be sent', async () => {
     const { user } = setup();
     await user.click(await screen.findByRole('button', { name: 'Create link' }));
-    await screen.findByText('0 in');
+    await screen.findByRole('tab', { name: '0 In' });
     const before = await code();
     flags.offline = true;
+    await user.click(screen.getByRole('button', { name: 'More' }));
     await user.click(screen.getByRole('button', { name: 'Reset link' }));
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reset link' }));
     expect(await within(screen.getByRole('dialog')).findByRole('alert')).toHaveTextContent(OFFLINE);

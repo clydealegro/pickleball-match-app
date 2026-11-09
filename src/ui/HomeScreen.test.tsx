@@ -133,11 +133,20 @@ describe('HomeScreen hero', () => {
     expect(svg).toHaveAttribute('aria-hidden', 'true');
   });
 
-  it('asks for a time, a venue and courts with dashed chips when none are set', () => {
+  it('asks for a time and a venue with dashed chips when none are set, and never for courts', () => {
     setup();
-    for (const label of ['+ Add a time', '+ Add a venue', '+ Add courts']) {
+    for (const label of ['+ Add a time', '+ Add a venue']) {
       expect(screen.getByRole('button', { name: label })).toHaveClass('dashed');
     }
+    expect(screen.queryByRole('button', { name: '+ Add courts' })).not.toBeInTheDocument();
+  });
+
+  it('puts the time beside the day pill', () => {
+    resetSlots([{ id: 'sat', weekday: 6, startMin: 540, endMin: 660 }]);
+    setup();
+    const tags = document.querySelector('.home-hero-top .home-hero-tags')!;
+    expect(within(tags as HTMLElement).getByText('9:00 to 11:00 am')).toBeInTheDocument();
+    expect(tags.querySelector('.home-pill')).not.toBeNull();
   });
 
   it('shows the time, venue and courts when they are set', () => {
@@ -154,17 +163,15 @@ describe('HomeScreen hero', () => {
     expect(screen.getByText('Park · 1 court')).toBeInTheDocument();
   });
 
-  it('builds the line from whatever is set and offers a chip for the rest', () => {
+  it('builds the line from whatever is set and offers a venue chip when there is none', () => {
     resetSlots([{ id: 'sat', weekday: 6, venue: 'Park' }]);
     setup();
     expect(screen.getByText('Park')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '+ Add a venue' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '+ Add courts' })).toBeInTheDocument();
     cleanup();
     resetSlots([{ id: 'sat', weekday: 6, courts: 2 }]);
     setup();
     expect(screen.getByText('2 courts')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '+ Add courts' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '+ Add a venue' })).toBeInTheDocument();
   });
 
@@ -474,10 +481,17 @@ describe('HomeScreen editing', () => {
     expect(screen.getByRole('button', { name: 'Edit Saturday' })).toBeInTheDocument();
   });
 
-  it.each(['+ Add a time', '+ Add a venue', '+ Add courts'])('opens the sheet from the dashed chip %s', async (label) => {
+  it('opens the full sheet from the dashed chip + Add a time', async () => {
     const { user } = setup();
-    await user.click(screen.getByRole('button', { name: label }));
+    await user.click(screen.getByRole('button', { name: '+ Add a time' }));
     expect(screen.getByRole('heading', { name: 'Saturday: when and where' })).toBeInTheDocument();
+  });
+
+  it('opens the short venue drawer from the dashed chip + Add a venue', async () => {
+    const { user } = setup();
+    await user.click(screen.getByRole('button', { name: '+ Add a venue' }));
+    expect(screen.getByRole('heading', { name: 'Where do you play?' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Saturday: when and where' })).not.toBeInTheDocument();
   });
 
   it('saves for always: the hero updates and the slot is stored', async () => {
@@ -535,78 +549,15 @@ describe('HomeScreen editing', () => {
   });
 });
 
-describe('HomeScreen last session row', () => {
-  const entry = (endedAt: number, games: number): HistoryEntry => ({
-    id: `e${endedAt}`,
-    name: 'Open play',
-    createdAt: endedAt - 1000,
-    endedAt,
-    games,
-    session: newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }),
-  });
-  const row = () => screen.getByRole('button', { name: /^Last:/ });
-
-  it('shows nothing and no placeholder without history', () => {
-    setup();
-    expect(screen.queryByText(/^Last:/)).not.toBeInTheDocument();
-    expect(screen.queryByTestId('home-last-placeholder')).not.toBeInTheDocument();
-  });
-
-  it('reserves the row while history is loading', () => {
-    useHistoryStore.setState({ loaded: false });
-    setup();
-    expect(screen.getByTestId('home-last-placeholder')).toHaveAttribute('aria-hidden', 'true');
-    expect(screen.queryByText(/^Last:/)).not.toBeInTheDocument();
-  });
-
-  it('swaps the placeholder for the row when history has loaded', () => {
-    useHistoryStore.setState({ loaded: false });
-    setup();
-    expect(screen.getByTestId('home-last-placeholder')).toBeInTheDocument();
-    cleanup();
-    useHistoryStore.setState({ loaded: true, entries: [entry(new Date(2026, 10, 4, 21).getTime(), 7)] });
-    setup();
-    expect(screen.queryByTestId('home-last-placeholder')).not.toBeInTheDocument();
-    expect(row()).toBeInTheDocument();
-  });
-
-  it('shows the newest session and opens Past sessions', async () => {
-    useHistoryStore.setState({ entries: [entry(new Date(2026, 10, 4, 21).getTime(), 7), entry(new Date(2026, 10, 1, 21).getTime(), 3)] });
-    const { user, onHistory } = setup();
-    expect(within(row()).getByText('Last: Wed 4 Nov, 7 games')).toBeInTheDocument();
-    await user.click(row());
-    expect(onHistory).toHaveBeenCalledTimes(1);
-  });
-
-  it('says game, not games, for one game', () => {
-    useHistoryStore.setState({ entries: [entry(new Date(2026, 10, 4, 21).getTime(), 1)] });
-    setup();
-    expect(screen.getByText('Last: Wed 4 Nov, 1 game')).toBeInTheDocument();
-  });
-
-  it('adds how many of the last 10 weeks had a session once there are 3 sessions', () => {
+describe('HomeScreen history', () => {
+  it('has no last session row: Past sessions live in Settings', () => {
     useHistoryStore.setState({
-      entries: [
-        entry(new Date(2026, 10, 4, 21).getTime(), 5),
-        entry(new Date(2026, 9, 28, 21).getTime(), 5),
-        entry(new Date(2026, 9, 21, 21).getTime(), 5),
-      ],
+      entries: [{ id: 'e1', name: 'Open play', createdAt: NOW - 2000, endedAt: NOW - 1000, games: 3, session: newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }) } as HistoryEntry],
+      loaded: true,
     });
     setup();
-    expect(within(row()).getByText('Played 3 of the last 10 weeks')).toBeInTheDocument();
-  });
-
-  it('leaves the second line out with fewer than 3 sessions', () => {
-    useHistoryStore.setState({ entries: [entry(new Date(2026, 10, 4, 21).getTime(), 5), entry(new Date(2026, 9, 28, 21).getTime(), 5)] });
-    setup();
-    expect(screen.queryByText(/^Played/)).not.toBeInTheDocument();
-  });
-
-  it('stays on every chip, including the one-off', async () => {
-    useHistoryStore.setState({ entries: [entry(new Date(2026, 10, 4, 21).getTime(), 7)] });
-    const { user } = setup();
-    await user.click(chip('One-off session'));
-    expect(row()).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Last:/ })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('home-last-placeholder')).not.toBeInTheDocument();
   });
 });
 

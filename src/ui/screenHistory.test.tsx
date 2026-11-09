@@ -141,12 +141,15 @@ describe('the phone’s Back button', () => {
     await pastSession(group, ids, 2026, 10, 5);
     const user = setup();
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: /^Last:/ }));
+    await user.click(await screen.findByRole('button', { name: /^Settings/ }));
+    await user.click(screen.getByRole('button', { name: 'Past sessions' }));
     await user.click(screen.getByRole('button', { name: /Open play/ }));
     expect(screen.getByText('Session summary')).toBeInTheDocument();
-    expect(state()).toEqual({ pk: 2, view: 'summary' });
+    expect(state()).toEqual({ pk: 3, view: 'summary' });
     phoneBack();
     expect(await screen.findByRole('heading', { name: 'Past sessions' })).toBeInTheDocument();
+    phoneBack();
+    expect(await screen.findByRole('button', { name: 'Manage players' })).toBeInTheDocument();
     phoneBack();
     await waitFor(() => expect(sessions()).toBeInTheDocument());
   });

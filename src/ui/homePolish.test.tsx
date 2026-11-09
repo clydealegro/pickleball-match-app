@@ -71,13 +71,14 @@ describe('the hero is laid out top and bottom', () => {
     expect(within(head).getByRole('heading', { level: 1, name: 'Saturday' })).toBeInTheDocument();
   });
 
-  it('puts the time, the venue line and the regulars in the bottom block, with the dashed chips', () => {
+  it('puts the venue line and the regulars in the bottom block and the time beside the day pill', () => {
     useSlotsStore.setState({ slots: [{ id: 'sat', weekday: 6 }] });
     show();
     const body = document.querySelector<HTMLElement>('.home-hero-body')!;
-    expect(within(body).getByRole('button', { name: '+ Add a time' })).toBeInTheDocument();
+    // The time sits beside the day pill in the head; the body holds the venue chip, not a courts chip.
+    expect(within(document.querySelector<HTMLElement>('.home-hero-head')!).getByRole('button', { name: '+ Add a time' })).toBeInTheDocument();
     expect(within(body).getByRole('button', { name: '+ Add a venue' })).toBeInTheDocument();
-    expect(within(body).getByRole('button', { name: '+ Add courts' })).toBeInTheDocument();
+    expect(within(body).queryByRole('button', { name: '+ Add courts' })).not.toBeInTheDocument();
     expect(body.querySelector('.home-foot')).not.toBeNull();
     expect(document.querySelector('.home-hero-head')!.nextElementSibling).toBe(body);
     expect(document.querySelector('.home-hero')).toHaveClass('home-hero-split');

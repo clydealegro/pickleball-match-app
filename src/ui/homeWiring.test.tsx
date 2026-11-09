@@ -211,8 +211,10 @@ describe('Home is the landing screen', () => {
     await pastSession(group, ids, 2026, 10, 5);
     const user = setup();
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: /^Last:/ }));
+    await user.click(await screen.findByRole('button', { name: /^Settings/ }));
+    await user.click(screen.getByRole('button', { name: 'Past sessions' }));
     expect(screen.getByRole('heading', { name: 'Past sessions' })).toBeInTheDocument();
+    await click(user, 'Back');
     await click(user, 'Back');
     expect(screen.getByRole('radiogroup', { name: 'Sessions' })).toBeInTheDocument();
   });
