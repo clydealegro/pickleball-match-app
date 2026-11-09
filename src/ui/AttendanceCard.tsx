@@ -6,7 +6,6 @@ import { useAttendanceStore, type AttendanceResult } from '../sync/attendance/st
 import type { AttendanceStatus } from '../sync/attendance/types';
 import { useAuthStore } from '../sync/auth';
 import { CancelSheet, ResetSheet } from './AttendanceSheets';
-import { ATTENDANCE_PREVIEW_KEY, useBoolPref } from './prefs';
 import { useAttendance } from './useAttendance';
 
 interface Props {
@@ -49,7 +48,6 @@ function Shell({ weekday, children }: { weekday?: string; children: ReactNode })
 
 /** The organizer's attendance link for one saved slot, under the hero on Home. */
 export function AttendanceCard({ slot, onSignIn }: Props) {
-  const [preview] = useBoolPref(ATTENDANCE_PREVIEW_KEY, false);
   const status = useAuthStore((s) => s.status);
   const userId = useAuthStore((s) => s.userId);
   useAttendance(slot.id);
@@ -75,7 +73,7 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
     if (shared === 'field') fieldRef.current?.select();
   }, [shared]);
 
-  if (!preview || status === 'unconfigured' || status === 'loading') return null;
+  if (status === 'unconfigured' || status === 'loading') return null;
 
   if (status === 'signedOut' || status === 'linkSent') {
     return (

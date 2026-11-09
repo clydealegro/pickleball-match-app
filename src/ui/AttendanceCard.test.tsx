@@ -13,7 +13,6 @@ import { useAuthStore } from '../sync/auth';
 import { USER_A, createDb, run } from '../sync/db/harness';
 import { useSyncStore } from '../sync/syncStore';
 import { AttendanceCard } from './AttendanceCard';
-import { ATTENDANCE_PREVIEW_KEY, setBoolPref } from './prefs';
 
 // Monday 9 Nov 2026, 4:20 pm. Date is faked and timers stay real.
 const NOW = new Date(2026, 10, 9, 16, 20).getTime();
@@ -79,7 +78,6 @@ const stubShare = (share: unknown, writeText?: unknown) => {
 
 beforeEach(() => {
   resetEverything();
-  setBoolPref(ATTENDANCE_PREVIEW_KEY, true);
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(NOW);
   // The display tests have no server: a refresh on mount changes nothing.
@@ -95,14 +93,6 @@ afterEach(() => {
 });
 
 describe('which states show', () => {
-  it('shows nothing while the preview is off, whatever else is true', () => {
-    localStorage.clear();
-    signIn();
-    seed();
-    const { container } = setup();
-    expect(container).toBeEmptyDOMElement();
-  });
-
   it.each(['unconfigured', 'loading'] as const)('shows nothing while sign-in is %s', (status) => {
     useAuthStore.setState({ status });
     seed();

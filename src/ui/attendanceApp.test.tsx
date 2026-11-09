@@ -44,16 +44,9 @@ describe('App and the attendance link', () => {
   });
 
   it('sends the card\'s Sign in to Settings', async () => {
-    localStorage.setItem('pikl.attendancePreview', 'true');
     const user = userEvent.setup();
     await startApp();
     await user.click(await screen.findByRole('button', { name: 'Sign in' }));
     expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument();
-  });
-
-  it('shows no card on Home while the preview is off', async () => {
-    await startApp();
-    await screen.findByRole('radiogroup', { name: 'Sessions' });
-    expect(screen.queryByRole('heading', { name: 'Attendance link' })).not.toBeInTheDocument();
   });
 });

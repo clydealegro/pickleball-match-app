@@ -12,7 +12,6 @@ import type { Summary } from '../sync/attendance/types';
 import { useAuthStore } from '../sync/auth';
 import { useSyncStore } from '../sync/syncStore';
 import { HomeScreen } from './HomeScreen';
-import { ATTENDANCE_PREVIEW_KEY, setBoolPref } from './prefs';
 
 // Saturday 7 Nov 2026, noon: the Saturday slot is selected.
 const NOW = new Date(2026, 10, 7, 12).getTime();
@@ -50,7 +49,6 @@ beforeEach(() => {
   useHistoryStore.setState({ entries: [], loaded: true, persistent: true });
   useRosterStore.setState({ players: [], loaded: true });
   useAttendanceStore.getState().clear();
-  setBoolPref(ATTENDANCE_PREVIEW_KEY, true);
   setAttendanceDeps({ server: () => null, now: () => Date.now(), timezone: () => 'Asia/Manila' });
   seedLinks();
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -119,13 +117,6 @@ describe('the attendance card on Home', () => {
     setup();
     expect(document.querySelector('.home-hero-done')).toBeInTheDocument();
     expect(card()).not.toBeInTheDocument();
-  });
-
-  it('does not show when the preview is off, so Home is as it was', () => {
-    localStorage.clear();
-    setup();
-    expect(card()).not.toBeInTheDocument();
-    expect(document.querySelector('.attendance')).toBeNull();
   });
 
   it('calls onSignIn from the sign-in prompt', async () => {

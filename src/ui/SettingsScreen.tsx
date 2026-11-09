@@ -5,7 +5,7 @@ import { useSyncStore } from '../sync/syncStore';
 import { RatingsSection } from './RatingsSection';
 import { SyncStatusLine } from './SyncStatusLine';
 import { useDefaultMode } from './matchmaking';
-import { ATTENDANCE_PREVIEW_KEY, AUTO_START_KEY, KEEP_AWAKE_KEY, PLAY_TO_CHOICES, REDUCE_MOTION_KEY, REGULARS_FIRST_KEY, useBoolPref, usePlayTo, VIBRATE_KEY } from './prefs';
+import { AUTO_START_KEY, KEEP_AWAKE_KEY, PLAY_TO_CHOICES, REDUCE_MOTION_KEY, REGULARS_FIRST_KEY, useBoolPref, usePlayTo, VIBRATE_KEY } from './prefs';
 import { useTheme } from './useTheme';
 
 interface Props {
@@ -26,7 +26,6 @@ export function SettingsScreen({ onBack, onManage, onHistory }: Props) {
   const [reduceMotion, setReduceMotion] = useBoolPref(REDUCE_MOTION_KEY, false);
   const [autoStart, setAutoStart] = useBoolPref(AUTO_START_KEY, false);
   const [playTo, setPlayTo] = usePlayTo();
-  const [attendancePreview, setAttendancePreview] = useBoolPref(ATTENDANCE_PREVIEW_KEY, false);
   const [working, setWorking] = useState(false);
   const [outcome, setOutcome] = useState<{ result: DataResult; done: string } | null>(null);
 
@@ -143,17 +142,6 @@ export function SettingsScreen({ onBack, onManage, onHistory }: Props) {
       </section>
 
       <RatingsSection />
-
-      <section className="card stack" aria-labelledby="attendance-title">
-        <h2 id="attendance-title" className="section-title">
-          Attendance
-        </h2>
-        <label className="switch-row">
-          <span>Attendance link (preview)</span>
-          <input type="checkbox" role="switch" checked={attendancePreview} onChange={(e) => setAttendancePreview(e.target.checked)} />
-        </label>
-        <p className="muted">Shows an attendance card on Home. Members cannot open the link yet.</p>
-      </section>
 
       <section className="card stack" aria-labelledby="account-title">
         <h2 id="account-title" className="section-title">
