@@ -114,9 +114,9 @@ export function HomeAttendance({ slot, onOpen, onSignIn }: Props) {
         {counts && !cancelled && (
           <>
             {/* One block per player, four to a court, so the bar shows when there are enough for a game. */}
-            <span className="home-courts" aria-hidden="true">
+            <span className="home-seats" aria-hidden="true">
               {fill.groups.map((taken, g) => (
-                <span key={g} className="home-court">
+                <span key={g} className="home-seat-group">
                   {[0, 1, 2, 3].map((k) => (
                     <i key={k} className={k < taken ? 'is-taken' : ''} />
                   ))}

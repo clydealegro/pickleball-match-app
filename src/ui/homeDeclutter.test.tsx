@@ -272,10 +272,12 @@ describe('who is in, and the Share button', () => {
     seedLink();
     setup();
     const row = screen.getByRole('button', { name: /^Attendance:/ });
-    const courts = row.querySelectorAll('.home-court');
+    const courts = row.querySelectorAll('.home-seat-group');
     expect(courts).toHaveLength(2);
     expect([...courts].map((c) => c.querySelectorAll('i.is-taken').length)).toEqual([2, 0]);
     expect(row).toHaveTextContent('2 more makes a game');
+    // The bar must not share a class with the decorative court lines, which are positioned and faded.
+    expect(row.querySelector('.home-court')).toBeNull();
     expect(row).toHaveTextContent('1 maybe');
   });
 

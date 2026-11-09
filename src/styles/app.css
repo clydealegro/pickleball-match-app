@@ -2833,25 +2833,25 @@ caption {
 }
 
 /* One block per player, four to a court. */
-.home-courts {
+.home-seats {
   display: flex;
   gap: 10px;
 }
 
-.home-court {
+.home-seat-group {
   display: flex;
   flex: 1;
   gap: 3px;
 }
 
-.home-court i {
+.home-seat-group i {
   flex: 1;
   height: 8px;
   border-radius: 2px;
   background: #e6e5df;
 }
 
-.home-court i.is-taken {
+.home-seat-group i.is-taken {
   background: var(--accent-ink);
 }
 
