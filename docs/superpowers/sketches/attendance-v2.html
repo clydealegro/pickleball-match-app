@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Attendance link sketch v2</title>
+<style>
+:root{--bg:#fafaf7;--surface:#fff;--ink:#111;--muted:#66665f;--line:#e6e5df;--accent:#c8f03c;--ring:#4f6a00;--maybe:#8a5a00;--maybe-bg:#fff4dc;--out:#b3261e}
+*{box-sizing:border-box;margin:0}
+body{width:1640px;background:#e9e8e2;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink);padding:28px 30px 40px}
+h1{font-size:22px;font-weight:700}
+.sub{color:var(--muted);font-size:14px;margin:4px 0 18px}
+.band{font-size:15px;font-weight:700;margin:26px 0 10px;padding-top:14px;border-top:2px solid #cfcec6}
+.row{display:flex;gap:26px}
+.col{width:372px}
+.cap{font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#33332f;margin-bottom:4px}
+.why{font-size:13px;color:var(--muted);margin-bottom:10px;min-height:52px;line-height:1.35}
+.phone{width:372px;height:790px;background:var(--bg);border-radius:34px;border:8px solid #1b1b19;overflow:hidden;display:flex;flex-direction:column}
+.phone.short{height:640px}
+.bar{height:30px;flex:none}
+.pad{padding:6px 18px 18px;display:flex;flex-direction:column;gap:11px;flex:1;min-height:0}
+.brand{font-weight:800;letter-spacing:.02em;font-size:15px}
+.title{font-size:24px;font-weight:700;line-height:1.15}
+.meta{color:var(--muted);font-size:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:13px}
+.tile{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:700;flex:none}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 8px}
+.who{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px}
+.search{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 14px;color:var(--muted);font-size:15px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.seg div{height:62px;border-radius:14px;border:2px solid var(--line);background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:16px;gap:2px}
+.seg small{font-weight:500;font-size:11px;color:var(--muted)}
+.seg .on{background:var(--accent);border-color:var(--ring)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 13px;font-size:14px;font-weight:600}
+.dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--muted)}
+.h2{font-size:15px;font-weight:700;display:flex;justify-content:space-between;align-items:baseline}
+.h2 span{font-weight:500;color:var(--muted);font-size:13px}
+.faces{display:flex;flex-wrap:wrap;gap:8px}
+.f{display:flex;flex-direction:column;align-items:center;font-size:11px;gap:2px;width:48px}
+.note{font-size:12px;color:var(--muted);line-height:1.4}
+.btn{height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px}
+.btn.p{background:var(--accent);border:2px solid var(--ring)}
+.btn.s{background:var(--surface);border:1.5px solid var(--line);height:46px;font-size:15px}
+.btn.d{background:var(--surface);border:1.5px solid var(--out);color:var(--out);height:46px;font-size:15px}
+.pill{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px}
+.pin{background:var(--accent)}.pmb{background:var(--maybe-bg);color:var(--maybe)}.pout{background:#fde8e6;color:var(--out)}
+.banner{border-radius:12px;padding:10px 12px;font-size:14px;font-weight:600;background:#eef9c9;border:1px solid #c5de6a}
+.warn{border-radius:12px;padding:10px 12px;font-size:13px;background:var(--maybe-bg);color:#5c3b00;border:1px solid #e9cf94;line-height:1.4}
+.lst{display:flex;flex-direction:column}
+.li{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line);font-size:15px}
+.li:last-child{border:0}.nm{flex:1;font-weight:600}
+.chk{width:24px;height:24px;border-radius:7px;border:2px solid var(--ring);background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800}
+.chk.off{background:var(--surface);border-color:var(--muted)}
+.tag{font-size:11px;font-weight:700;color:#33332f;background:#ecebe5;border-radius:6px;padding:2px 6px}
+.sec{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+.mini{display:flex;gap:6px}.mini .b{font-size:13px;font-weight:700;border:1.5px solid var(--line);border-radius:10px;padding:7px 10px;background:var(--surface)}
+.mini .b.g{background:var(--accent);border-color:var(--ring)}
+.field{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 14px;color:var(--muted);font-size:15px}
+.spacer{margin-top:auto}
+.cross{border:1.5px solid var(--ring);}
+</style></head><body>
+<h1>Attendance link, sketch v2</h1>
+<div class="sub">Folds in the audit. One permanent link per weekly slot, a random code, no login, no cap. Maybe only pre-fills, never locks.</div>
+<div class="band">Row 1: the main path (changed from v1: Not Ana, bring a friend, calendar, confirmation, Maybe as a count, stale stamp, review badge, break tag)</div>
+<div class="row" id="r1"></div>
+<div class="band">Row 2: the states v1 left out (play started, no play this week, new names to review, cancel this week)</div>
+<div class="row" id="r2"></div>
+<script>
+const T=(l,h,s=44,c='')=>`<span class="tile ${c}" style="width:${s}px;height:${s}px;font-size:${Math.round(s*.4)}px;background:hsl(${h} 45% 28%)">${l}</span>`;
+const F=(l,h,n,s=38,extra='')=>`<div class="f" ${extra}>${T(l,h,s)}${n}</div>`;
+const P=(a,b,cls,body)=>`<div class="col"><div class="cap">${a}</div><div class="why">${b}</div><div class="phone ${cls}"><div class="bar"></div><div class="pad">${body}</div></div></div>`;
+const people=[['A',210,'Ana'],['C',150,'Carlo'],['E',280,'Eli'],['F',340,'Fay'],['G',60,'Gus'],['H',190,'Hera'],['J',100,'Jun']];
+const r1=[
+P('1. First visit','Roster with photos. Tap your own name. The phone remembers it.','',`
+<div class="brand">PIKL</div><div><div class="title">Tuesday open play</div><div class="meta">Tue 10 Nov, 7 to 9 pm, Sample Hall</div></div>
+<div class="h2">Who are you?</div><div class="search">Search your name</div>
+<div class="grid">${[['A',210,'Ana'],['B',20,'Ben'],['C',150,'Carlo'],['E',280,'Eli'],['F',340,'Fay'],['G',60,'Gus'],['H',190,'Hera'],['I',250,'Ian'],['J',100,'Jun']].map(p=>`<div class="who">${T(p[0],p[1])}${p[2]}</div>`).join('')}</div>
+<div class="note"><b>Not on the list?</b> Ask to join. The organizer approves you, so the roster stays clean.</div>
+<div class="note spacer">Names and photos only. No account.</div>`),
+P('2. Member answers','Not Ana? fixes a wrong tap. Confirmation names the date. Maybe is a count, not faces. Friend and calendar added.','',`
+<div class="brand">PIKL</div>
+<div><div class="title">Hi Ana</div><div class="meta">Tuesday open play, tonight 7 to 9 pm &nbsp;<u>Not Ana?</u></div></div>
+<div class="banner">You're in for Tue 10 Nov.</div>
+<div class="seg"><div class="on">In<small>I'm playing</small></div><div>Maybe<small>not sure yet</small></div><div>Out<small>can't make it</small></div></div>
+<div class="chips"><span class="chip"><span class="dot"></span>I'll arrive late</span><span class="chip">+ Bring a friend</span></div>
+<div class="note">Please answer by 5 pm if you can. (The organizer can switch this note on.)</div>
+<div class="h2">In <span>12 people</span></div>
+<div class="faces">${people.map(p=>F(p[0],p[1],p[2])).join('')}${F('+5',0,'more').replace('hsl(0 45% 28%)','#33332f')}</div>
+<div class="h2">Maybe <span>3 people</span></div>
+<div class="btn s">Add to calendar</div>
+<div class="note spacer">12 in and 3 courts: everyone plays at once. With 15 in you would see "Busy night, expect to sit out a game now and then."</div>`),
+P('3. Organizer Home card','Stale stamp for weak signal. Last-minute change. Names to review. The link has Reset and Cancel.','',`
+<div class="brand">PIKL</div>
+<div class="card" style="display:flex;flex-direction:column;gap:10px">
+<div><div class="meta">Today</div><div class="title">Tuesday open play</div><div class="meta">7:00 to 9:00 pm, Sample Hall</div></div>
+<div style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill pin">11 in</span><span class="pill pmb">3 maybe</span><span class="pill pout">2 out</span><span class="pill" style="background:#ecebe5">1 friend</span></div>
+<div class="note">Updated 4:12 pm. Ben changed to Out at 4:10 pm.</div>
+<div class="btn s" style="border-color:var(--ring)">2 new names to review</div>
+<div class="btn p">Start with 12 (11 in + 1 friend)</div>
+<div class="btn s">Copy list for the group chat</div></div>
+<div class="card"><div class="h2">Attendance link <span>Tuesday</span></div>
+<div class="note" style="margin-top:6px">piklmatch.vercel.app/j/k7Q2xM9pTa4nB2vL. A random code. Pinned once in the chat.</div>
+<div class="mini" style="margin-top:8px"><span class="b g">Share</span><span class="b">Reset link</span><span class="b">Cancel this week</span></div></div>
+<div class="note spacer">No answers yet? The card shows the regulars, as today. You are marked In by default and can change it.</div>`),
+P('4. Who\'s playing, pre-filled','In ticked. Maybe waits. Late players start on a break so the queue skips them until you tap Arrived.','',`
+<div class="title">Who's playing</div>
+<div class="sec">In, 11</div>
+<div class="card lst" style="padding:3px 12px">
+<div class="li">${T('A',210,30)}<div class="nm">Ana</div><div class="chk">✓</div></div>
+<div class="li">${T('C',150,30)}<div class="nm">Carlo</div><div class="chk">✓</div></div>
+<div class="li">${T('J',100,30)}<div class="nm">Jun</div><span class="tag">Late, about 7:30. Starts on a break</span><div class="chk">✓</div></div>
+<div class="li">${T('+',0,30).replace('hsl(0 45% 28%)','#33332f')}<div class="nm" style="color:var(--muted);font-weight:500">8 more, all ticked</div></div></div>
+<div class="sec">Friends, 1</div>
+<div class="card lst" style="padding:3px 12px"><div class="li">${T('R',20,30)}<div class="nm">Rico</div><span class="tag">Ana's friend, tonight</span><div class="chk">✓</div></div></div>
+<div class="sec">Maybe, 3</div>
+<div class="card lst" style="padding:3px 12px">
+<div class="li">${T('B',20,30)}<div class="nm">Ben</div><div class="chk off"></div></div>
+<div class="li">${T('I',250,30)}<div class="nm">Ian</div><div class="chk off"></div></div>
+<div class="li">${T('K',30,30)}<div class="nm">Kai</div><div class="chk off"></div></div></div>
+<div class="note">Walk-ins: add a name as you do today. Out (2) is hidden.</div>
+<div class="btn p spacer">Start session, 12 players</div>`)
+];
+const r2=[
+P('5. Member, after play starts','The link stays useful. Later it becomes the live view (find my name).','short',`
+<div class="brand">PIKL</div><div><div class="title">Tuesday open play</div><div class="meta">Play started at 7:00 pm</div></div>
+<div class="banner">You were marked In.</div>
+<div class="card"><div class="h2">Up next <span>live link, later phase</span></div><div class="note" style="margin-top:6px">Find my name, see your court and who is next. Built on the same link.</div></div>
+<div class="note spacer">Answers are closed for tonight. The link shows next Tuesday after the session ends.</div>`),
+P('6. Member, no play this week','Cancelled with a reason. The next session date shows.','short',`
+<div class="brand">PIKL</div><div><div class="title">No play this Tuesday</div><div class="meta">Tue 10 Nov</div></div>
+<div class="warn">Venue is closed for floor repairs.</div>
+<div class="card"><div class="h2">Next session <span>Tue 17 Nov</span></div><div class="note" style="margin-top:6px">Answer here from Wednesday. Your name is remembered on this phone.</div></div>
+<div class="note spacer">Answering is off for this date.</div>`),
+P('7. Organizer, new names to review','Requests never touch the roster until approved. Merge stops "Ana R." and "Ana".','short',`
+<div class="title">2 to review</div>
+<div class="card lst" style="padding:6px 12px">
+<div class="li">${T('M',320,34)}<div style="flex:1"><div class="nm">Mika</div><div class="note">New name, asked to join</div></div></div>
+<div class="mini" style="padding-bottom:8px"><span class="b g">Add to roster</span><span class="b">Merge with...</span><span class="b">Dismiss</span></div></div>
+<div class="card lst" style="padding:6px 12px">
+<div class="li">${T('R',20,34)}<div style="flex:1"><div class="nm">Rico</div><div class="note">Friend of Ana, tonight only</div></div></div>
+<div class="mini" style="padding-bottom:8px"><span class="b g">Play tonight</span><span class="b">Add to roster</span><span class="b">Dismiss</span></div></div>
+<div class="note spacer">A friend who plays tonight is added to the session only, not saved.</div>`),
+P('8. Organizer, cancel this week','One sheet. Members see the reason. You can undo it.','short',`
+<div class="title">Cancel Tue 10 Nov?</div>
+<div class="field">Reason (optional): Venue closed</div>
+<div class="note">Members will see "No play this Tuesday" with your reason. Answers are kept if you undo this.</div>
+<div class="btn d">Cancel this week</div><div class="btn s">Keep it on</div>
+<div class="note spacer">Reset link is separate: it makes a new code and keeps all answers.</div>`)
+];
+document.getElementById('r1').innerHTML=r1.join('');document.getElementById('r2').innerHTML=r2.join('');
+</script></body></html>

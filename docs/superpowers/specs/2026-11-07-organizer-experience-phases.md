@@ -353,6 +353,12 @@ Highlights are tested with fixed sessions including ties and the under-three-gam
 
 Goal: let anyone run it, survive a dead phone, and let players follow along. This is the only phase that touches Supabase. Each item ships alone.
 
+### 5.0 Attendance link (added 9 Nov 2026)
+
+Replaces the "who is coming" list in the club group chat with one permanent link per weekly slot: members say In, Maybe or
+Out without an account, and Who's playing opens pre-filled. It shares the public-page machinery with the live link (5.3), and
+the same link later becomes the live view. Full design, audit and the four plans: `docs/superpowers/specs/2026-11-09-attendance-link.md`.
+
 ### 5.1 Sign-in for other organizers (custom SMTP)
 
 **Problem.** Supabase's built-in email service only sends to members of the RobotBeard organization (see HANDOFF). Nobody else can sign in.
