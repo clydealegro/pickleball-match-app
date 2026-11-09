@@ -18,7 +18,7 @@ function ratingFor(input: NewPlayerInput, ctx: Ctx): { rating?: number } {
   return rating === undefined ? {} : { rating };
 }
 
-/** MUTATES `s`. Validates, creates the player, and queues them at the back. */
+/** MUTATES `s`. Validates, creates the player, and queues them at the back, unless they start on a break. */
 function insertPlayer(s: Session, input: NewPlayerInput, ctx: Ctx): void {
   const name = input.name.trim();
   if (!name) throw new EngineError('EMPTY_NAME', 'Enter a name for the player.');
@@ -30,7 +30,7 @@ function insertPlayer(s: Session, input: NewPlayerInput, ctx: Ctx): void {
     name,
     rosterId: input.rosterId,
     ...ratingFor(input, ctx),
-    status: 'active',
+    status: input.onBreak ? 'break' : 'active',
     gamesPlayed: lateArrivalGames(s),
     lastFinishedSeq: s.gameSeq,
     tieKey: ctx.rng(),
@@ -38,7 +38,7 @@ function insertPlayer(s: Session, input: NewPlayerInput, ctx: Ctx): void {
     opponentCounts: {},
   };
   s.players.push(player);
-  s.queueOrder.push(player.id);
+  if (!input.onBreak) s.queueOrder.push(player.id);
 }
 
 export function createSession(input: NewSessionInput, ctx: Ctx): Session {

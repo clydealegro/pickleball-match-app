@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { createSession } from '../engine';
 import { makeCtx, newTestSession } from '../engine/testing';
 import { clearPersisted, loadPersisted, savePersisted, STORAGE_KEY } from './persistence';
 
@@ -249,5 +250,19 @@ describe('persisted slot id', () => {
       store({ ...s, slotId: bad });
       expect(loadPersisted()).toBeNull();
     }
+  });
+});
+
+describe('a session with a player on a break from the start', () => {
+  it('keeps the break through a save and a load', () => {
+    const s = createSession(
+      { name: 'T', mode: 'fairness', courtCount: 1, players: [{ name: 'A' }, { name: 'B' }, { name: 'C' }, { name: 'D' }, { name: 'Late', onBreak: true }] },
+      makeCtx(),
+    );
+    savePersisted({ session: s, undoStack: [] });
+    const loaded = loadPersisted()?.session;
+    expect(loaded).toEqual(s);
+    expect(loaded?.players.find((p) => p.name === 'Late')?.status).toBe('break');
+    expect(loaded?.queueOrder).not.toContain(loaded?.players.find((p) => p.name === 'Late')?.id);
   });
 });

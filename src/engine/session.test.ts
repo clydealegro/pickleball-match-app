@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { addPlayer, createSession, endSession } from './session';
+import { lineupIds } from './lineup';
+import { setPlayerStatus } from './status';
+import { assertInvariants } from './invariants';
+import type { Mode } from './types';
 import { expectEngineError, idOf, makeCtx, mkPlayer, mkSession, newTestSession } from './testing';
 import { onCourtIds } from './pool';
 
@@ -158,5 +162,83 @@ describe('private ratings', () => {
       makeCtx(),
     );
     expect('rating' in s.players[0]).toBe(false);
+  });
+});
+
+describe('a player who starts on a break', () => {
+  const start = (names: string[], late: string[], mode: Mode, courts = 2) =>
+    createSession(
+      { name: 'T', mode, courtCount: courts, players: names.map((name) => ({ name, ...(late.includes(name) ? { onBreak: true } : {}) })) },
+      makeCtx(),
+    );
+  const placed = (s: ReturnType<typeof start>) => [
+    ...s.queueOrder,
+    ...s.courts.flatMap((c) => [...(c.game ? [...c.game.team1, ...c.game.team2] : []), ...lineupIds(c)]),
+  ];
+
+  it('is on a break, not in the queue, with the games count a late arrival gets', () => {
+    const s = start(['A', 'B', 'C', 'D', 'Late'], ['Late'], 'fairness');
+    const late = s.players.find((p) => p.name === 'Late')!;
+    expect(late.status).toBe('break');
+    expect(s.queueOrder).not.toContain(late.id);
+    expect(late.gamesPlayed).toBe(0);
+    expect(late.lastFinishedSeq).toBe(s.gameSeq);
+  });
+
+  it('is never placed, with 4, 5 and 8 players and 1 or 2 late, in both modes', () => {
+    const everyone = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    for (const mode of ['fairness', 'queue'] as Mode[]) {
+      for (const total of [4, 5, 8]) {
+        for (const lateCount of [1, 2]) {
+          const names = everyone.slice(0, total);
+          const late = names.slice(total - lateCount);
+          const s = start(names, late, mode, 2);
+          const lateIds = s.players.filter((p) => late.includes(p.name)).map((p) => p.id);
+          for (const id of lateIds) expect(placed(s)).not.toContain(id);
+          expect(s.players.filter((p) => late.includes(p.name)).every((p) => p.status === 'break')).toBe(true);
+          assertInvariants(s);
+        }
+      }
+    }
+  });
+
+  it('leaves the court empty when the late players would have made the fourth', () => {
+    const s = start(['A', 'B', 'C', 'Late'], ['Late'], 'fairness', 1);
+    expect(s.courts[0].status).toBe('empty');
+    expect(s.queueOrder).toHaveLength(3);
+    assertInvariants(s);
+  });
+
+  it('is added mid-session on a break too, through addPlayer', () => {
+    const s0 = newTestSession(['A', 'B', 'C', 'D']);
+    const s = addPlayer(s0, { name: 'Late', onBreak: true }, makeCtx());
+    const late = s.players.find((p) => p.name === 'Late')!;
+    expect(late.status).toBe('break');
+    expect(s.queueOrder).not.toContain(late.id);
+    assertInvariants(s);
+  });
+
+  it('joins the queue as a late arrival when returned to play', () => {
+    const s0 = start(['A', 'B', 'C', 'D', 'E', 'Late'], ['Late'], 'fairness', 1);
+    const id = idOf(s0, 'Late');
+    const s = setPlayerStatus(s0, id, 'active', makeCtx());
+    expect(s.players.find((p) => p.id === id)!.status).toBe('active');
+    expect(s.queueOrder.at(-1)).toBe(id);
+    assertInvariants(s);
+  });
+
+  it('still blocks a second player with the same name', () => {
+    const s = start(['A', 'B', 'C', 'D', 'Late'], ['Late'], 'fairness');
+    expectEngineError(() => addPlayer(s, { name: ' late ' }, makeCtx()), 'DUPLICATE_NAME');
+    expectEngineError(
+      () => createSession({ name: 'T', mode: 'fairness', courtCount: 1, players: [{ name: 'X', onBreak: true }, { name: 'x' }] }, makeCtx()),
+      'DUPLICATE_NAME',
+    );
+  });
+
+  it('treats onBreak false as a normal player', () => {
+    const s = createSession({ name: 'T', mode: 'fairness', courtCount: 1, players: [{ name: 'A', onBreak: false }] }, makeCtx());
+    expect(s.players[0].status).toBe('active');
+    expect(s.queueOrder).toEqual([s.players[0].id]);
   });
 });

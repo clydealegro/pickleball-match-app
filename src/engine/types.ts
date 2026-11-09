@@ -109,6 +109,8 @@ export interface Ctx {
 export interface NewPlayerInput {
   name: string;
   rosterId?: string;
+  /** Starts the player on a break: not in the queue until they are set back to active. */
+  onBreak?: boolean;
 }
 
 export interface NewSessionInput {
