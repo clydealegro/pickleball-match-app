@@ -90,13 +90,13 @@ in the link's own time zone, and it skips any date up to `closed_through`.
 | Plan | What | State |
 |---|---|---|
 | 1 | The database: tables, rules, three public functions, tests | Built and proven. `docs/superpowers/plans/2026-11-09-attendance-link-database.md` |
-| 2 | The organizer side: write the link from the slot, Reset, Cancel this week, close the date when a session ends, read answers and names, the Home card with an offline copy. Hidden behind a Settings switch, "Attendance link (preview)", until Plan 3 | Shipped 9 Nov 2026 (behind the preview switch, off by default). `docs/superpowers/plans/2026-11-09-attendance-link-organizer.md` |
-| 3 | The public page at a hash link, `/#/j/<code>` (a path link would 404 and break the relative asset paths, and the part after `#` never reaches server logs): member screens 1, 2 and 6, remembered pick, polling, an offline copy, Add to calendar. Not in it: screen 5, the "answer by" note, photos. The preview switch stays until the page is checked on the real project | Built and proven, not yet shipped. `docs/superpowers/plans/2026-11-09-attendance-link-member.md` |
-| 4 | The session flow: Who's playing pre-fill, late players on a break, friends and the review screen, Copy list, nudge the maybes | After 3 |
+| 2 | The organizer side: write the link from the slot, Reset, Cancel this week, close the date when a session ends, read answers and names, the Home card with an offline copy. It was hidden behind a Settings switch until the member page was live; Plan 4 removes the switch | Shipped 9 Nov 2026 (behind the preview switch, off by default). The switch is removed in Plan 4. `docs/superpowers/plans/2026-11-09-attendance-link-organizer.md` |
+| 3 | The public page at a hash link, `/#/j/<code>` (a path link would 404 and break the relative asset paths, and the part after `#` never reaches server logs): member screens 1, 2 and 6, remembered pick, polling, an offline copy, Add to calendar. Not in it: screen 5, the "answer by" note, photos. The preview switch stayed until the page was checked on the real project | Shipped 9 Nov 2026 (`2198ad9`). `docs/superpowers/plans/2026-11-09-attendance-link-member.md` |
+| 4 | The session flow: Who's playing pre-filled from the answers, late players on a break, the review screen for new names and friends, Copy list, nudge the maybes. Also removes the preview switch and stops the slot card clipping on a short phone | Built and proven, not yet shipped. `docs/superpowers/plans/2026-11-09-attendance-link-flow.md` |
 
 ## Open items
 
-- **A real list message** from the group chat, so the Copy list text matches it. Needed for Plan 4.
+- **No sample list message is needed** (decided 9 Nov 2026). Copy list uses a default format: the title and date, `In (n): names` with "(late)", `Maybe (n): names`, `Friends (n): names`. It is a one-line change if the wording should differ.
 - **Photos on the public page.** Photos sit in a private storage bucket. The public page needs a safe way to show them, most likely a small function that checks the code and hands out a short-lived address. Decided when Plan 3 starts. Until then the page shows initials.
 - **Applying the migration to the real Supabase project** (`pikl`). The tests run on an in-memory stand-in, as for the other migrations. The real project needs the migration applied and the security advisor read. That is outward-facing, so it waits for the organizer's yes.
 - **Time zone.** Every link uses `Asia/Manila` for now. A setting comes later if a club needs another.
