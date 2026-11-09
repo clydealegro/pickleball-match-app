@@ -2628,10 +2628,91 @@ caption {
   font-weight: 700;
 }
 
-/* Last session stats: one black card inside the lime hero. Black is only here, so it reads as a highlight. */
+/* Hero header: a quiet label, the day, then time and place as matching icon rows. */
+.home-hero {
+  padding: 16px;
+}
+
+.home-hero-head {
+  gap: 0;
+}
+
+.home-hero-top {
+  min-height: 36px;
+}
+
+.home-hero-tags .home-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--accent-ink);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.home-hero-tags .home-pill::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-ink);
+}
+
+.home-hero .home-edit {
+  width: 36px;
+  height: 36px;
+  margin-right: 0;
+}
+
+.home-hero .home-day {
+  margin: 4px 0 14px;
+}
+
+.home-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.home-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.home-row-icon {
+  flex: none;
+  width: 20px;
+}
+
+.home-row .home-time {
+  font-size: inherit;
+}
+
+.home-row .home-dashed {
+  min-height: 44px;
+  margin: -7px 0;
+}
+
+.home-row .home-line-btn {
+  min-height: 44px;
+  margin: -7px 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/* Last session stats: one black card inside the lime hero. Number first, then the name, then a one-line caption. */
 .home-last-week {
   width: 100%;
-  padding: 12px 14px;
+  margin-top: 18px;
+  padding: 14px;
   border-radius: 16px;
   background: var(--accent-ink);
   color: #f4f4ef;
@@ -2639,72 +2720,61 @@ caption {
 
 .home-last-head {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  margin: 0 0 8px;
-  font-size: 11px;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.home-last-head strong {
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #a0a098;
+  color: #fff;
+}
+
+.home-last-head span {
+  font-size: 12px;
+  color: #c9c8c0;
 }
 
 .home-last-stats {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
   margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .home-last-stat {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 0 10px;
-  border-left: 1px solid #2c2c29;
   min-width: 0;
 }
 
-.home-last-stat:first-child {
-  padding-left: 0;
-  border-left: 0;
-}
-
-/* "Most" on one line and the word on the next, always, so the three numbers line up. */
-.home-last-stat dt {
-  height: 26px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  line-height: 1.25;
-  text-transform: uppercase;
-  color: #a0a098;
-}
-
-.home-last-stat dt span {
-  display: block;
-}
-
-.home-last-stat dd {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0;
-}
-
 .home-last-stat b {
-  font-size: 34px;
+  font-size: 38px;
   font-weight: 900;
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
   color: var(--accent);
 }
 
-.home-last-stat dd span {
-  font-size: 14px;
+.home-last-stat strong {
+  margin-top: 6px;
+  font-size: 15px;
   font-weight: 700;
+  color: #fff;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.home-last-stat span {
+  margin-top: 1px;
+  font-size: 12px;
+  color: #c9c8c0;
 }
 
 /* Who is in, and the Share button. */
@@ -2717,29 +2787,81 @@ caption {
 
 .home-who {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 10px;
   width: 100%;
-  min-height: 48px;
-  padding: 6px 12px;
+  padding: 14px;
   border: 0;
-  border-radius: 14px;
-  background: color-mix(in srgb, #fff 55%, transparent);
+  border-radius: 16px;
+  background: #fff;
   color: var(--accent-ink);
   font: inherit;
-  font-size: 15px;
-  font-weight: 800;
   text-align: left;
   cursor: pointer;
 }
 
-.home-who:disabled {
-  cursor: default;
+.home-who-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.home-who-text {
+.home-who .home-avatars .avatar {
+  border-color: #fff;
+}
+
+.home-who .home-more {
+  margin-left: 6px;
+  font-size: 13px;
+  color: #66665f;
+}
+
+.home-who-count {
   flex: 1;
   min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #66665f;
+}
+
+.home-who-count b {
+  margin-right: 2px;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--accent-ink);
+}
+
+/* One block per player, four to a court. */
+.home-courts {
+  display: flex;
+  gap: 10px;
+}
+
+.home-court {
+  display: flex;
+  flex: 1;
+  gap: 3px;
+}
+
+.home-court i {
+  flex: 1;
+  height: 8px;
+  border-radius: 2px;
+  background: #e6e5df;
+}
+
+.home-court i.is-taken {
+  background: var(--accent-ink);
+}
+
+.home-who-cap {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #66665f;
 }
 
 .home-share {

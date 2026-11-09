@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { courtFill } from '../store/courtFill';
 import type { Slot } from '../store/slots';
 import { shareUrl, titleFor } from '../sync/attendance/links';
 import { useAttendanceStore } from '../sync/attendance/store';
@@ -7,7 +8,7 @@ import { PlayerAvatar } from './PlayerAvatar';
 import { shareOrCopy } from './shareLink';
 import { useAttendance } from './useAttendance';
 
-const MAX_FACES = 4;
+const MAX_FACES = 3;
 const NOTE_MS = 2500;
 
 interface Props {
@@ -65,13 +66,11 @@ export function HomeAttendance({ slot, onOpen, onSignIn }: Props) {
   const counts = mineSummary?.counts;
   const ins = mineSummary ? Object.entries(mineSummary.answers).filter(([, a]) => a === 'in').map(([id]) => id) : [];
   const waiting = mineSummary?.waiting.length ?? 0;
-  const text = cancelled
-    ? 'Cancelled this week'
-    : counts && counts.in + counts.maybe > 0
-      ? `${counts.in} in${counts.maybe > 0 ? ` · ${counts.maybe} maybe` : ''}`
-      : counts
-        ? 'Nobody yet'
-        : 'Answers show here';
+  const playing = counts?.in ?? 0;
+  const maybe = counts?.maybe ?? 0;
+  const fill = courtFill(playing);
+  // Said as "playing", never "in", which reads as inches next to a number.
+  const label = cancelled ? 'Cancelled this week' : counts ? `${playing} playing${maybe > 0 ? `, ${maybe} maybe` : ''}` : 'Answers show here';
 
   // Signed out there is nothing to show yet, so the only thing on offer is signing in.
   if (!signedIn) {
@@ -86,20 +85,50 @@ export function HomeAttendance({ slot, onOpen, onSignIn }: Props) {
 
   return (
     <div className="home-attend-wrap">
-      <button type="button" className="home-who" aria-label={`Attendance: ${text}`} onClick={onOpen}>
-        {ins.length > 0 && !cancelled && (
-          <span className="home-avatars" aria-hidden="true">
-            {ins.slice(0, MAX_FACES).map((id) => (
-              <PlayerAvatar key={id} name={mineSummary?.names[id] ?? '?'} rosterId={id} size="sm" />
-            ))}
-            {ins.length > MAX_FACES && <span className="home-more">+{ins.length - MAX_FACES}</span>}
+      <button type="button" className="home-who" aria-label={`Attendance: ${label}`} onClick={onOpen}>
+        <span className="home-who-top">
+          {ins.length > 0 && !cancelled && (
+            <span className="home-avatars" aria-hidden="true">
+              {ins.slice(0, MAX_FACES).map((id) => (
+                <PlayerAvatar key={id} name={mineSummary?.names[id] ?? '?'} rosterId={id} size="sm" />
+              ))}
+              {ins.length > MAX_FACES && <span className="home-more">+{ins.length - MAX_FACES}</span>}
+            </span>
+          )}
+          <span className="home-who-count">
+            {cancelled ? (
+              'Cancelled this week'
+            ) : counts ? (
+              <>
+                <b>{playing}</b> playing
+              </>
+            ) : (
+              'Answers show here'
+            )}
           </span>
+          {waiting > 0 && <span className="home-attend-badge">{waiting} new</span>}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </span>
+        {counts && !cancelled && (
+          <>
+            {/* One block per player, four to a court, so the bar shows when there are enough for a game. */}
+            <span className="home-courts" aria-hidden="true">
+              {fill.groups.map((taken, g) => (
+                <span key={g} className="home-court">
+                  {[0, 1, 2, 3].map((k) => (
+                    <i key={k} className={k < taken ? 'is-taken' : ''} />
+                  ))}
+                </span>
+              ))}
+            </span>
+            <span className="home-who-cap">
+              <span>{fill.caption}</span>
+              {maybe > 0 && <span>{maybe} maybe</span>}
+            </span>
+          </>
         )}
-        <span className="home-who-text">{text}</span>
-        {waiting > 0 && <span className="home-attend-badge">{waiting} new</span>}
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M9 6l6 6-6 6" />
-        </svg>
       </button>
       {!cancelled && (
         <button type="button" className="home-share" disabled={busy} onClick={() => void share()}>

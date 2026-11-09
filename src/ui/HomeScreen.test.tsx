@@ -141,13 +141,17 @@ describe('HomeScreen hero', () => {
     expect(screen.queryByRole('button', { name: '+ Add courts' })).not.toBeInTheDocument();
   });
 
-  it('puts the time beside the day pill', () => {
-    resetSlots([{ id: 'sat', weekday: 6, startMin: 540, endMin: 660 }]);
+  it('puts the time and the place in matching rows under the day, each with an icon', () => {
+    resetSlots([{ id: 'sat', weekday: 6, startMin: 540, endMin: 660, venue: 'Park' }]);
     setup();
-    const tags = document.querySelector('.home-hero-top .home-hero-tags')!;
-    expect(within(tags as HTMLElement).getByText('9:00 to 11:00 am')).toBeInTheDocument();
-    expect(tags.querySelector('.home-pill')).not.toBeNull();
+    const rows = document.querySelectorAll('.home-hero-head .home-rows .home-row');
+    expect(rows).toHaveLength(2);
+    expect(rows[0].textContent).toBe('9:00 to 11:00 am');
+    expect(rows[1].textContent).toBe('Park');
+    for (const row of rows) expect(row.querySelector('svg.home-row-icon')).not.toBeNull();
+    expect(document.querySelector('.home-hero-top .home-pill')).not.toBeNull();
   });
+
 
   it('shows the time, venue and courts when they are set', () => {
     resetSlots([{ id: 'sat', weekday: 6, startMin: 540, endMin: 660, venue: 'Park', courts: 3 }]);

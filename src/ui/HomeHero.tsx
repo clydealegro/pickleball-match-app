@@ -72,7 +72,7 @@ interface SlotHeroProps {
   fromLeft?: boolean;
 }
 
-const STAT_LABEL: Record<'played' | 'wins' | 'losses', string> = { played: 'played', wins: 'wins', losses: 'losses' };
+const STAT_LABEL: Record<'played' | 'wins' | 'losses', string> = { played: 'most played', wins: 'most wins', losses: 'most losses' };
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** The black card: who played, won and lost most the last time this weekday was played. */
@@ -81,27 +81,37 @@ function LastWeek({ last, weekday }: { last: LastWeekStats; weekday: number }) {
   return (
     <section className="home-last-week" aria-label="Last session">
       <p className="home-last-head">
+        <strong>Last {WEEKDAY_NAMES[weekday]}</strong>
         <span>
-          Last {WEEKDAY_NAMES[weekday]} · {d.getDate()} {MONTHS[d.getMonth()]}
+          {d.getDate()} {MONTHS[d.getMonth()]} · {last.games} games
         </span>
-        <span>{last.games} games</span>
       </p>
-      <dl className="home-last-stats">
-        {last.stats.map((s) => (
-          <div key={s.key} className="home-last-stat">
-            <dt>
-              <span>Most</span> <span>{STAT_LABEL[s.key]}</span>
-            </dt>
-            <dd>
-              <b>{s.value}</b>
-              <span>{s.name}</span>
-            </dd>
-          </div>
+      <ul className="home-last-stats">
+        {last.stats.map((st) => (
+          <li key={st.key} className="home-last-stat">
+            <b>{st.value}</b>
+            <strong>{st.name}</strong>
+            <span>{STAT_LABEL[st.key]}</span>
+          </li>
         ))}
-      </dl>
+      </ul>
     </section>
   );
 }
+
+const ICON = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true } as const;
+const ClockIcon = () => (
+  <svg className="home-row-icon" width="20" height="20" viewBox="0 0 24 24" {...ICON}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+);
+const PinIcon = () => (
+  <svg className="home-row-icon" width="20" height="20" viewBox="0 0 24 24" {...ICON}>
+    <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z" />
+    <circle cx="12" cy="10" r="2.5" />
+  </svg>
+);
 
 /** The lime card for one slot. It only shows things; the Start bar is the only way to go on. */
 export function SlotHero({ effective, now, onEdit, thisTimeOnly = false, attendance, onVenue, last, fromLeft = false }: SlotHeroProps) {
@@ -116,32 +126,40 @@ export function SlotHero({ effective, now, onEdit, thisTimeOnly = false, attenda
         <div className="home-hero-top">
           <div className="home-hero-tags">
             <span className="home-pill">{homeLabel(effective, now)}</span>
-            {noTime ? <DashedChip label="+ Add a time" onClick={onEdit} /> : <span className="home-time">{formatRange(effective.startMin, effective.endMin)}</span>}
           </div>
           <button type="button" className="home-edit" aria-label={`Edit ${day}`} onClick={onEdit}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M4 20h4L19 9l-4-4L4 16z" />
               <path d="M13.5 6.5l4 4" />
             </svg>
           </button>
         </div>
         <h1 className="home-day">{day}</h1>
+        <div className="home-rows">
+          <div className="home-row">
+            <ClockIcon />
+            {noTime ? <DashedChip label="+ Add a time" onClick={onEdit} /> : <span className="home-time">{formatRange(effective.startMin, effective.endMin)}</span>}
+          </div>
+          <div className="home-row">
+            <PinIcon />
+            {effective.venue !== undefined ? (
+              // The venue is a button too, so a place can be changed without opening the whole sheet.
+              <button type="button" className="home-line-btn" onClick={onVenue ?? onEdit}>
+                <span>{courts !== undefined ? `${effective.venue} · ${courts}` : effective.venue}</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+            ) : (
+              <>
+                <DashedChip label="+ Add a venue" onClick={onVenue ?? onEdit} />
+                {courts !== undefined && <span className="home-time">{courts}</span>}
+              </>
+            )}
+          </div>
+        </div>
       </div>
       <div className="home-hero-body">
-        {effective.venue !== undefined ? (
-          // The venue is a button too, so a place can be changed without opening the whole sheet.
-          <button type="button" className="home-line home-line-btn" onClick={onVenue ?? onEdit}>
-            <span>{courts !== undefined ? `${effective.venue} · ${courts}` : effective.venue}</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </button>
-        ) : (
-          <div className="home-where">
-            <DashedChip label="+ Add a venue" onClick={onVenue ?? onEdit} />
-            {courts !== undefined && <p className="home-line">{courts}</p>}
-          </div>
-        )}
         {thisTimeOnly && <p className="home-once">This time only</p>}
         {last && <LastWeek last={last} weekday={effective.weekday} />}
         {attendance ?? <div className="home-foot">{loaded && <Regulars weekday={effective.weekday} />}</div>}

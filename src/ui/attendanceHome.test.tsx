@@ -74,7 +74,7 @@ const inCard = () => within(document.querySelector<HTMLElement>('.attendance')!)
 describe('the attendance card on Home', () => {
   it('shows one slim row inside the hero, and opens the full card from it', async () => {
     const user = setup();
-    const row = screen.getByRole('button', { name: 'Attendance: 4 in · 1 maybe' });
+    const row = screen.getByRole('button', { name: 'Attendance: 4 playing, 1 maybe' });
     expect(document.querySelector('.home-hero')!.contains(row)).toBe(true);
     expect(card()).not.toBeInTheDocument();
     await openCard(user);

@@ -93,10 +93,15 @@ describe('last session stats on Home', () => {
     useHistoryStore.setState({ entries: [lastSaturday()] });
     setup();
     const card = screen.getByRole('region', { name: 'Last session' });
-    expect(within(card).getByText('Last Saturday · 31 Oct')).toBeInTheDocument();
-    expect(within(card).getByText('4 games')).toBeInTheDocument();
-    expect(within(card).getAllByRole('term').map((t) => t.textContent)).toEqual(['Most played', 'Most wins', 'Most losses']);
-    expect(card.querySelector('.home-last-stat b')?.textContent).toBe('4');
+    expect(within(card).getByText('Last Saturday')).toBeInTheDocument();
+    expect(within(card).getByText('31 Oct · 4 games')).toBeInTheDocument();
+    // Number first, then the name, then a one-line caption.
+    const stats = within(card).getAllByRole('listitem');
+    expect(stats.map((li) => [...li.children].map((c) => c.textContent))).toEqual([
+      ['4', 'Ann', 'most played'],
+      ['4', 'Ann', 'most wins'],
+      ['4', 'Dee', 'most losses'],
+    ]);
   });
 
   it('is not there without an earlier session on that weekday', () => {
@@ -254,18 +259,45 @@ describe('who is in, and the Share button', () => {
     });
   };
 
-  it('shows the answers as plain text with a face for each player who is in', () => {
+  it('says playing, never in, with a face for each player who is playing', () => {
     seedLink();
     setup();
-    const row = screen.getByRole('button', { name: 'Attendance: 2 in · 1 maybe' });
+    const row = screen.getByRole('button', { name: 'Attendance: 2 playing, 1 maybe' });
     expect(row.querySelectorAll('.avatar')).toHaveLength(2);
+    expect(row).toHaveTextContent('2 playing');
+    expect(row).not.toHaveTextContent(/\d in\b/);
+  });
+
+  it('shows a court bar of four blocks per court and says how many more make a game', () => {
+    seedLink();
+    setup();
+    const row = screen.getByRole('button', { name: /^Attendance:/ });
+    const courts = row.querySelectorAll('.home-court');
+    expect(courts).toHaveLength(2);
+    expect([...courts].map((c) => c.querySelectorAll('i.is-taken').length)).toEqual([2, 0]);
+    expect(row).toHaveTextContent('2 more makes a game');
+    expect(row).toHaveTextContent('1 maybe');
+  });
+
+  it('says how many courts are full and how many are waiting', () => {
+    seedLink();
+    const base = useAttendanceStore.getState().summaries.sat;
+    useAttendanceStore.setState({
+      summaries: { sat: { ...base, counts: { in: 6, maybe: 0, out: 0, late: 0 }, answers: Object.fromEntries(['a', 'b', 'c', 'd', 'e', 'f'].map((id) => [id, 'in' as const])), names: Object.fromEntries(['a', 'b', 'c', 'd', 'e', 'f'].map((id) => [id, id.toUpperCase()])) } },
+    });
+    setup();
+    const row = screen.getByRole('button', { name: 'Attendance: 6 playing' });
+    expect(row).toHaveTextContent('1 court full, 2 waiting');
+    expect(row.querySelectorAll('.avatar')).toHaveLength(3);
+    expect(row).toHaveTextContent('+3');
   });
 
   it('says Nobody yet when there are no answers', () => {
     seedLink();
     useAttendanceStore.setState({ summaries: { sat: { ...useAttendanceStore.getState().summaries.sat, counts: { in: 0, maybe: 0, out: 0, late: 0 }, answers: {} } } });
     setup();
-    expect(screen.getByRole('button', { name: 'Attendance: Nobody yet' })).toBeInTheDocument();
+    const row = screen.getByRole('button', { name: 'Attendance: 0 playing' });
+    expect(row).toHaveTextContent('4 players make a game');
   });
 
   it('shares the link from the hero with the phone’s share menu', async () => {
