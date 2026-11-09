@@ -5,7 +5,7 @@ import { useSyncStore } from '../sync/syncStore';
 import { RatingsSection } from './RatingsSection';
 import { SyncStatusLine } from './SyncStatusLine';
 import { useDefaultMode } from './matchmaking';
-import { AUTO_START_KEY, KEEP_AWAKE_KEY, PLAY_TO_CHOICES, REGULARS_FIRST_KEY, useBoolPref, usePlayTo, VIBRATE_KEY } from './prefs';
+import { AUTO_START_KEY, KEEP_AWAKE_KEY, PLAY_TO_CHOICES, REDUCE_MOTION_KEY, REGULARS_FIRST_KEY, useBoolPref, usePlayTo, VIBRATE_KEY } from './prefs';
 import { useTheme } from './useTheme';
 
 interface Props {
@@ -23,6 +23,7 @@ export function SettingsScreen({ onBack, onManage, onHistory }: Props) {
   const [mode, setMode] = useDefaultMode();
   const [keepAwake, setKeepAwake] = useBoolPref(KEEP_AWAKE_KEY, true);
   const [vibrate, setVibrate] = useBoolPref(VIBRATE_KEY, true);
+  const [reduceMotion, setReduceMotion] = useBoolPref(REDUCE_MOTION_KEY, false);
   const [autoStart, setAutoStart] = useBoolPref(AUTO_START_KEY, false);
   const [playTo, setPlayTo] = usePlayTo();
   const [working, setWorking] = useState(false);
@@ -66,6 +67,10 @@ export function SettingsScreen({ onBack, onManage, onHistory }: Props) {
             </label>
           ))}
         </div>
+        <label className="switch-row">
+          <span>Reduce motion</span>
+          <input type="checkbox" role="switch" checked={reduceMotion} onChange={(e) => setReduceMotion(e.target.checked)} />
+        </label>
       </section>
 
       <section className="card stack" aria-labelledby="mode-title">
