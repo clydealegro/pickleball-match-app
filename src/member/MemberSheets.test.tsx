@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import type { ActionResult } from './useMemberPage';
@@ -132,6 +132,16 @@ describe('the two sheets', () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
     await act(async () => finish({ ok: false, reason: 'server', message: 'Something went wrong. Try again.' }));
     expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled();
+  });
+
+  it('ignores a second send while the first is still out', async () => {
+    const onSubmit = vi.fn(() => new Promise<ActionResult>(() => undefined));
+    render(<JoinSheet onSubmit={onSubmit} onClose={vi.fn()} />);
+    await user().type(screen.getByLabelText('Your name'), 'Mika');
+    const form = screen.getByLabelText('Your name').closest('form')!;
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
   it('stays disabled after a success, so a name is not sent twice', async () => {

@@ -230,6 +230,19 @@ describe('the whole path', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it('shows a failed friend as an alert, never as good news', async () => {
+    savePick(CODE, ANA);
+    const remote = memoryRemote();
+    vi.spyOn(remote, 'addGuest').mockRejectedValue(new MemberError('too_many'));
+    render(<MemberPage code={CODE} remote={remote} />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Bring a friend' }));
+    await userEvent.type(screen.getByLabelText("Friend's name"), 'Rico');
+    await userEvent.click(screen.getByRole('button', { name: 'Add friend' }));
+    const shown = await screen.findAllByText('The list of new names is full. Ask your organizer.');
+    expect(shown.length).toBeGreaterThan(1);
+    for (const el of shown) expect(el).toHaveAttribute('role', 'alert');
+  });
+
   it('shows the cancelled screen when the week is cancelled while answering', async () => {
     savePick(CODE, ANA);
     const remote = memoryRemote();

@@ -48,6 +48,12 @@ describe('MemberPicker', () => {
     expect(screen.queryByRole('button', { name: 'Ben' })).toBeNull();
   });
 
+  it('draws the circle from the name on the button, so the two Bens differ', () => {
+    setup();
+    expect(screen.getByRole('button', { name: 'Ben C.' }).querySelector('.member-tile')).toHaveTextContent('BC');
+    expect(screen.getByRole('button', { name: 'Ben D.' }).querySelector('.member-tile')).toHaveTextContent('BD');
+  });
+
   it('picks with the player id', async () => {
     const { onPick } = setup();
     await userEvent.click(screen.getByRole('button', { name: 'Ben D.' }));

@@ -219,6 +219,12 @@ describe('who is in', () => {
     expect(screen.getByText('11 people')).toBeInTheDocument();
   });
 
+  it('does not count a maybe from someone who is not on the roster', () => {
+    const view = sample({ answers: [...sample().answers, { player_id: 'gone', status: 'maybe', late: false }] });
+    setup({ view });
+    expect(screen.getByText('3 maybe')).toBeInTheDocument();
+  });
+
   it('shows no In list when nobody is in', () => {
     setup({ view: sample({ answers: [], friends: 0 }) });
     expect(screen.getByText('Nobody yet.')).toBeInTheDocument();
