@@ -52,7 +52,7 @@ interface Failure {
 const NETWORK = /failed to fetch|network|load failed|fetch failed/i;
 
 /** Turns a failed request into a `RemoteError`. Status 0 is how supabase-js reports a request that never arrived. */
-function fail(error: Failure, status?: number): never {
+export function fail(error: Failure, status?: number): never {
   const code = status ?? error.status;
   const offline = code === 0 || NETWORK.test(error.message ?? '') || (typeof navigator !== 'undefined' && navigator.onLine === false);
   throw new RemoteError(offline ? 'offline' : code === 401 || error.code === 'PGRST301' ? 'auth' : 'server');
