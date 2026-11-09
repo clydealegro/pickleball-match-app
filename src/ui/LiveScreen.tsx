@@ -151,7 +151,7 @@ export function LiveScreen({ session, onHome, onSettings, onShowBoard }: { sessi
   );
 
   return (
-    <div className="live-screen">
+    <div className="live-screen screen-enter">
       <div className="live-header">
         <HomeButton onClick={onHome} />
         <div className="live-title">
