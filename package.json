@@ -10,7 +10,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "icons": "bash scripts/export-icons.sh"
+    "icons": "bash scripts/export-icons.sh",
+    "test:release:browser": "playwright test",
+    "test:release:db": "python3 scripts/check-db-concurrency.py",
+    "test:release:storage": "node scripts/check-storage-gate.mjs",
+    "test:release:flows": "node scripts/check-staging-flows.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",
@@ -22,6 +26,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.14",
+    "@playwright/test": "^1.65.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.0.0",

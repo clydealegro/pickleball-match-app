@@ -1,3 +1,7 @@
+> **Current continuation:** read [Claude Code audit handoff](../CLAUDE-CODE-HANDOFF.md) first. It records the uncommitted changes, tested evidence, Supabase migration order and remaining release blockers.
+
+> Audit update: the historical status below predates the current sync screens and audit fixes. See [current audit batches](../AUDIT-BATCHES.md) for local implementation, migration ordering and outstanding release checks. No audit migrations have been deployed by this work.
+
 # Handoff: where the project stands
 
 Written at the end of the first working session so a new session (on any machine) can continue without the original conversation.
