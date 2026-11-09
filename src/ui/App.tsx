@@ -3,6 +3,7 @@ import { useRosterStore } from '../store/rosterStore';
 import { useAuthStore } from '../sync/auth';
 import { startAttendanceSync } from '../sync/attendance/start';
 import { startSyncCoordinator } from '../sync/coordinator';
+import { startLivePublisher } from '../sync/live/publisher';
 import { useUpdateStore } from '../pwa';
 import { useHistoryStore } from '../store/historyStore';
 import { useSessionStore } from '../store/sessionStore';
@@ -192,6 +193,9 @@ export default function App() {
 
   // Keeps saved players backed up while signed in. It does nothing without a backend or a signed-in organizer.
   useEffect(() => startSyncCoordinator(), []);
+
+  // Keeps the public live board in step with a running session that came from a saved day, while signed in.
+  useEffect(() => startLivePublisher(), []);
 
   // Keeps each attendance link in step with its slot, and drops the saved answers when the account changes.
   useEffect(() => startAttendanceSync(), []);

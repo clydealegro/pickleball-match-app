@@ -37,7 +37,8 @@ export function nextWeek(playDate: string): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
-function timeText(start: number | null, end: number | null): string | null {
+/** "7 to 9 pm", "from 7 pm", "until 9 pm", or null with neither. */
+export function timeText(start: number | null, end: number | null): string | null {
   if (start !== null && end !== null) {
     const a = part(start);
     const b = part(end);

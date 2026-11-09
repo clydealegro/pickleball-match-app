@@ -513,6 +513,7 @@ legend {
 .live-actions {
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
 .account-btn,
@@ -3267,6 +3268,380 @@ caption {
   padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
   background: var(--surface);
+}
+
+/* Live board: the public view of a running session. It follows the member page's colours and tiles. */
+.live {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.live-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.live-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.live-when {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid var(--chip-ring);
+  border-radius: 999px;
+  color: var(--chip-ring);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.live-chip i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.live-chip[data-state='stale'] {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.live-stale {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--danger);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.live-courts,
+.live-team,
+.live-queue {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.live-courts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.live-court {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.live-court[data-status='playing'] {
+  border-color: var(--chip-ring);
+}
+
+.live-court-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.live-court-state {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.live-teams {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.live-team {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.live-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.live-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-face {
+  display: block;
+  object-fit: cover;
+}
+
+.live-vs {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.live-sec {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.live-queue-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.live-pos {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-size: 12px;
+}
+
+.live-queue-row[data-next='true'] .live-pos {
+  border-color: var(--chip-ring);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.live-next {
+  margin-left: auto;
+  color: var(--chip-ring);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.live-breaks {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.live-empty,
+.live-foot {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.live-foot {
+  margin-top: 6px;
+  text-align: center;
+}
+
+/* Sharing the live board: the pill, the notice, the share sheet and the full-screen QR code. */
+.live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--chip-ring);
+  border-radius: 999px;
+  background: none;
+  color: var(--chip-ring);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.live-pill i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.live-pill[data-state='paused'] {
+  border-color: var(--muted);
+  color: var(--muted);
+}
+
+.live-pill[data-state='error'] {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.live-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 14px;
+}
+
+.live-notice p {
+  margin: 0;
+}
+
+.live-notice-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.live-share-status {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.live-share-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.live-share-qr {
+  flex: none;
+  width: 96px;
+  height: 96px;
+  border-radius: 8px;
+}
+
+.live-share-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.live-share-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.live-share-msg {
+  margin: 0;
+  text-align: center;
+}
+
+.live-share-more {
+  align-self: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.live-share-reset {
+  color: var(--danger);
+}
+
+.qr {
+  display: block;
+  background: #fff;
+}
+
+.qr-wait {
+  background: #e6e5df;
+}
+
+.qr-screen {
+  position: fixed;
+  inset: 0;
+  /* Above the sheets (10), below the board overlay (30). */
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
+  background: #fff;
+  color: #111;
+  text-align: center;
+  cursor: pointer;
+}
+
+.qr-screen p {
+  margin: 0;
+}
+
+.qr-screen-title {
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.qr-screen-code {
+  width: min(78vw, 60vh, 420px);
+  height: min(78vw, 60vh, 420px);
+}
+
+.qr-screen-sub {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.qr-screen-url {
+  color: #555;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.qr-screen-close {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  background: none;
+  color: #555;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
 }
 
 /* Attendance card */

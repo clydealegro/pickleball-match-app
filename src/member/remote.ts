@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AttendanceStatus, AttendanceViewData } from '../sync/attendance/types';
+import { asFaces, asLiveReply, type LiveFaceReply, type LiveViewReply } from './liveTypes';
 
 /** The reasons the database raises, plus the two a failed request can be. */
 export type MemberReason = 'bad_status' | 'unknown_link' | 'cancelled' | 'unknown_player' | 'bad_name' | 'too_many' | 'offline' | 'server';
@@ -25,6 +26,13 @@ export interface MemberRemote {
   answer(code: string, playerId: string, status: AttendanceStatus, late: boolean): Promise<void>;
   /** A friend (with `broughtBy`) or a new member asking to join (null). Waits for the organizer. */
   addGuest(code: string, name: string, broughtBy: string | null): Promise<void>;
+  /**
+   * The live board for a code, or idle when none is up. With the version the page already has, an unchanged board
+   * answers with a few bytes. Left out by a remote that has no live board.
+   */
+  live?(code: string, since: number | null): Promise<LiveViewReply>;
+  /** The faces for a code, minus the ones the page already has, given as "saved player id:photo sequence". */
+  liveFaces?(code: string, have: string[]): Promise<LiveFaceReply[]>;
 }
 
 interface Failure {
@@ -58,6 +66,17 @@ export function supabaseMemberRemote(client: SupabaseClient): MemberRemote {
     async addGuest(code, name, broughtBy) {
       const { error, status } = await client.rpc('attendance_add_guest', { p_code: code, p_name: name, p_brought_by: broughtBy });
       if (error) throw memberFailure(error, status);
+    },
+    async live(code, since) {
+      const { data, error, status } = await client.rpc('live_view', { p_code: code, p_since: since });
+      if (error) throw memberFailure(error, status);
+      // An unknown code, or an answer the page does not understand, is the same as no live board.
+      return asLiveReply(data) ?? { state: 'idle' };
+    },
+    async liveFaces(code, have) {
+      const { data, error, status } = await client.rpc('live_photos', { p_code: code, p_have: have });
+      if (error) throw memberFailure(error, status);
+      return asFaces(data);
     },
   };
 }

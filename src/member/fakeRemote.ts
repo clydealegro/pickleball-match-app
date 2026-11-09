@@ -1,6 +1,7 @@
 import type { PGlite } from '@electric-sql/pglite';
 import { run } from '../sync/db/harness';
 import type { AttendanceViewData } from '../sync/attendance/types';
+import { asFaces, asLiveReply } from './liveTypes';
 import { MemberError, memberFailure, type MemberRemote } from './remote';
 
 /** Switches and a log a test holds on to. */
@@ -35,6 +36,14 @@ export function fakeMemberRemote(db: PGlite, flags: MemberFlags = { offline: fal
     },
     async addGuest(code, name, broughtBy) {
       await sql(`addGuest:${code}:${name}:${broughtBy}`, 'select public.attendance_add_guest($1, $2, $3)', [code, name, broughtBy]);
+    },
+    async live(code, since) {
+      const rows = await sql(`live:${code}:${since}`, 'select public.live_view($1, $2) as v', [code, since]);
+      return asLiveReply(rows[0]?.v) ?? { state: 'idle' };
+    },
+    async liveFaces(code, have) {
+      const rows = await sql(`liveFaces:${code}`, 'select public.live_photos($1, $2::text[]) as p', [code, have]);
+      return asFaces(rows[0]?.p);
     },
   };
 }

@@ -11,6 +11,7 @@ import { CourtCard } from './CourtCard';
 import { CourtTabs } from './CourtTabs';
 import { ExtendSheet } from './ExtendSheet';
 import { LiveMenu } from './LiveMenu';
+import { LiveNotice, LiveSharePill } from './LiveSharePill';
 import { motionOK, MOTION } from './motion';
 import { PlayerSheet } from './PlayerSheet';
 import { ResultSheet } from './ResultSheet';
@@ -171,6 +172,7 @@ export function LiveScreen({ session, onHome, onSettings, onShowBoard }: { sessi
           </div>
         </div>
         <div className="live-actions">
+          <LiveSharePill />
           <LiveMenu
             items={[
               { label: 'Settings', onSelect: onSettings },
@@ -200,6 +202,8 @@ export function LiveScreen({ session, onHome, onSettings, onShowBoard }: { sessi
           />
         </div>
       </div>
+
+      <LiveNotice />
 
       {error && (
         <p className="error" role="alert">

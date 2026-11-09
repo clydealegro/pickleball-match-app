@@ -28,7 +28,7 @@ const VIEW: AttendanceViewData = {
 };
 const view = (patch: Partial<AttendanceViewData> = {}): AttendanceViewData => ({ ...VIEW, ...patch });
 
-type Stub = { [K in keyof MemberRemote]: ReturnType<typeof vi.fn<MemberRemote[K]>> };
+type Stub = { [K in 'view' | 'answer' | 'addGuest']: ReturnType<typeof vi.fn<MemberRemote[K]>> };
 function makeRemote(data: AttendanceViewData | null = VIEW): Stub {
   return {
     view: vi.fn<MemberRemote['view']>(async () => data),

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { clock12, whenLine } from './format';
+import { LiveBoardView, LivePaused } from './LiveBoardView';
 import { MemberAnswer } from './MemberAnswer';
 import { MemberCancelled } from './MemberCancelled';
 import { MemberPicker } from './MemberPicker';
 import type { MemberRemote } from './remote';
+import { useLiveBoard } from './useLiveBoard';
 import { useMemberPage, type ActionResult } from './useMemberPage';
 
 const localClock = (at: number) => {
@@ -14,6 +16,7 @@ const localClock = (at: number) => {
 /** The page a member opens from the group chat. Picks the screen for what the hook says. */
 export function MemberPage({ code, remote }: { code: string; remote: MemberRemote | null }) {
   const page = useMemberPage(code, remote);
+  const live = useLiveBoard(code, remote);
   const { phase, view, stale, error, me } = page;
   const { addFriend, askToJoin } = page;
   // The hook gives the words but not whether they were good news, so the successes are noted here.
@@ -30,13 +33,32 @@ export function MemberPage({ code, remote }: { code: string; remote: MemberRemot
   const onAddFriend = useCallback((name: string) => rememberGood(addFriend, name), [rememberGood, addFriend]);
   const onAskToJoin = useCallback((name: string) => rememberGood(askToJoin, name), [rememberGood, askToJoin]);
 
-  const title = view?.title;
+  const showingLive = (live.phase === 'live' && live.board !== null) || live.phase === 'paused';
+  const title = showingLive ? live.board?.title : view?.title;
   useEffect(() => {
     if (title) document.title = title;
   }, [title]);
 
+  // While a live board is up, or the page is still finding out, the list is not what a visitor came for.
+  if (showingLive) {
+    return (
+      <main className="member member-live">
+        <header className="member-head">
+          <span className="member-brand">PIKL</span>
+        </header>
+        {live.phase === 'paused' || !live.board ? (
+          <LivePaused />
+        ) : (
+          <LiveBoardView board={live.board} faces={live.showPhotos ? live.faces : {}} ageS={live.ageS} fetchedAt={live.fetchedAt} failed={live.failed} />
+        )}
+      </main>
+    );
+  }
+
   let body;
-  if (phase === 'unavailable') {
+  if (live.phase === 'checking') {
+    body = <p className="member-note">Opening the list</p>;
+  } else if (phase === 'unavailable') {
     body = <p className="member-note">This link cannot be opened in this build.</p>;
   } else if (phase === 'loading') {
     body = <p className="member-note">Opening the list</p>;
