@@ -28,6 +28,8 @@ export function HomeAttendance({ slot, onOpen, onSignIn }: Props) {
   const link = useAttendanceStore((s) => s.links[slot.id]);
   const summary = useAttendanceStore((s) => s.summaries[slot.id]);
   const busy = useAttendanceStore((s) => !!s.busy[slot.id]);
+  // undefined: not asked yet. null: asked, and there is no link. A string: the answers could not be loaded.
+  const loadError = useAttendanceStore((s) => s.lastError[slot.id]);
   const [note, setNote] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -66,11 +68,20 @@ export function HomeAttendance({ slot, onOpen, onSignIn }: Props) {
   const counts = mineSummary?.counts;
   const ins = mineSummary ? Object.entries(mineSummary.answers).filter(([, a]) => a === 'in').map(([id]) => id) : [];
   const waiting = mineSummary?.waiting.length ?? 0;
+  // A day with no link yet has no answers to wait for, so it reads as zero rather than as something loading.
+  const known = counts !== undefined || (mineLink === undefined && loadError === null);
   const playing = counts?.in ?? 0;
   const maybe = counts?.maybe ?? 0;
   const fill = courtFill(playing);
+  const failed = !known && typeof loadError === 'string';
   // Said as "playing", never "in", which reads as inches next to a number.
-  const label = cancelled ? 'Cancelled this week' : counts ? `${playing} playing${maybe > 0 ? `, ${maybe} maybe` : ''}` : 'Answers show here';
+  const label = cancelled
+    ? 'Cancelled this week'
+    : known
+      ? `${playing} playing${maybe > 0 ? `, ${maybe} maybe` : ''}`
+      : failed
+        ? "Couldn't load answers"
+        : 'Checking answers';
 
   // Signed out there is nothing to show yet, so the only thing on offer is signing in.
   if (!signedIn) {
@@ -98,12 +109,14 @@ export function HomeAttendance({ slot, onOpen, onSignIn }: Props) {
           <span className="home-who-count">
             {cancelled ? (
               'Cancelled this week'
-            ) : counts ? (
+            ) : known ? (
               <>
                 <b>{playing}</b> playing
               </>
+            ) : failed ? (
+              "Couldn't load answers"
             ) : (
-              'Answers show here'
+              'Checking answers…'
             )}
           </span>
           {waiting > 0 && <span className="home-attend-badge">{waiting} new</span>}
@@ -111,7 +124,7 @@ export function HomeAttendance({ slot, onOpen, onSignIn }: Props) {
             <path d="M9 6l6 6-6 6" />
           </svg>
         </span>
-        {counts && !cancelled && (
+        {known && !cancelled && (
           <>
             {/* One block per player, four to a court, so the bar shows when there are enough for a game. */}
             <span className="home-seats" aria-hidden="true">

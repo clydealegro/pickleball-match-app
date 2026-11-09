@@ -303,6 +303,31 @@ describe('who is in, and the Share button', () => {
     expect(row).toHaveTextContent('4 players make a game');
   });
 
+  it('reads as zero, not as loading, for a day that has no link yet', () => {
+    seedLink();
+    useAttendanceStore.setState({ links: {}, summaries: {}, lastError: { sat: null } });
+    setup();
+    const row = screen.getByRole('button', { name: 'Attendance: 0 playing' });
+    expect(row).toHaveTextContent('4 players make a game');
+    expect(screen.getByRole('button', { name: 'Share link' })).toBeInTheDocument();
+  });
+
+  it('says Checking answers while a day with a link has not heard back yet', () => {
+    seedLink();
+    useAttendanceStore.setState({ summaries: {}, lastError: {} });
+    setup();
+    const row = screen.getByRole('button', { name: 'Attendance: Checking answers' });
+    expect(row).toHaveTextContent('Checking answers…');
+    expect(row.querySelector('.home-seats')).toBeNull();
+  });
+
+  it('says it could not load the answers when asking failed', () => {
+    seedLink();
+    useAttendanceStore.setState({ summaries: {}, lastError: { sat: 'offline' } });
+    setup();
+    expect(screen.getByRole('button', { name: "Attendance: Couldn't load answers" })).toBeInTheDocument();
+  });
+
   it('shares the link from the hero with the phone’s share menu', async () => {
     seedLink();
     const share = vi.fn(async () => {});
