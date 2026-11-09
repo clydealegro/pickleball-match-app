@@ -3049,7 +3049,9 @@ caption {
 /* The days sit side by side in one row that scrolls and snaps, so a drag shows the next day coming in. */
 .home-track {
   display: flex;
-  flex: 1 0 auto;
+  /* Takes what is left of the screen and no more: Home never scrolls, and the Start bar stays in view. */
+  flex: 1 1 0;
+  min-height: 0;
   gap: 12px;
   overflow-x: auto;
   overflow-y: hidden;
@@ -3074,6 +3076,58 @@ caption {
 
 .home-slide > .home-hero {
   flex: 1;
+  min-height: 0;
+}
+
+/* Compact steps, set by fitDays when a card is taller than the space it has. Each step keeps the one before. */
+.home-track[data-fit='1'] .home-hero,
+.home-track[data-fit='2'] .home-hero,
+.home-track[data-fit='3'] .home-hero {
+  padding: 14px;
+}
+
+.home-track[data-fit='1'] .home-hero .home-day,
+.home-track[data-fit='2'] .home-hero .home-day,
+.home-track[data-fit='3'] .home-hero .home-day {
+  font-size: clamp(32px, 11vw, 40px);
+  margin: 2px 0 8px;
+}
+
+.home-track[data-fit='1'] .home-last-week,
+.home-track[data-fit='1'] .home-who,
+.home-track[data-fit='1'] .home-attend-wrap {
+  gap: 8px;
+}
+
+.home-track[data-fit='1'] .home-last-week {
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.home-track[data-fit='1'] .home-last-head {
+  margin-bottom: 10px;
+}
+
+.home-track[data-fit='1'] .home-last-stat b {
+  font-size: 32px;
+}
+
+.home-track[data-fit='1'] .home-who {
+  padding: 12px;
+}
+
+.home-track[data-fit='2'] .home-last-week,
+.home-track[data-fit='3'] .home-last-week {
+  display: none;
+}
+
+.home-track[data-fit='3'] .home-seats,
+.home-track[data-fit='3'] .home-who-cap {
+  display: none;
+}
+
+.home-track[data-fit='3'] .home-row {
+  min-height: 26px;
 }
 
 .home-dots {

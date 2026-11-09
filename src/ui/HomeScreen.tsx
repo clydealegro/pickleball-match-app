@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { chipLabel, ctaGrade, doneEntry, sessionWeekday, sortedSlots } from '../store/homeInfo';
 import { useHistoryStore } from '../store/historyStore';
 import { useSessionStore } from '../store/sessionStore';
@@ -15,6 +15,7 @@ import { EditSlotSheet, type SlotPatch, type SlotScope } from './EditSlotSheet';
 import { DoneCard, ViewSummaryRow, useSharePicture } from './HomeDone';
 import { OneOffHero, SlotHero } from './HomeHero';
 import { LiveHero } from './HomeLive';
+import { fitDays } from './fitDays';
 import { motionOK } from './motion';
 import { Sheet } from './Sheet';
 import { WEEKDAY_NAMES } from './weekdays';
@@ -128,6 +129,25 @@ export function HomeScreen({ onStart, onResume, onHistory, onViewSummary, onSign
     const at = Math.min(order.length - 1, Math.max(0, Math.round(el.scrollLeft / step)));
     if (order[at] !== selectedId) setPicked(order[at]);
   }
+
+  // After every render, and whenever the screen or the fonts change, the cards compact until they fit without scrolling.
+  useLayoutEffect(() => {
+    if (track.current) fitDays(track.current);
+  });
+  useEffect(() => {
+    const el = track.current;
+    if (!el || !carousel) return;
+    const refit = () => fitDays(el);
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(refit);
+    observer?.observe(el);
+    window.addEventListener('resize', refit);
+    // Late fonts change the text height, and so what fits.
+    void document.fonts?.ready.then(refit);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', refit);
+    };
+  }, [carousel]);
 
   // The track opens on the picked day, without sliding there.
   useLayoutEffect(() => {

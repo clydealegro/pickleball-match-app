@@ -376,3 +376,11 @@ describe('who is in, and the Share button', () => {
     expect(screen.queryByRole('button', { name: 'Share link' })).not.toBeInTheDocument();
   });
 });
+
+describe('fitting the screen', () => {
+  it('writes the compact step on the track, so Home never needs to scroll', () => {
+    setup();
+    // jsdom has no layout, so nothing is clipped and the cards stay full size.
+    expect(document.querySelector<HTMLElement>('.home-track')!.dataset.fit).toBe('0');
+  });
+});
