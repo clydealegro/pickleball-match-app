@@ -168,6 +168,27 @@ describe('which states show', () => {
     expect(screen.queryByText('Checking answers')).not.toBeInTheDocument();
   });
 
+  it('says what the link is for before it offers to create one, and only then', () => {
+    const WHAT = 'Share one link in your group chat. Players answer In, Maybe or Out.';
+    signIn();
+    useAttendanceStore.setState({ lastError: { tue: null } });
+    const view = setup();
+    expect(screen.getByText(WHAT)).toBeInTheDocument();
+    view.unmount();
+    // Not while it is still checking, not when it could not load, and not once there is a link.
+    useAttendanceStore.setState({ lastError: {} });
+    const checking = setup();
+    expect(screen.queryByText(WHAT)).not.toBeInTheDocument();
+    checking.unmount();
+    useAttendanceStore.setState({ lastError: { tue: 'server' } });
+    const failed = setup();
+    expect(screen.queryByText(WHAT)).not.toBeInTheDocument();
+    failed.unmount();
+    seed();
+    setup();
+    expect(screen.queryByText(WHAT)).not.toBeInTheDocument();
+  });
+
   it.each(['offline', 'auth', 'server'] as const)('says it could not load, with Retry, when a %s failure left nothing saved', async (error) => {
     signIn();
     useAttendanceStore.setState({ lastError: { tue: error } });

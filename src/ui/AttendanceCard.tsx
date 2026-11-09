@@ -140,11 +140,14 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
         )}
         {failed && <LoadFailed onRetry={() => void store().refresh(slot.id)} />}
         {error === null && (
-          <div className="attendance-actions">
-            <button type="button" className="btn btn-live attendance-btn" disabled={busy} onClick={() => void run(() => store().ensureLink(slot))}>
-              Create link
-            </button>
-          </div>
+          <>
+            <p className="muted">Share one link in your group chat. Players answer In, Maybe or Out.</p>
+            <div className="attendance-actions">
+              <button type="button" className="btn btn-live attendance-btn" disabled={busy} onClick={() => void run(() => store().ensureLink(slot))}>
+                Create link
+              </button>
+            </div>
+          </>
         )}
         {problem && (
           <p className="error" role="alert">
