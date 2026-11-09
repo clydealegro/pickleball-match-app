@@ -2696,9 +2696,10 @@ caption {
   font-size: inherit;
 }
 
+/* An empty row holds a full 44px chip, so the row grows with it instead of overlapping its neighbour. */
 .home-row .home-dashed {
   min-height: 44px;
-  margin: -7px 0;
+  margin: 2px 0;
 }
 
 .home-row .home-line-btn {
