@@ -196,11 +196,11 @@ describe('localDate', () => {
 });
 
 describe('shareUrl', () => {
-  it('joins the origin, /j/ and the code', () => {
-    expect(shareUrl('https://pikl.example', 'abc123')).toBe('https://pikl.example/j/abc123');
+  it('joins the origin, /#/j/ and the code', () => {
+    expect(shareUrl('https://pikl.example', 'abc123')).toBe('https://pikl.example/#/j/abc123');
   });
 
   it('does not double a trailing slash', () => {
-    expect(shareUrl('https://pikl.example/', 'abc')).toBe('https://pikl.example/j/abc');
+    expect(shareUrl('https://pikl.example/', 'abc')).toBe('https://pikl.example/#/j/abc');
   });
 });

@@ -221,7 +221,7 @@ describe('the link state', () => {
     expect(screen.getByText('Tuesday')).toBeInTheDocument();
     const pills = within(screen.getByRole('list', { name: 'Answers' })).getAllByRole('listitem');
     expect(pills.map((p) => p.textContent)).toEqual(['11 in', '3 maybe', '2 out', '1 friend']);
-    expect(screen.getByText(`${window.location.origin}/j/abc123`)).toBeInTheDocument();
+    expect(screen.getByText(`${window.location.origin}/#/j/abc123`)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Reset link' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Cancel this week' })).toBeEnabled();
@@ -344,7 +344,7 @@ describe('the link state', () => {
     seed({ fetchedAt: new Date(2026, 10, 9, 16, 12).getTime(), waiting: [{ id: 'g1', name: 'Mika', broughtBy: null }] }, { change: { player: 'Ben', from: 'in', to: 'out', at: NOW } });
     const { container } = setup();
     const text = container.textContent!;
-    const order = ['Attendance link', '11 in', 'Updated 4:12 pm', 'Ben changed to Out', '1 new name to review', '/j/abc123', 'Share'].map((t) => text.indexOf(t));
+    const order = ['Attendance link', '11 in', 'Updated 4:12 pm', 'Ben changed to Out', '1 new name to review', '/#/j/abc123', 'Share'].map((t) => text.indexOf(t));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
@@ -481,7 +481,7 @@ describe('Share', () => {
     signIn();
     seed();
   });
-  const URL = () => `${window.location.origin}/j/abc123`;
+  const URL = () => `${window.location.origin}/#/j/abc123`;
 
   it('uses the share sheet when the browser has one', async () => {
     const { user } = setup();
@@ -733,7 +733,7 @@ describe('against the real rules', () => {
     const { user } = setup();
     await user.click(await screen.findByRole('button', { name: 'Create link' }));
     expect(await screen.findByText('0 in')).toBeInTheDocument();
-    expect(screen.getByText(`${window.location.origin}/j/${await code()}`)).toBeInTheDocument();
+    expect(screen.getByText(`${window.location.origin}/#/j/${await code()}`)).toBeInTheDocument();
   });
 
   it('shows the answers a member gave, after a refresh', async () => {
@@ -757,7 +757,7 @@ describe('against the real rules', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     const after = await code();
     expect(after).not.toBe(before);
-    expect(await screen.findByText(`${window.location.origin}/j/${after}`)).toBeInTheDocument();
+    expect(await screen.findByText(`${window.location.origin}/#/j/${after}`)).toBeInTheDocument();
   });
 
   it('cancels the week with a reason, then undoes it', async () => {

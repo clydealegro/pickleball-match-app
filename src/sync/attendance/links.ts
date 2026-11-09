@@ -108,4 +108,4 @@ export function localDate(ms: number, timezone: string): string {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
-export const shareUrl = (origin: string, code: string): string => `${origin.replace(/\/+$/, '')}/j/${code}`;
+export const shareUrl = (origin: string, code: string): string => `${origin.replace(/\/+$/, '')}/#/j/${code}`;
