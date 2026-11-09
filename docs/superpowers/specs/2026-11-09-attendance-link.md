@@ -89,8 +89,8 @@ in the link's own time zone, and it skips any date up to `closed_through`.
 | Plan | What | State |
 |---|---|---|
 | 1 | The database: tables, rules, three public functions, tests | Built and proven. `docs/superpowers/plans/2026-11-09-attendance-link-database.md` |
-| 2 | The organizer side: write the link from the slot, Reset, Cancel this week, set `closed_through` on Done, read answers and names, the Home card with an offline copy | Next |
-| 3 | The public page: the `/j/<code>` route, member screens 1, 2, 5 and 6, remembered identity, polling, photos | After 2 |
+| 2 | The organizer side: write the link from the slot, Reset, Cancel this week, close the date when a session ends, read answers and names, the Home card with an offline copy. Hidden behind a Settings switch, "Attendance link (preview)", until Plan 3 | Built and proven. `docs/superpowers/plans/2026-11-09-attendance-link-organizer.md` |
+| 3 | The public page: the `/j/<code>` route, member screens 1, 2, 5 and 6, remembered identity, polling, photos. Removes the preview switch | Next |
 | 4 | The session flow: Who's playing pre-fill, late players on a break, friends and the review screen, Copy list, nudge the maybes, Add to calendar | After 3 |
 
 ## Open items
@@ -102,6 +102,7 @@ in the link's own time zone, and it skips any date up to `closed_through`.
 
 ## Known limits
 
-- Plan 1 is database only. Nothing in the app changes yet.
+- After Plan 2 the organizer can manage a link, but only behind the preview switch, and members cannot open it until Plan 3. A slot edit that cannot reach the link (offline) is not retried until the slot is saved again.
+- Plan 1 was database only.
 - The three public functions will show in the security advisor as callable by anyone. That is the intent, and it is the reason each one is narrow.
 - The database tests prove the rules on an in-memory Postgres. They have not run against the real project.
