@@ -174,6 +174,7 @@ describe('which states show', () => {
     const { user } = setup();
     expect(screen.getByText('Could not load the answers. Try again.')).toBeInTheDocument();
     expect(screen.queryByText('Checking answers')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Create link' })).not.toBeInTheDocument();
     const refresh = vi.fn(async () => ({ ok: true as const }));
     useAttendanceStore.setState({ refresh });
     await user.click(screen.getByRole('button', { name: 'Retry' }));
@@ -240,6 +241,12 @@ describe('the link state', () => {
     setup();
     expect(screen.getByText('Updated 4:12 pm')).toBeInTheDocument();
     expect(screen.queryByText(/Offline/)).not.toBeInTheDocument();
+  });
+
+  it('shows the stale line for answers a few minutes old', () => {
+    seed({ fetchedAt: NOW - 181_000 });
+    setup();
+    expect(screen.getByText('Updated 4:16 pm')).toBeInTheDocument();
   });
 
   it('uses the 12-hour clock for the morning and for noon', () => {
@@ -429,6 +436,25 @@ describe('Create link', () => {
   });
 });
 
+describe('a message from an earlier try', () => {
+  it('goes away when the next try starts', async () => {
+    signIn();
+    useAttendanceStore.setState({ lastError: { tue: null } });
+    let release: () => void = () => {};
+    const ensureLink = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, message: OFFLINE })
+      .mockImplementationOnce(() => new Promise((resolve) => (release = () => resolve({ ok: true }))));
+    useAttendanceStore.setState({ ensureLink });
+    const { user } = setup();
+    await user.click(screen.getByRole('button', { name: 'Create link' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(OFFLINE);
+    await user.click(screen.getByRole('button', { name: 'Create link' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await act(async () => release());
+  });
+});
+
 describe('Share', () => {
   beforeEach(() => {
     signIn();
@@ -562,6 +588,7 @@ describe('the Reset link sheet', () => {
     await user.click(screen.getByRole('button', { name: 'Reset link' }));
     await user.click(within(dialog()).getByRole('button', { name: 'Reset link' }));
     expect(await within(dialog()).findByRole('alert')).toHaveTextContent(OFFLINE);
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
     expect(dialog()).toBeInTheDocument();
   });
 
