@@ -14,6 +14,8 @@ interface Props {
   venues: string[];
   onSave: (patch: SlotPatch, scope: SlotScope) => void;
   onClose: () => void;
+  /** Opens the places drawer in edit mode, where places are renamed and removed. */
+  onEditPlaces?: () => void;
 }
 
 const toInput = (min?: number) => (min === undefined ? '' : `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`);
@@ -24,7 +26,7 @@ function fromInput(value: string): number | undefined {
 }
 
 /** Edits a slot's time and venue, for this time only or for every week. */
-export function EditSlotSheet({ slot, effective, venues, onSave, onClose }: Props) {
+export function EditSlotSheet({ slot, effective, venues, onSave, onClose, onEditPlaces }: Props) {
   const day = WEEKDAY_NAMES[slot.weekday];
   const addVenue = useSlotsStore((s) => s.addVenue);
   const [start, setStart] = useState(toInput(effective.startMin));
@@ -82,9 +84,16 @@ export function EditSlotSheet({ slot, effective, venues, onSave, onClose }: Prop
       </div>
 
       <div className="slot-card" role="group" aria-labelledby={whereId}>
-        <p id={whereId} className="slot-label">
-          Where
-        </p>
+        <div className="slot-where-head">
+          <p id={whereId} className="slot-label">
+            Where
+          </p>
+          {onEditPlaces && venues.length > 0 && (
+            <button type="button" className="venue-edit-link" onClick={onEditPlaces}>
+              Edit places
+            </button>
+          )}
+        </div>
         {chips.length > 0 && (
           <div className="slot-chips">
             {chips.map((v) => (

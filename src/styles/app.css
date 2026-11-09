@@ -2982,6 +2982,95 @@ caption {
   cursor: pointer;
 }
 
+/* Editing saved places. */
+.venue-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -8px;
+}
+
+.venue-edit-link {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--chip-ring);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.slot-where-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.venue-row-edit {
+  cursor: default;
+}
+
+.venue-row-edit .venue-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.venue-list-edit .venue-row-edit:last-child {
+  border-bottom: 0;
+}
+
+.venue-icon {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.venue-icon-danger {
+  color: var(--danger);
+}
+
+.venue-rename {
+  flex: 1;
+  min-width: 0;
+}
+
+.venue-note {
+  margin: 0;
+  font-size: 13px;
+}
+
+.venue-toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 8px 4px 14px;
+  border-radius: 12px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.venue-toast button {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 /* Attendance card */
 /* A slim card under the Home hero. It sits on the page, not on the lime, so it uses the normal ink and surface. */
 .attendance {

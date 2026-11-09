@@ -63,6 +63,8 @@ export function HomeScreen({ onStart, onResume, onHistory, onViewSummary, onSign
   const [editingId, setEditingId] = useState<string | null>(null);
   const [attendanceOpen, setAttendanceOpen] = useState(false);
   const [venueId, setVenueId] = useState<string | null>(null);
+  // The places drawer opens in edit mode when it is reached from the Edit places link.
+  const [venueEdit, setVenueEdit] = useState(false);
   // Which way the last swipe went, so the next card slides in from that side.
   const [dir, setDir] = useState<1 | -1>(1);
   const swipe = useRef<{ x: number; y: number; dx: number; on: boolean } | null>(null);
@@ -163,6 +165,7 @@ export function HomeScreen({ onStart, onResume, onHistory, onViewSummary, onSign
     }
     setEditingId(null);
     setVenueId(null);
+    setVenueEdit(false);
   }
 
   const attendanceOn = authStatus !== 'unconfigured' && authStatus !== 'loading';
@@ -174,7 +177,10 @@ export function HomeScreen({ onStart, onResume, onHistory, onViewSummary, onSign
   if (live) hero = <LiveHero key="live" session={live} />;
   else if (showDone) hero = <DoneCard key="done" entry={done} now={now} />;
   // The key makes a fresh hero for each choice, so the slide-in plays again.
-  else if (selected && eff) hero = <SlotHero key={selected.id} fromLeft={dir < 0} effective={eff} now={now} thisTimeOnly={Object.keys(tonight[selected.id] ?? {}).length > 0} onEdit={() => setEditingId(selected.id)} onVenue={() => setVenueId(selected.id)} last={last} attendance={attendanceOn ? <HomeAttendance slot={selected} onOpen={() => setAttendanceOpen(true)} onSignIn={onSignIn ?? noop} /> : undefined} />;
+  else if (selected && eff) hero = <SlotHero key={selected.id} fromLeft={dir < 0} effective={eff} now={now} thisTimeOnly={Object.keys(tonight[selected.id] ?? {}).length > 0} onEdit={() => setEditingId(selected.id)} onVenue={() => {
+            setVenueEdit(false);
+            setVenueId(selected.id);
+          }} last={last} attendance={attendanceOn ? <HomeAttendance slot={selected} onOpen={() => setAttendanceOpen(true)} onSignIn={onSignIn ?? noop} /> : undefined} />;
   else hero = <OneOffHero key={ONE_OFF} fromLeft={dir < 0} />;
 
   let action;
@@ -280,11 +286,11 @@ export function HomeScreen({ onStart, onResume, onHistory, onViewSummary, onSign
       )}
 
       {venueSlot && (
-        <VenueSheet slot={venueSlot} effective={effectiveSlot(venueSlot, tonight)} venues={venues} onSave={save} onClose={() => setVenueId(null)} />
+        <VenueSheet slot={venueSlot} effective={effectiveSlot(venueSlot, tonight)} venues={venues} onSave={save} initialEdit={venueEdit} onClose={() => { setVenueId(null); setVenueEdit(false); }} />
       )}
 
       {editing && (
-        <EditSlotSheet slot={editing} effective={effectiveSlot(editing, tonight)} venues={venues} onSave={save} onClose={() => setEditingId(null)} />
+        <EditSlotSheet slot={editing} effective={effectiveSlot(editing, tonight)} venues={venues} onSave={save} onClose={() => setEditingId(null)} onEditPlaces={() => { setVenueEdit(true); setVenueId(editing.id); setEditingId(null); }} />
       )}
     </div>
   );

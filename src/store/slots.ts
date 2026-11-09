@@ -151,6 +151,15 @@ interface SlotsState extends SlotsData {
   clearTonight: (id: string, keys?: (keyof SlotEdit)[]) => void;
   /** Returns the name as stored, or an empty string when nothing was stored. */
   addVenue: (name: string) => string;
+  /**
+   * Renames a saved place, and every saved day and this-time-only edit that uses it. Returns the name as stored, or an
+   * empty string when nothing changed: the new name is blank, or another place already has it.
+   */
+  renameVenue: (from: string, to: string) => string;
+  /** Takes a place off the saved list. Days that use it keep its name. Returns where it was, or -1 when it was not there. */
+  removeVenue: (name: string) => number;
+  /** Puts a removed place back where it was, for Undo. */
+  restoreVenue: (name: string, index: number) => void;
 }
 
 export const useSlotsStore = create<SlotsState>()((set, get) => ({
@@ -190,5 +199,33 @@ export const useSlotsStore = create<SlotsState>()((set, get) => ({
     const next = [...venues, clean];
     set({ venues: next, persistent: persist({ slots, venues: next }) });
     return clean;
+  },
+  renameVenue(from, to) {
+    const clean = to.trim().slice(0, MAX_VENUE_LENGTH).trim();
+    const { slots, venues, tonight } = get();
+    if (!clean || !venues.includes(from)) return '';
+    if (clean === from) return from;
+    // Another place with the same name, ignoring capitals, would make two chips that look alike.
+    if (venues.some((v) => v !== from && v.toLowerCase() === clean.toLowerCase())) return '';
+    const nextVenues = venues.map((v) => (v === from ? clean : v));
+    const nextSlots = slots.map((sl) => (sl.venue === from ? { ...sl, venue: clean } : sl));
+    const nextTonight = Object.fromEntries(Object.entries(tonight).map(([id, e]) => [id, e.venue === from ? { ...e, venue: clean } : e]));
+    set({ venues: nextVenues, slots: nextSlots, tonight: nextTonight, persistent: persist({ slots: nextSlots, venues: nextVenues }) });
+    return clean;
+  },
+  removeVenue(name) {
+    const { slots, venues } = get();
+    const at = venues.indexOf(name);
+    if (at < 0) return -1;
+    const next = venues.filter((v) => v !== name);
+    set({ venues: next, persistent: persist({ slots, venues: next }) });
+    return at;
+  },
+  restoreVenue(name, index) {
+    const { slots, venues } = get();
+    if (venues.includes(name) || venues.length >= MAX_VENUES) return;
+    const next = [...venues];
+    next.splice(Math.min(Math.max(index, 0), next.length), 0, name);
+    set({ venues: next, persistent: persist({ slots, venues: next }) });
   },
 }));
