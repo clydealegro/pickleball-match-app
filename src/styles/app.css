@@ -2536,6 +2536,7 @@ caption {
   from {
     transform: scaleX(0);
   }
+}
 
 /* Attendance card */
 /* A slim card under the Home hero. It sits on the page, not on the lime, so it uses the normal ink and surface. */
