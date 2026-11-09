@@ -16,7 +16,7 @@ afterAll(async () => {
   await server.close();
 });
 beforeEach(async () => {
-  await server.db.exec('truncate public.players');
+  await server.db.exec('truncate public.players cascade');
   server.files.clear();
   server.calls.length = 0;
   server.offline = false;

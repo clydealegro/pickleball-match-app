@@ -44,7 +44,7 @@ const filesOf = (user: string) => [...server.files.keys()].filter((p) => p.start
 beforeEach(async () => {
   await resetRosterDbForTests();
   await resetHistoryDbForTests();
-  await server.db.exec('truncate public.players');
+  await server.db.exec('truncate public.players cascade');
   server.files.clear();
   server.calls.length = 0;
   server.offline = false;

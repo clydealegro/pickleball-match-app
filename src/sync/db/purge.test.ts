@@ -15,7 +15,7 @@ afterAll(async () => {
   await db.close();
 });
 beforeEach(async () => {
-  await db.exec('truncate public.players');
+  await db.exec('truncate public.players cascade');
 });
 
 const insert = (user: string, id: string, name: string) =>

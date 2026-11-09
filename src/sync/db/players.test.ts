@@ -15,7 +15,7 @@ afterAll(async () => {
   await db.close();
 });
 beforeEach(async () => {
-  await db.exec('truncate public.players');
+  await db.exec('truncate public.players cascade');
 });
 
 /** Inserts a player as `caller`; `extra` adds numeric columns such as photo_version. */
