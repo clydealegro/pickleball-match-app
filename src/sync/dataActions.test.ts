@@ -36,6 +36,7 @@ const deps = (remote = server.remote(USER_A), over: Partial<DataActionDeps> = {}
   syncNow: () => events.push('syncNow'),
   refresh: () => events.push('refresh'),
   batchSize: 2,
+  purgeSession: () => true,
   ...over,
 });
 const count = async (user: string) =>
@@ -219,4 +220,10 @@ describe('the attendance cache', () => {
     expect(cleared()).toBe(false);
     expect(memory.has(ATTENDANCE_KEY)).toBe(true);
   });
+});
+
+it('reports partial local deletion when history clearing fails', async () => {
+  const result = await deleteAllMyData(deps(undefined, { clearPastSessions: async () => { throw new Error('storage failure'); } }));
+  expect(result).toMatchObject({ ok: false, message: expect.stringMatching(/Some data on this device/) });
+  expect(await listRoster()).toEqual([]);
 });

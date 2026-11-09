@@ -132,7 +132,7 @@ export function SummaryScreen({
 }) {
   const reset = useSessionStore((s) => s.reset);
   const saveToHistory = useHistoryStore((s) => s.save);
-  const kept = useHistoryStore((s) => s.entries.some((e) => e.id === session.id));
+  const kept = useHistoryStore((s) => s.persistent && s.entries.some((e) => e.id === session.id));
   const readOnly = onBack !== undefined;
   const [message, setMessage] = useState('');
   const [shared, setShared] = useState(false);

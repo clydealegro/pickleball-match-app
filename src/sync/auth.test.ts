@@ -276,3 +276,24 @@ describe('auth store', () => {
     });
   });
 });
+
+it('recovers from timeout when a late check confirms signed out', async () => {
+  let resolve!: (value: unknown) => void;
+  const { client } = fakeClient({ getSession: vi.fn(() => new Promise(r => { resolve = r; })) });
+  const store = createAuthStore(() => client, 1);
+  await store.getState().init();
+  expect(store.getState().status).toBe('unknown');
+  resolve({ data: { session: null }, error: null });
+  await Promise.resolve();
+  expect(store.getState().status).toBe('signedOut');
+});
+it('does not let a late initial check replace a newer sign-in', async () => {
+  let resolve!: (value: unknown) => void;
+  const { client, emit } = fakeClient({ getSession: vi.fn(() => new Promise(r => { resolve = r; })) });
+  const store = createAuthStore(() => client, 1);
+  await store.getState().init();
+  emit('SIGNED_IN', session('ann@example.com'));
+  resolve({ data: { session: null }, error: null });
+  await Promise.resolve();
+  expect(store.getState().status).toBe('signedIn');
+});

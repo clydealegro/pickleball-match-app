@@ -102,14 +102,25 @@ export function createAuthStore(getClient: () => { auth: AuthClient } | null, se
               if (get().status !== 'signedIn' || get().email !== email || get().userId !== userId) {
                 set({ status: 'signedIn', email, userId, error: null });
               }
-            } else if (event === 'SIGNED_OUT' && (get().status === 'signedIn' || get().status === 'unknown')) {
+            } else if ((event === 'SIGNED_OUT' && (get().status === 'signedIn' || get().status === 'unknown')) || (event === 'INITIAL_SESSION' && (get().status === 'loading' || get().status === 'unknown'))) {
               set({ status: 'signedOut', email: null, userId: null });
             }
           });
           const timeout = new Promise<'timeout'>((resolve) => {
             timer = setTimeout(() => resolve('timeout'), sessionCheckMs);
           });
-          const result = await Promise.race([client.auth.getSession(), timeout]);
+          const sessionCheck = client.auth.getSession().then((result) => {
+            // The check may complete after our UI timeout. Only resolve the initial unknown state;
+            // a sign-in, sign-out or link request in the meantime takes precedence.
+            if (get().status === 'unknown' && !result.error) {
+              const user = result.data.session?.user;
+              set(user?.email
+                ? { status: 'signedIn', email: user.email, userId: user.id }
+                : { status: 'signedOut', email: null, userId: null });
+            }
+            return result;
+          });
+          const result = await Promise.race([sessionCheck, timeout]);
           if (get().status !== 'loading') return; // the listener got there first
           if (result === 'timeout') {
             set({ status: 'unknown' });

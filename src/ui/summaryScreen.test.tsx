@@ -461,3 +461,18 @@ describe('results on the summary', () => {
     expect(share.mock.calls[1][0].text).toMatch(/Ann: 3 · 1W 1L/);
   });
 });
+
+it('warns before discarding a summary present only in memory', async () => {
+  const session = finished();
+  useHistoryStore.setState({
+    persistent: false,
+    entries: [{ id: session.id, name: session.name, createdAt: session.createdAt, endedAt: session.endedAt, games: 1, session }],
+    save: async () => {},
+  });
+  useSessionStore.setState({ session, undoStack: [] });
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  render(<SummaryScreen session={session} />);
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Done' }));
+  expect(confirm).toHaveBeenCalledWith(CONFIRM);
+  expect(useSessionStore.getState().session).toBe(session);
+});

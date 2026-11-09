@@ -59,3 +59,21 @@ describe('a second window', () => {
     expect(screen.queryByText(/changed in another window/)).not.toBeInTheDocument();
   });
 });
+
+it('blocks mutations while waiting for the writer lease and when another tab owns it', async () => {
+  let grant!: (lock: null) => Promise<void>;
+  const locks = { request: vi.fn((_name, _options, callback) => {
+    grant = callback;
+    return Promise.resolve();
+  }) };
+  Object.defineProperty(navigator, 'locks', { configurable: true, value: locks });
+  try {
+    const { unmount } = renderAtSetup();
+    const input = { name: 'Test', mode: 'fairness' as const, courtCount: 1, players: [] };
+    expect(useSessionStore.getState().start(input).ok).toBe(false);
+    await act(async () => { await Promise.resolve(); await grant(null); });
+    expect(useSessionStore.getState().start(input).ok).toBe(false);
+    expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument();
+    unmount();
+  } finally { delete (navigator as unknown as Record<string, unknown>).locks; }
+});

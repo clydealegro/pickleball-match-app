@@ -1,3 +1,4 @@
+import { useSessionStore } from '../store/sessionStore';
 import { clearHistory } from '../store/historyDb';
 import { useHistoryStore } from '../store/historyStore';
 import { clearRosterData } from '../store/rosterDb';
@@ -21,6 +22,8 @@ export interface DataActionDeps {
   /** Called when this device's players changed, so the screens read them again. */
   refresh(): void;
   batchSize?: number;
+  purgeSession?: () => boolean;
+  clearPastSessions?: () => Promise<void>;
 }
 
 const defaultDeps: DataActionDeps = {
@@ -53,29 +56,34 @@ export async function removeAllPhotoFiles(remote: Remote, userId: string, batchS
 
 /**
  * Deletes every player and photo from the signed-in account, then from this device. The device is cleared last, so a
- * failure leaves this device's players where they are, and trying again is safe. Syncing is paused throughout.
+ * remote failure leaves local data intact. Local failures report partial completion. Syncing is paused throughout.
  */
 export async function deleteAllMyData(deps: DataActionDeps = defaultDeps): Promise<DataResult> {
   const server = deps.server();
   if (!server) return { ok: false, message: 'Sign in to delete the data in your account.' };
   const resume = await deps.pause();
+  let localDeletionStarted = false;
   try {
     await removeAllPhotoFiles(server.remote, server.userId, deps.batchSize);
     await server.remote.deleteAllMyPlayers();
+    localDeletionStarted = true;
+    if (!(deps.purgeSession ?? useSessionStore.getState().purge)()) throw new Error('Session could not be cleared');
     await clearRosterData();
+    deps.refresh();
     // Past sessions name the same people, so they go with the account's data.
-    await clearHistory();
+    await (deps.clearPastSessions ?? clearHistory)();
     // The attendance copy is part of the account's data.
     useAttendanceStore.getState().clear();
     void useHistoryStore.getState().load();
     useSyncStore.setState({ pending: 0, lastSyncedAt: null });
-    deps.refresh();
     return { ok: true };
   } catch (error) {
     return {
       ok: false,
       message:
-        isRemoteError(error) && error.kind === 'offline'
+        localDeletionStarted
+          ? "Couldn't finish deleting. Some data on this device may already be removed. Try again to finish."
+          : isRemoteError(error) && error.kind === 'offline'
           ? 'No connection. Try again when you are online. Nothing on this device was removed.'
           : "Couldn't finish deleting. Nothing on this device was removed. Try again: what was already deleted stays deleted.",
     };

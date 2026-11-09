@@ -28,6 +28,7 @@ interface SessionState {
   apply: (action: SessionAction, label?: string) => ApplyResult;
   undo: () => void;
   reset: () => void;
+  purge: () => boolean;
 }
 
 /**
@@ -42,6 +43,12 @@ function toResult(e: unknown): ApplyResult {
 
 const initial = loadPersisted();
 let actionSeq = 0;
+let writesBlocked = false;
+const CONFLICT = 'This session changed in another window. Reload before making changes.';
+
+export function setSessionWritesBlocked(blocked: boolean): void {
+  writesBlocked = blocked;
+}
 
 export const useSessionStore = create<SessionState>()((set, get) => {
   const commit = (session: Session | null, undoStack: Session[]) => {
@@ -56,6 +63,7 @@ export const useSessionStore = create<SessionState>()((set, get) => {
     lastAction: null,
 
     start(input) {
+      if (writesBlocked) return { ok: false, error: CONFLICT };
       try {
         commit(engine.createSession(input, liveCtx()), []);
         return { ok: true };
@@ -65,6 +73,7 @@ export const useSessionStore = create<SessionState>()((set, get) => {
     },
 
     apply(action, label) {
+      if (writesBlocked) return { ok: false, error: CONFLICT };
       const { session, undoStack } = get();
       if (!session) return { ok: false, error: 'There is no active session.' };
       try {
@@ -78,13 +87,22 @@ export const useSessionStore = create<SessionState>()((set, get) => {
     },
 
     undo() {
+      if (writesBlocked) return;
       const { undoStack } = get();
       const previous = undoStack[undoStack.length - 1];
       if (!previous) return;
       commit(previous, undoStack.slice(0, -1));
     },
 
+    purge() {
+      // Account deletion deliberately clears even a stale tab's retained snapshots.
+      const saved = savePersisted({ session: null, undoStack: [] });
+      set({ session: null, undoStack: [], lastAction: null, saveFailed: !saved });
+      return saved;
+    },
+
     reset() {
+      if (writesBlocked) return;
       commit(null, []);
     },
   };

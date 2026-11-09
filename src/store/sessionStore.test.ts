@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as engine from '../engine';
-import { MAX_UNDO, useSessionStore } from './sessionStore';
+import { MAX_UNDO, setSessionWritesBlocked, useSessionStore } from './sessionStore';
 import { savePersisted, STORAGE_KEY } from './persistence';
 
 const players = ['Ann', 'Ben', 'Cy', 'Dee', 'Eve'].map((name) => ({ name }));
 
 beforeEach(() => {
+  setSessionWritesBlocked(false);
   localStorage.clear();
   useSessionStore.setState({ session: null, undoStack: [], saveFailed: false });
 });
@@ -168,4 +169,29 @@ describe('what the last action was', () => {
     useSessionStore.getState().apply((s) => noop(s), 'something');
     expect(localStorage.getItem(STORAGE_KEY)!).not.toContain('something');
   });
+});
+
+it('blocks every session mutation after another window writes', () => {
+  start();
+  useSessionStore.getState().apply(s => ({ ...s, name: 'Updated' }));
+  const before = useSessionStore.getState();
+  const saved = localStorage.getItem(STORAGE_KEY);
+  setSessionWritesBlocked(true);
+  expect(before.apply(s => ({ ...s, name: 'Stale' })).ok).toBe(false);
+  expect(before.start({ name: 'Replacement', mode: 'fairness', courtCount: 1, players }).ok).toBe(false);
+  before.undo();
+  before.reset();
+  expect(useSessionStore.getState().session).toBe(before.session);
+  expect(localStorage.getItem(STORAGE_KEY)).toBe(saved);
+  setSessionWritesBlocked(false);
+});
+
+it('purges the current session and undo even when ordinary writes are blocked', () => {
+  start();
+  useSessionStore.getState().apply(s => ({ ...s, name: 'Changed' }));
+  setSessionWritesBlocked(true);
+  expect(useSessionStore.getState().purge()).toBe(true);
+  expect(useSessionStore.getState()).toMatchObject({ session: null, undoStack: [], lastAction: null });
+  expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).toMatchObject({ session: null, undoStack: [] });
+  setSessionWritesBlocked(false);
 });

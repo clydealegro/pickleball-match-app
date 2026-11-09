@@ -122,7 +122,7 @@ export default function App() {
   const goHome = () => {
     if (session?.endedAt) {
       if (leaveSummary.current) leaveSummary.current();
-      else if (confirmLeave(session, useHistoryStore.getState().entries.some((e) => e.id === session.id), false)) useSessionStore.getState().reset();
+      else if (confirmLeave(session, useHistoryStore.getState().persistent && useHistoryStore.getState().entries.some((e) => e.id === session.id), false)) useSessionStore.getState().reset();
       return;
     }
     keepSetup.current = true;
@@ -290,7 +290,7 @@ export default function App() {
       )}
       {sessionConflict && (
         <p className="notice" role="status">
-          This session was changed in another window.{' '}
+          This session was changed in another window. Close other app windows before reloading to edit.{' '}
           <button type="button" className="btn btn-small" onClick={() => window.location.reload()}>
             Reload
           </button>

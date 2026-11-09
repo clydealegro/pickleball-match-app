@@ -262,7 +262,7 @@ export function SettingsScreen({ onBack, onManage, onHistory }: Props) {
                 disabled={working}
                 onClick={() =>
                   void runDataAction(
-                    'Delete all your saved players and photos from your account and from this device? This cannot be undone.',
+                    'Delete all your saved players, photos and attendance links from your account, plus this device’s current session, undo history and past sessions? This cannot be undone.',
                     deleteAllMyData,
                     'Deleted. Your account and this device have no saved players now.',
                   )
@@ -270,7 +270,7 @@ export function SettingsScreen({ onBack, onManage, onHistory }: Props) {
               >
                 Delete all my data
               </button>
-              <p className="muted">Deletes every saved player and photo from your account and from this device. This cannot be undone.</p>
+              <p className="muted">Deletes saved players, photos and attendance links from your account, and clears this device’s current session, undo history and past sessions. This cannot be undone.</p>
             </>
           )}
           {working && (
