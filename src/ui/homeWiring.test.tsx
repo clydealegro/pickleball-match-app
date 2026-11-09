@@ -121,6 +121,16 @@ describe('Home is the landing screen', () => {
     expect(s.plannedEndAt).toBe(timestampAt(1260, FRIDAY.getTime()));
   });
 
+  it('remembers the slot the session started from', async () => {
+    useSlotsStore.setState({ slots: [{ id: 'thu', weekday: 4 }] });
+    const user = setup();
+    render(<App />);
+    await startThursday(user);
+    await user.type(box(), four);
+    await user.click(await screen.findByRole('button', { name: 'Start 4 players' }));
+    expect(useSessionStore.getState().session!.slotId).toBe('thu');
+  });
+
   it('uses this time only values for the session and then forgets them', async () => {
     useSlotsStore.setState({ slots: [{ id: 'thu', weekday: 4, venue: 'Hall A' }], tonight: { thu: { venue: 'Park' } } });
     const user = setup();
@@ -142,6 +152,7 @@ describe('Home is the landing screen', () => {
     expect(s.name).toBe('Friday open play');
     expect(s).not.toHaveProperty('venue');
     expect(s).not.toHaveProperty('plannedEndAt');
+    expect(s).not.toHaveProperty('slotId');
   });
 
   it('uses the slot’s weekday for the regulars shortcut, not today’s', async () => {

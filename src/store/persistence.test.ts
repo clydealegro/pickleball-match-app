@@ -225,3 +225,29 @@ describe('persisted weekday', () => {
     }
   });
 });
+
+describe('persisted slot id', () => {
+  const store = (session: unknown) =>
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, session, undoStack: [] }));
+
+  it('keeps the slot a session started from, through a save and a load', () => {
+    const s = newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }, makeCtx());
+    savePersisted({ session: { ...s, slotId: 'tue' }, undoStack: [] });
+    expect(loadPersisted()?.session?.slotId).toBe('tue');
+  });
+
+  it('loads sessions saved without one', () => {
+    const s = newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }, makeCtx());
+    store(s);
+    expect(loadPersisted()?.session).toEqual(s);
+    expect(loadPersisted()?.session).not.toHaveProperty('slotId');
+  });
+
+  it('rejects a slot id that is not a string', () => {
+    const s = newTestSession(['A', 'B', 'C', 'D'], { courts: 1 }, makeCtx());
+    for (const bad of [5, null, {}, ['tue'], true]) {
+      store({ ...s, slotId: bad });
+      expect(loadPersisted()).toBeNull();
+    }
+  });
+});

@@ -81,6 +81,8 @@ export interface Session {
   createdAt: number;
   /** The slot's weekday, 0 Sunday to 6 Saturday. A slot can start on any day, so this can differ from createdAt. */
   weekday?: number;
+  /** The slot this session started from, so its attendance link can be closed when the session ends. */
+  slotId?: string;
   endedAt?: number;
   /**
    * False means every game waits for the organizer's Start. Missing or true means games start by themselves, which is
@@ -119,4 +121,6 @@ export interface NewSessionInput {
   plannedEndAt?: number;
   /** The slot's weekday, 0 Sunday to 6 Saturday. */
   weekday?: number;
+  /** The slot this session started from. A one-off session has none. */
+  slotId?: string;
 }

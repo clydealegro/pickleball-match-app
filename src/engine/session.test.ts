@@ -12,6 +12,13 @@ describe('createSession', () => {
     expect('weekday' in createSession({ name: 'x', mode: 'fairness', courtCount: 1, players: [] }, makeCtx())).toBe(false);
   });
 
+  it('remembers the slot it started from, and leaves the field off when there is none', () => {
+    const make = (slotId?: string) => createSession({ name: 'x', mode: 'fairness', courtCount: 1, players: [], slotId }, makeCtx());
+    expect(make('tue').slotId).toBe('tue');
+    expect('slotId' in make()).toBe(false);
+    expect('slotId' in make('')).toBe(false);
+  });
+
   it('creates numbered empty courts when there are fewer than 4 players', () => {
     const s = newTestSession(['Ann', 'Ben', 'Cy'], { courts: 2 });
     expect(s.courts.map((c) => [c.number, c.status])).toEqual([

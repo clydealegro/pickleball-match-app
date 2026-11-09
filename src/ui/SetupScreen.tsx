@@ -143,6 +143,7 @@ export function SetupScreen({ onManage, plan, onBack }: Props) {
       venue: plan?.venue,
       plannedEndAt: plan?.plannedEndAt,
       weekday: plan?.weekday,
+      slotId: plan?.slotId,
     });
     if (res.ok) {
       setNumPref(COURTS_KEY, courtCount);

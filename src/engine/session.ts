@@ -60,6 +60,7 @@ export function createSession(input: NewSessionInput, ctx: Ctx): Session {
     ...(venue ? { venue } : {}),
     ...(input.plannedEndAt === undefined ? {} : { plannedEndAt: input.plannedEndAt }),
     ...(isWeekday(input.weekday) ? { weekday: input.weekday } : {}),
+    ...(input.slotId ? { slotId: input.slotId } : {}),
   };
   // Players are inserted first and courts filled once, so a whole group starts together.
   for (const p of input.players) insertPlayer(s, p, ctx);
