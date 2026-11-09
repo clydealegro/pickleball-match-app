@@ -38,10 +38,10 @@ const answered = (id: string, status: 'in' | 'maybe' | 'out', late = false) => {
 const unanswered = (id: string) => sample({ answers: sample().answers.filter((a) => a.player_id !== id) });
 
 describe('the greeting', () => {
-  it('says Hi with the first name and shows when and where', () => {
+  it('says Hi with the first name, and leaves the when line to the page header', () => {
     setup();
     expect(screen.getByRole('heading', { name: 'Hi Ana' })).toBeInTheDocument();
-    expect(screen.getByText('Tue 10 Nov, 7 to 9 pm, Sample Hall')).toBeInTheDocument();
+    expect(screen.queryByText('Tue 10 Nov, 7 to 9 pm, Sample Hall')).toBeNull();
   });
 
   it('uses the first name only, even when the list shows a last initial', () => {

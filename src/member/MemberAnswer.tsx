@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { AttendanceStatus, AttendanceViewData } from '../sync/attendance/types';
 import { displayNames } from '../sync/attendance/links';
 import { downloadFile } from './download';
-import { busyLine, dateLabel, statusLine, whenLine } from './format';
+import { busyLine, dateLabel, statusLine } from './format';
 import { calendarFile } from './ics';
 import { FriendSheet } from './MemberSheets';
 import { MemberTile } from './MemberTile';
@@ -48,7 +48,6 @@ export function MemberAnswer({ view, me, busy, message, onAnswer, onForget, onAd
           Not {first}?
         </button>
       </div>
-      <p className="member-when">{whenLine(view)}</p>
       {mine && (
         <p className="member-banner" role="status">
           {statusLine(mine.status, dateLabel(view.play_date))}
