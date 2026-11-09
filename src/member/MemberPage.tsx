@@ -77,7 +77,7 @@ export function MemberPage({ code, remote }: { code: string; remote: MemberRemot
       <header className="member-head">
         <span className="member-brand">PIKL</span>
         {view && <h1 className="member-title">{view.title}</h1>}
-        {view && <p className="member-when">{whenLine(view)}</p>}
+        {view && !view.cancelled && <p className="member-when">{whenLine(view)}</p>}
         {stale && <p className="member-stale">Updated {localClock(stale.at)}</p>}
         {stale?.offline && <p className="member-stale">Offline, showing the last list</p>}
       </header>

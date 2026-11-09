@@ -132,6 +132,17 @@ describe('the screens', () => {
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.getByRole('heading', { level: 1, name: 'Tuesday open play' })).toBeInTheDocument();
   });
+
+  it('does not say when and where the session is while it is cancelled, but does when it is on', async () => {
+    const cancelled = render(<MemberPage code={CODE} remote={memoryRemote(sample({ cancelled: { reason: null } }))} />);
+    await screen.findByRole('heading', { name: 'No play this Tuesday' });
+    expect(screen.queryByText('Tue 10 Nov, 7 to 9 pm, Sample Hall')).toBeNull();
+    // The date is still there, once, in the notice.
+    expect(screen.getAllByText('Tue 10 Nov')).toHaveLength(1);
+    cancelled.unmount();
+    render(<MemberPage code={CODE} remote={memoryRemote()} />);
+    expect(await screen.findByText('Tue 10 Nov, 7 to 9 pm, Sample Hall')).toBeInTheDocument();
+  });
 });
 
 describe('the last list', () => {
