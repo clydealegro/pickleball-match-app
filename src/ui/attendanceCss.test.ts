@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import css from '../styles/app.css?raw';
 
-// The board section runs to the end of the file and bans the app variables, so this one sits just before it.
+// The member page section follows this one, then the board, which runs to the end of the file and bans the app variables.
 const START = css.indexOf('/* Attendance card */');
-const END = css.indexOf('/* Board */');
+const END = css.indexOf('/* Member page */');
 const section = START >= 0 ? css.slice(START, END) : '';
 
 /** The declarations of the first rule in the attendance section whose selector is exactly this one. */

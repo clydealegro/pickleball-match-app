@@ -2636,6 +2636,353 @@ caption {
   font-size: 14px;
 }
 
+/* Member page */
+/* What a club member sees at the join link. It uses the app colours; only the name circles bring their own. */
+.member {
+  max-width: 480px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 24px 16px calc(32px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.member-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.member-brand {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.member-title {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.member-when {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.member-stale {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.member-heading {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.member-search {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.member-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 8px;
+}
+
+.member-pick {
+  min-height: 44px;
+  padding: 6px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.member-pick-name {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.member-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 50%;
+  background: hsl(var(--h) 42% 32%);
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.member-tile-sm {
+  width: 38px;
+  height: 38px;
+  font-size: 14px;
+}
+
+.member-tile-md {
+  width: 56px;
+  height: 56px;
+  font-size: 19px;
+}
+
+.member-note {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.member-link {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.member-greet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 12px;
+}
+
+.member-banner {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--chip-ring);
+  background: var(--surface);
+  font-weight: 600;
+}
+
+.member-answers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.member-answer {
+  min-height: 64px;
+  padding: 6px 4px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.member-answer-in {
+  border-color: var(--accent);
+}
+
+.member-answer[aria-pressed='true'] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.member-answer-in[aria-pressed='true'] {
+  border-color: var(--chip-ring);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.member-answer:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.member-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.member-chip {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.member-chip[aria-pressed='true'] {
+  border-color: var(--chip-ring);
+  box-shadow: inset 0 0 0 1px var(--chip-ring);
+}
+
+.member-chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.member-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.member-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 700;
+}
+
+.member-faces {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 10px 4px;
+}
+
+.member-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.member-face-name {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.member-line {
+  font-size: 15px;
+}
+
+.member-busy {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 14px;
+}
+
+.member-calendar {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.member-message {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.member-message[role='alert'] {
+  color: var(--danger);
+}
+
+.member-notice {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+
+.member-next {
+  padding: 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-weight: 600;
+}
+
+.member-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.member-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.member-submit {
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.member-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.member-retry {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.member-search:focus-visible,
+.member-input:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
 /* Board */
 /* A full-screen board for a TV or a phone on a stand. It sets its own dark colours whatever the app theme is. */
 .board {

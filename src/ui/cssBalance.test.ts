@@ -44,7 +44,7 @@ describe('the stylesheets', () => {
     const css = sheets['../styles/app.css'];
     const { atLine } = depths(css);
     const lines = css.split('\n');
-    const named = ['/* Home */', '/* Attendance card */', '/* Board */'];
+    const named = ['/* Home */', '/* Attendance card */', '/* Member page */', '/* Board */'];
     for (const marker of named) {
       const i = lines.findIndex((l) => l.startsWith(marker));
       expect(i, `${marker} is in app.css`).toBeGreaterThanOrEqual(0);
