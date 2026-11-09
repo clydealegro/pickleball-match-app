@@ -158,4 +158,26 @@ describe('parseCache', () => {
     expect(out).toEqual(view());
     expect(out).not.toHaveProperty('ownerId');
   });
+
+  it('keeps an answer of every status', () => {
+    const v = { ...view(), answers: [{ player_id: 'p1', status: 'out', late: false }, { player_id: 'p2', status: 'maybe', late: false }] };
+    expect(parseCache(JSON.stringify({ version: 1, entries: { abc: { view: v, at: 5 } } })).entries.abc.view.answers).toEqual(v.answers);
+  });
+
+  it('drops an empty code', () => {
+    expect(parseCache(JSON.stringify({ version: 1, entries: { '': { view: view(), at: 5 } } })).entries).toEqual({});
+  });
+
+  it('keeps only the known fields of a player, so a full name is never stored', () => {
+    const v = { ...view(), players: [{ id: 'p1', first_name: 'Ana', last_initial: 'R', has_photo: false, photo_seq: 0, name: 'Ana Reyes', owner_id: 'x' }] };
+    const out = parseCache(JSON.stringify({ version: 1, entries: { abc: { view: v, at: 5 } } })).entries.abc.view.players[0];
+    expect(out).toEqual({ id: 'p1', first_name: 'Ana', last_initial: 'R', has_photo: false, photo_seq: 0 });
+    expect(out).not.toHaveProperty('name');
+  });
+
+  it('keeps only the known fields of an answer', () => {
+    const v = { ...view(), answers: [{ player_id: 'p1', status: 'in', late: false, note: 'x' }] };
+    expect(parseCache(JSON.stringify({ version: 1, entries: { abc: { view: v, at: 5 } } })).entries.abc.view.answers[0]).toEqual({ player_id: 'p1', status: 'in', late: false });
+  });
 });
+

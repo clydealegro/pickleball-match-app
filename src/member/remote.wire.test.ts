@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { createClient } from '@supabase/supabase-js';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { isMemberError, supabaseMemberRemote, type MemberReason } from './remote';
+import { MemberError, isMemberError, memberFailure, supabaseMemberRemote, type MemberReason } from './remote';
 
 const ANA = '11111111-1111-4111-8111-111111111111';
 const KEY = 'sb_publishable_test';
@@ -171,5 +171,48 @@ describe('what the member remote makes of a failure', () => {
     const error = await realRemote().view('abc').catch((e: unknown) => e);
     expect(isMemberError(error)).toBe(true);
     expect((error as Error).message).toBe('Member request failed (unknown_link)');
+  });
+});
+
+describe('memberFailure', () => {
+  it('says offline for status 0 whatever the text, from the argument or from the error', () => {
+    expect(memberFailure({ message: 'boom' }, 0).reason).toBe('offline');
+    expect(memberFailure({ message: 'boom', status: 0 }).reason).toBe('offline');
+  });
+
+  it('says offline for each kind of network text', () => {
+    for (const message of ['TypeError: Failed to fetch', 'NetworkError when attempting to fetch resource.', 'TypeError: Load failed', 'TypeError: fetch failed']) {
+      expect(memberFailure({ message }, 500).reason).toBe('offline');
+    }
+  });
+
+  it('says server for any other status and text', () => {
+    expect(memberFailure({ message: 'boom' }, 500).reason).toBe('server');
+    expect(memberFailure({ message: 'boom', status: 502 }).reason).toBe('server');
+    expect(memberFailure({}).reason).toBe('server');
+  });
+
+  it('keeps a reason only for the database code with an exact word', () => {
+    expect(memberFailure({ code: 'P0001', message: 'too_many' }, 400).reason).toBe('too_many');
+    expect(memberFailure({ code: 'P0001', message: 'too_many ' }, 400).reason).toBe('server');
+    expect(memberFailure({ code: 'P0001', message: 'Too_Many' }, 400).reason).toBe('server');
+  });
+});
+
+describe('isMemberError', () => {
+  it('is true for a MemberError only', () => {
+    expect(isMemberError(new MemberError('server'))).toBe(true);
+    expect(isMemberError(new Error('x'))).toBe(false);
+    expect(isMemberError(Object.assign(new Error('x'), { reason: 'server' }))).toBe(false);
+    expect(isMemberError({ name: 'MemberError', reason: 'server' })).toBe(false);
+    expect(isMemberError(null)).toBe(false);
+    expect(isMemberError('server')).toBe(false);
+  });
+});
+
+describe('a view that comes back with no data', () => {
+  it('is null', async () => {
+    const client = { rpc: async () => ({ data: undefined, error: null, status: 200 }) } as unknown as Parameters<typeof supabaseMemberRemote>[0];
+    expect(await supabaseMemberRemote(client).view('abc')).toBeNull();
   });
 });

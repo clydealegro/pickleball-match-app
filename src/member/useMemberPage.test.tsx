@@ -114,6 +114,15 @@ describe('phases', () => {
     expect(result.current.error).toBe('server');
   });
 
+  it('is notfound when the refresh says the link is unknown, even with a copy', async () => {
+    writeCached(CODE, VIEW, NOW);
+    const remote = makeRemote();
+    remote.view.mockImplementation(fails('unknown_link'));
+    const { result } = await mount(remote);
+    expect(result.current.phase).toBe('notfound');
+    expect(result.current.view).toBeNull();
+  });
+
   it('treats a failure that is not a MemberError as a server failure', async () => {
     const remote = makeRemote();
     remote.view.mockRejectedValue(new Error('boom'));
@@ -234,6 +243,20 @@ describe('retry', () => {
     await settle();
     expect(result.current.phase).toBe('failed');
     expect(result.current.error).toBe('server');
+  });
+
+  it('keeps showing the view while it asks again', async () => {
+    const remote = makeRemote();
+    const { result } = await mount(remote);
+    const reply = deferred<AttendanceViewData | null>();
+    remote.view.mockReturnValueOnce(reply.promise);
+    await act(async () => {
+      result.current.retry();
+    });
+    expect(result.current.phase).toBe('ready');
+    expect(result.current.view).toEqual(VIEW);
+    reply.resolve(VIEW);
+    await settle();
   });
 
   it('does nothing when there is no backend', async () => {
