@@ -40,6 +40,10 @@ describe('Member page styles', () => {
     }
   });
 
+  it('makes each name button as wide as its grid cell, so the circle sits in the middle of the cell', () => {
+    expect(rule('.member-pick')).toMatch(/width:\s*100%/);
+  });
+
   it('draws the circles at 38 and 56 px', () => {
     expect(rule('.member-tile-sm')).toMatch(/width:\s*38px/);
     expect(rule('.member-tile-sm')).toMatch(/height:\s*38px/);

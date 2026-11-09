@@ -2711,6 +2711,7 @@ caption {
 }
 
 .member-pick {
+  width: 100%;
   min-height: 44px;
   padding: 6px 4px;
   display: flex;
