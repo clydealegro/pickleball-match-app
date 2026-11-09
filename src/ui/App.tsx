@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRosterStore } from '../store/rosterStore';
 import { useAuthStore } from '../sync/auth';
+import { startAttendanceSync } from '../sync/attendance/start';
 import { startSyncCoordinator } from '../sync/coordinator';
 import { useUpdateStore } from '../pwa';
 import { useHistoryStore } from '../store/historyStore';
@@ -188,6 +189,9 @@ export default function App() {
   // Keeps saved players backed up while signed in. It does nothing without a backend or a signed-in organizer.
   useEffect(() => startSyncCoordinator(), []);
 
+  // Keeps each attendance link in step with its slot, and drops the saved answers when the account changes.
+  useEffect(() => startAttendanceSync(), []);
+
   const overlay =
     view === 'saved' ? (
       <SavedPlayersScreen onBack={() => screens.back(savedFrom)} />
@@ -218,6 +222,7 @@ export default function App() {
           onResume={() => screens.back('live')}
           onHistory={() => openHistory('home')}
           onViewSummary={(id) => openHistory('home', id)}
+          onSignIn={openSettings}
         />
       </>
     );
@@ -237,7 +242,7 @@ export default function App() {
         {view === 'home' && (
           <>
             <SignInBanner onSignIn={openSettings} />
-            <HomeScreen onStart={openSetup} onResume={() => {}} onHistory={() => openHistory('home')} onViewSummary={(id) => openHistory('home', id)} />
+            <HomeScreen onStart={openSetup} onResume={() => {}} onHistory={() => openHistory('home')} onViewSummary={(id) => openHistory('home', id)} onSignIn={openSettings} />
           </>
         )}
         {overlay}

@@ -4,6 +4,7 @@ import { chipLabel, ctaGrade, doneEntry, sessionWeekday, sortedSlots, weeksPlaye
 import { useHistoryStore } from '../store/historyStore';
 import { useSessionStore } from '../store/sessionStore';
 import { effectiveSlot, nextSlot, timestampAt, useSlotsStore, type Slot } from '../store/slots';
+import { AttendanceCard } from './AttendanceCard';
 import { EditSlotSheet, type SlotPatch, type SlotScope } from './EditSlotSheet';
 import { DoneCard, ViewSummaryRow, useSharePicture } from './HomeDone';
 import { OneOffHero, SlotHero } from './HomeHero';
@@ -26,9 +27,12 @@ interface Props {
   onHistory: () => void;
   /** Opens the summary of a finished session by its history id. */
   onViewSummary: (entryId: string) => void;
+  /** Opens the place where the organizer signs in, for the attendance card. */
+  onSignIn?: () => void;
 }
 
 const ONE_OFF = 'one-off';
+const noop = () => {};
 
 /** The slim row under the hero: the last session and how often the group played. */
 function LastRow({ onHistory }: { onHistory: () => void }) {
@@ -59,7 +63,7 @@ function LastRow({ onHistory }: { onHistory: () => void }) {
   );
 }
 
-export function HomeScreen({ onStart, onResume, onHistory, onViewSummary }: Props) {
+export function HomeScreen({ onStart, onResume, onHistory, onViewSummary, onSignIn }: Props) {
   const slots = useSlotsStore((s) => s.slots);
   const venues = useSlotsStore((s) => s.venues);
   const tonight = useSlotsStore((s) => s.tonight);
@@ -169,6 +173,9 @@ export function HomeScreen({ onStart, onResume, onHistory, onViewSummary }: Prop
       )}
 
       {hero}
+
+      {/* The saved slot, not the one with this-time-only edits: the link is about the weekly slot. */}
+      {selected && !live && !showDone && <AttendanceCard slot={selected} onSignIn={onSignIn ?? noop} />}
 
       {showDone ? <ViewSummaryRow onClick={() => onViewSummary(done.id)} /> : <LastRow onHistory={onHistory} />}
 
