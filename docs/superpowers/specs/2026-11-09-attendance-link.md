@@ -79,6 +79,7 @@ in the link's own time zone, and it skips any date up to `closed_through`.
 ## Privacy and abuse
 
 - Anyone with the link can read first names, a last initial, whether a photo exists, and the answers. Never a full name, an owner id or an email. The answers are what the group chat list shows today.
+- The view the database returns includes every member's answer, Out included, next to the player list. The member page never shows Out answers, but anyone who calls the function directly with the link's code can read them. That is the same information the group chat list shows today. Hiding Out from the data itself would be a small database change if it is ever wanted.
 - Visitors have no access to any table. Three functions are the only way in: view, answer, and add a guest. Each takes the code.
 - Anyone with the link can answer as anyone. That is a trust model for a friendly club. The confirmation, the organizer's "latest change" line and Reset link are the safeguards.
 - Spam is bounded: 20 waiting names per date, and every name is 1 to 40 characters.
@@ -90,8 +91,8 @@ in the link's own time zone, and it skips any date up to `closed_through`.
 |---|---|---|
 | 1 | The database: tables, rules, three public functions, tests | Built and proven. `docs/superpowers/plans/2026-11-09-attendance-link-database.md` |
 | 2 | The organizer side: write the link from the slot, Reset, Cancel this week, close the date when a session ends, read answers and names, the Home card with an offline copy. Hidden behind a Settings switch, "Attendance link (preview)", until Plan 3 | Shipped 9 Nov 2026 (behind the preview switch, off by default). `docs/superpowers/plans/2026-11-09-attendance-link-organizer.md` |
-| 3 | The public page: the `/j/<code>` route, member screens 1, 2, 5 and 6, remembered identity, polling, photos. Removes the preview switch | Next |
-| 4 | The session flow: Who's playing pre-fill, late players on a break, friends and the review screen, Copy list, nudge the maybes, Add to calendar | After 3 |
+| 3 | The public page at a hash link, `/#/j/<code>` (a path link would 404 and break the relative asset paths, and the part after `#` never reaches server logs): member screens 1, 2 and 6, remembered pick, polling, an offline copy, Add to calendar. Not in it: screen 5, the "answer by" note, photos. The preview switch stays until the page is checked on the real project | Built and proven, not yet shipped. `docs/superpowers/plans/2026-11-09-attendance-link-member.md` |
+| 4 | The session flow: Who's playing pre-fill, late players on a break, friends and the review screen, Copy list, nudge the maybes | After 3 |
 
 ## Open items
 
