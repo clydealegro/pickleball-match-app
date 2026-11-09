@@ -1832,6 +1832,9 @@ caption {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* On a short phone the slot card keeps its own height, so Home scrolls instead of cutting it off. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .home-chips {
@@ -1866,7 +1869,7 @@ caption {
 .home-hero {
   position: relative;
   flex: 1;
-  min-height: 0;
+  min-height: min-content;
   overflow: hidden;
   display: flex;
   flex-direction: column;
