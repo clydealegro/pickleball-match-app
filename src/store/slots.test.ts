@@ -11,10 +11,11 @@ import {
   useSlotsStore,
   type Slot,
 } from './slots';
+import { BLANK_SLOTS } from './slotsFixture';
 
 const fresh = () =>
   useSlotsStore.setState({
-    slots: DEFAULT_SLOTS.slots.map((s) => ({ ...s })),
+    slots: BLANK_SLOTS.slots.map((s) => ({ ...s })),
     venues: [],
     tonight: {},
     persistent: true,
@@ -29,13 +30,66 @@ afterEach(() => vi.restoreAllMocks());
 const stored = () => parseSlots(localStorage.getItem(SLOTS_KEY));
 
 describe('DEFAULT_SLOTS', () => {
-  it('is Tuesday, Thursday and Saturday with no time and no venue', () => {
+  it('is Tuesday and Thursday 4 to 7 pm, and Saturday 10 am to 1 pm, with no venue', () => {
     expect(DEFAULT_SLOTS.slots).toEqual([
-      { id: 'tue', weekday: 2 },
-      { id: 'thu', weekday: 4 },
-      { id: 'sat', weekday: 6 },
+      { id: 'tue', weekday: 2, startMin: 960, endMin: 1140 },
+      { id: 'thu', weekday: 4, startMin: 960, endMin: 1140 },
+      { id: 'sat', weekday: 6, startMin: 600, endMin: 780 },
     ]);
     expect(DEFAULT_SLOTS.venues).toEqual([]);
+  });
+});
+
+describe('the default times for days saved before they existed', () => {
+  /** A fresh copy of the store module, as when the app starts, with this in storage first. */
+  async function startWith(saved: object | null, flag?: string) {
+    localStorage.clear();
+    if (saved) localStorage.setItem(SLOTS_KEY, JSON.stringify(saved));
+    if (flag) localStorage.setItem('pickleball.slots.default-times', flag);
+    vi.resetModules();
+    return (await import('./slots')).useSlotsStore.getState();
+  }
+  const NO_TIMES = {
+    slots: [
+      { id: 'tue', weekday: 2, startMin: 540, endMin: 600, venue: 'Park' },
+      { id: 'thu', weekday: 4 },
+      { id: 'sat', weekday: 6, startMin: 480 },
+      { id: 'mine', weekday: 1 },
+    ],
+    venues: ['Park'],
+  };
+
+  it('gives a saved day with no time its default, once, and keeps the rest', async () => {
+    const st = await startWith(NO_TIMES);
+    expect(st.slots).toEqual([
+      { id: 'tue', weekday: 2, startMin: 540, endMin: 600, venue: 'Park' },
+      { id: 'thu', weekday: 4, startMin: 960, endMin: 1140 },
+      { id: 'sat', weekday: 6, startMin: 480 },
+      { id: 'mine', weekday: 1 },
+    ]);
+    expect(st.venues).toEqual(['Park']);
+  });
+
+  it('stores the result and notes that it ran', async () => {
+    await startWith(NO_TIMES);
+    expect(JSON.parse(localStorage.getItem(SLOTS_KEY)!).slots[1]).toEqual({ id: 'thu', weekday: 4, startMin: 960, endMin: 1140 });
+    expect(localStorage.getItem('pickleball.slots.default-times')).toBe('1');
+  });
+
+  it('does not run again, so a time the organizer cleared stays cleared', async () => {
+    const st = await startWith(NO_TIMES, '1');
+    expect(st.slots.find((x) => x.id === 'thu')).toEqual({ id: 'thu', weekday: 4 });
+  });
+
+  it('gives a new install the default times and notes that it ran', async () => {
+    const st = await startWith(null);
+    expect(st.slots).toEqual(DEFAULT_SLOTS.slots);
+    expect(localStorage.getItem('pickleball.slots.default-times')).toBe('1');
+  });
+
+  it('only fills a day whose id and weekday are one of the three', async () => {
+    const st = await startWith({ slots: [{ id: 'thu', weekday: 5 }], venues: [] });
+    expect(st.slots).toEqual([{ id: 'thu', weekday: 5 }]);
   });
 });
 

@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_SLOTS, useSlotsStore, type Slot } from '../store/slots';
+import { useSlotsStore, type Slot } from '../store/slots';
 import { useHistoryStore } from '../store/historyStore';
 import { useSessionStore } from '../store/sessionStore';
 import { useRosterStore } from '../store/rosterStore';
@@ -16,12 +16,13 @@ vi.mock('./AttendanceCard', () => ({
 }));
 
 import { HomeScreen } from './HomeScreen';
+import { BLANK_SLOTS } from '../store/slotsFixture';
 
 beforeEach(() => {
   localStorage.clear();
   seen.props = [];
   useAuthStore.setState({ status: 'signedIn', email: 'o@example.com', userId: 'user-a', error: null, busy: false });
-  useSlotsStore.setState({ slots: DEFAULT_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {}, persistent: true });
+  useSlotsStore.setState({ slots: BLANK_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {}, persistent: true });
   useSessionStore.setState({ session: null, undoStack: [], saveFailed: false });
   useHistoryStore.setState({ entries: [], loaded: true, persistent: true });
   useRosterStore.setState({ players: [], loaded: true });

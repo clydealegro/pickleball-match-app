@@ -7,9 +7,10 @@ import { useHistoryStore } from '../store/historyStore';
 import { resetRosterDbForTests } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
-import { DEFAULT_SLOTS, useSlotsStore } from '../store/slots';
+import { useSlotsStore } from '../store/slots';
 import App from './App';
 import { LiveScreen } from './LiveScreen';
+import { BLANK_SLOTS } from '../store/slotsFixture';
 
 // Friday 13 Nov 2026, noon.
 const FRIDAY = new Date(2026, 10, 13, 12);
@@ -20,7 +21,7 @@ beforeEach(async () => {
   localStorage.setItem('pickleball.autoStart', 'true');
   window.history.replaceState(null, '');
   useSessionStore.setState({ session: null, undoStack: [], saveFailed: false });
-  useSlotsStore.setState({ slots: DEFAULT_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {} });
+  useSlotsStore.setState({ slots: BLANK_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {} });
   await resetRosterDbForTests();
   await resetHistoryDbForTests();
   useRosterStore.setState({ players: [], loaded: false });

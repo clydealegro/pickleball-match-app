@@ -2,15 +2,16 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useHistoryStore } from '../store/historyStore';
 import { useRosterStore } from '../store/rosterStore';
-import { DEFAULT_SLOTS, useSlotsStore } from '../store/slots';
+import { useSlotsStore } from '../store/slots';
 import { HomeScreen } from './HomeScreen';
+import { BLANK_SLOTS } from '../store/slotsFixture';
 
 // Saturday 7 Nov 2026, noon.
 const NOW = new Date(2026, 10, 7, 12).getTime();
 
 beforeEach(() => {
   localStorage.clear();
-  useSlotsStore.setState({ slots: DEFAULT_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {}, persistent: true });
+  useSlotsStore.setState({ slots: BLANK_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {}, persistent: true });
   useHistoryStore.setState({ entries: [], loaded: true, persistent: true });
   useRosterStore.setState({ players: [], loaded: true });
   vi.useFakeTimers({ toFake: ['Date'] });

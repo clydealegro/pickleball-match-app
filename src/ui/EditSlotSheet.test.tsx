@@ -2,14 +2,15 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { COURTS_KEY } from './prefs';
-import { DEFAULT_SLOTS, MAX_VENUES, useSlotsStore, type Slot } from '../store/slots';
+import { MAX_VENUES, useSlotsStore, type Slot } from '../store/slots';
 import { EditSlotSheet } from './EditSlotSheet';
+import { BLANK_SLOTS } from '../store/slotsFixture';
 
 const tue: Slot = { id: 'tue', weekday: 2 };
 
 beforeEach(() => {
   localStorage.clear();
-  useSlotsStore.setState({ slots: DEFAULT_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {} });
+  useSlotsStore.setState({ slots: BLANK_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {} });
 });
 
 function setup(over: Partial<Slot> = {}, venues: string[] = ['Hall A', 'Hall B']) {

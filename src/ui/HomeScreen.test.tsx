@@ -5,13 +5,14 @@ import { makeCtx, newTestSession } from '../engine/testing';
 import type { HistoryEntry } from '../store/historyDb';
 import { useHistoryStore } from '../store/historyStore';
 import { useRosterStore } from '../store/rosterStore';
-import { DEFAULT_SLOTS, SLOTS_KEY, timestampAt, useSlotsStore, type Slot } from '../store/slots';
+import { SLOTS_KEY, timestampAt, useSlotsStore, type Slot } from '../store/slots';
 import { HomeScreen } from './HomeScreen';
+import { BLANK_SLOTS } from '../store/slotsFixture';
 
 // Saturday 7 Nov 2026, noon. Chips: Sat 7, Tue 10, Thu 12.
 const NOW = new Date(2026, 10, 7, 12).getTime();
 
-function resetSlots(slots: Slot[] = DEFAULT_SLOTS.slots) {
+function resetSlots(slots: Slot[] = BLANK_SLOTS.slots) {
   useSlotsStore.setState({ slots: slots.map((s) => ({ ...s })), venues: [], tonight: {}, persistent: true });
 }
 

@@ -6,11 +6,12 @@ import { useHistoryStore } from '../store/historyStore';
 import type { RosterPlayer } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
-import { DEFAULT_SLOTS, useSlotsStore } from '../store/slots';
+import { useSlotsStore } from '../store/slots';
 import type { AttendancePrefill } from '../sync/attendance/prefill';
 import { setDefaultMode } from './matchmaking';
 import type { SessionPlan } from './HomeScreen';
 import { SetupScreen } from './SetupScreen';
+import { BLANK_SLOTS } from '../store/slotsFixture';
 
 const player = (id: string, name: string): RosterPlayer => ({ id, name, photoVersion: 0, photoSeq: 0, updatedAt: 1 });
 const ROSTER = [
@@ -38,7 +39,7 @@ beforeEach(() => {
   setDefaultMode('fairness');
   useSessionStore.setState({ session: null, undoStack: [], saveFailed: false });
   useHistoryStore.setState({ entries: [], loaded: true, persistent: true });
-  useSlotsStore.setState({ slots: DEFAULT_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {}, persistent: true });
+  useSlotsStore.setState({ slots: BLANK_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {}, persistent: true });
   useRosterStore.setState({ players: ROSTER, loaded: true });
 });
 afterEach(() => {

@@ -6,7 +6,7 @@ import { useHistoryStore } from '../store/historyStore';
 import type { RosterPlayer } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
-import { DEFAULT_SLOTS, useSlotsStore, type Slot } from '../store/slots';
+import { useSlotsStore, type Slot } from '../store/slots';
 import { fakeAttendanceRemote, type FakeFlags } from '../sync/attendance/fakeRemote';
 import { resetAttendanceDeps, setAttendanceDeps, useAttendanceStore } from '../sync/attendance/store';
 import type { Summary, WaitingName } from '../sync/attendance/types';
@@ -14,6 +14,7 @@ import { useAuthStore } from '../sync/auth';
 import { USER_A, createDb } from '../sync/db/harness';
 import { useSyncStore } from '../sync/syncStore';
 import { AttendanceCard } from './AttendanceCard';
+import { BLANK_SLOTS } from '../store/slotsFixture';
 
 // Monday 9 Nov 2026, 4:20 pm. Date is faked and timers stay real.
 const NOW = new Date(2026, 10, 9, 16, 20).getTime();
@@ -37,7 +38,7 @@ function resetEverything() {
   localStorage.clear();
   useAuthStore.setState({ status: 'signedIn', email: 'o@example.com', userId: USER_A, error: null, busy: false });
   useSyncStore.setState({ status: 'off', pending: 0, lastSyncedAt: null });
-  useSlotsStore.setState({ slots: DEFAULT_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {}, persistent: true });
+  useSlotsStore.setState({ slots: BLANK_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {}, persistent: true });
   useSessionStore.setState({ session: null, undoStack: [], saveFailed: false });
   useHistoryStore.setState({ entries: [], loaded: true, persistent: true });
   useRosterStore.setState({ players: [], loaded: true, add: realAdd });

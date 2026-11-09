@@ -25,14 +25,18 @@ export const MAX_VENUES = 12;
 export const MAX_VENUE_LENGTH = 40;
 export const MAX_COURTS = 12;
 
+/** Tuesday and Thursday play 4 to 7 pm, and Saturday plays 10 am to 1 pm. */
 export const DEFAULT_SLOTS: SlotsData = {
   slots: [
-    { id: 'tue', weekday: 2 },
-    { id: 'thu', weekday: 4 },
-    { id: 'sat', weekday: 6 },
+    { id: 'tue', weekday: 2, startMin: 16 * 60, endMin: 19 * 60 },
+    { id: 'thu', weekday: 4, startMin: 16 * 60, endMin: 19 * 60 },
+    { id: 'sat', weekday: 6, startMin: 10 * 60, endMin: 13 * 60 },
   ],
   venues: [],
 };
+
+/** Set once the default times have been given to days saved before they existed. */
+export const DEFAULT_TIMES_KEY = 'pickleball.slots.default-times';
 
 const defaults = (): SlotsData => ({ slots: DEFAULT_SLOTS.slots.map((s) => ({ ...s })), venues: [] });
 
@@ -122,9 +126,29 @@ export function effectiveSlot(slot: Slot, tonight: Record<string, SlotEdit>): Sl
   return { ...slot, ...tonight[slot.id] };
 }
 
+/**
+ * Days saved before the default times existed have no time, so they get theirs once. After that a time the organizer
+ * clears stays cleared. Only a day with neither a start nor an end is touched.
+ */
+function withDefaultTimes(data: SlotsData): SlotsData {
+  try {
+    if (localStorage.getItem(DEFAULT_TIMES_KEY) !== null) return data;
+    const slots = data.slots.map((sl) => {
+      const d = DEFAULT_SLOTS.slots.find((x) => x.id === sl.id && x.weekday === sl.weekday);
+      return d && sl.startMin === undefined && sl.endMin === undefined ? { ...sl, startMin: d.startMin, endMin: d.endMin } : sl;
+    });
+    const next = { ...data, slots };
+    localStorage.setItem(DEFAULT_TIMES_KEY, '1');
+    persist(next);
+    return next;
+  } catch {
+    return data;
+  }
+}
+
 function load(): SlotsData {
   try {
-    return parseSlots(localStorage.getItem(SLOTS_KEY));
+    return withDefaultTimes(parseSlots(localStorage.getItem(SLOTS_KEY)));
   } catch {
     return defaults();
   }

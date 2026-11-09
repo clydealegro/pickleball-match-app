@@ -4,12 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useHistoryStore } from '../store/historyStore';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
-import { DEFAULT_SLOTS, useSlotsStore } from '../store/slots';
+import { useSlotsStore } from '../store/slots';
 import { resetAttendanceDeps, setAttendanceDeps, useAttendanceStore } from '../sync/attendance/store';
 import type { Summary } from '../sync/attendance/types';
 import { useAuthStore } from '../sync/auth';
 import { useSyncStore } from '../sync/syncStore';
 import { HomeScreen, type SessionPlan } from './HomeScreen';
+import { BLANK_SLOTS } from '../store/slotsFixture';
 
 // Saturday 7 Nov 2026, noon: the Saturday slot is selected.
 const NOW = new Date(2026, 10, 7, 12).getTime();
@@ -45,7 +46,7 @@ beforeEach(() => {
   localStorage.clear();
   useAuthStore.setState({ status: 'signedIn', email: 'o@example.com', userId: 'user-a', error: null, busy: false });
   useSyncStore.setState({ status: 'off', pending: 0, lastSyncedAt: null });
-  useSlotsStore.setState({ slots: DEFAULT_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {}, persistent: true });
+  useSlotsStore.setState({ slots: BLANK_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {}, persistent: true });
   useSessionStore.setState({ session: null, undoStack: [], saveFailed: false });
   useHistoryStore.setState({ entries: [], loaded: true, persistent: true });
   useRosterStore.setState({ players: [], loaded: true });

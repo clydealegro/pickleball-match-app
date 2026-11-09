@@ -7,15 +7,16 @@ import { makeCtx, newTestSession } from '../engine/testing';
 import type { HistoryEntry } from '../store/historyDb';
 import { useHistoryStore } from '../store/historyStore';
 import { useSessionStore } from '../store/sessionStore';
-import { DEFAULT_SLOTS, timestampAt, useSlotsStore, type Slot } from '../store/slots';
+import { timestampAt, useSlotsStore, type Slot } from '../store/slots';
 import { HomeScreen } from './HomeScreen';
+import { BLANK_SLOTS } from '../store/slotsFixture';
 
 const share = vi.hoisted(() => ({ sharePictureFor: vi.fn() }));
 vi.mock('./sharePicture', () => share);
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
-const slots = (list: Slot[] = DEFAULT_SLOTS.slots) => useSlotsStore.setState({ slots: list.map((s) => ({ ...s })), venues: [], tonight: {}, persistent: true });
+const slots = (list: Slot[] = BLANK_SLOTS.slots) => useSlotsStore.setState({ slots: list.map((s) => ({ ...s })), venues: [], tonight: {}, persistent: true });
 
 beforeEach(() => {
   localStorage.clear();

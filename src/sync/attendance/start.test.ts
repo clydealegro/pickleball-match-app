@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_SLOTS, useSlotsStore } from '../../store/slots';
+import { useSlotsStore } from '../../store/slots';
 import { useAuthStore } from '../auth';
 import type { AttendanceRemote } from './remote';
 import { startAttendanceSync } from './start';
 import { ATTENDANCE_KEY, resetAttendanceDeps, setAttendanceDeps, useAttendanceStore } from './store';
+import { BLANK_SLOTS } from '../../store/slotsFixture';
 
 const USER = '0a1b2c3d-0000-4000-8000-00000000000a';
 const OTHER = '0a1b2c3d-0000-4000-8000-00000000000b';
@@ -40,7 +41,7 @@ beforeEach(() => {
   localStorage.clear();
   upserts = [];
   useAuthStore.setState({ status: 'signedIn', userId: USER, email: 'a@b.c' });
-  useSlotsStore.setState({ slots: DEFAULT_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {} });
+  useSlotsStore.setState({ slots: BLANK_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {} });
   useAttendanceStore.getState().clear();
   setAttendanceDeps({ server: () => ({ remote: remote(), userId: USER }), now: () => 0, timezone: () => 'Asia/Manila' });
 });

@@ -7,9 +7,10 @@ import { useHistoryStore } from '../store/historyStore';
 import { resetRosterDbForTests } from '../store/rosterDb';
 import { useRosterStore } from '../store/rosterStore';
 import { useSessionStore } from '../store/sessionStore';
-import { DEFAULT_SLOTS, useSlotsStore } from '../store/slots';
+import { useSlotsStore } from '../store/slots';
 import css from '../styles/app.css?raw';
 import App from './App';
+import { BLANK_SLOTS } from '../store/slotsFixture';
 
 const running = () => newTestSession(['Ann', 'Ben', 'Cy', 'Dee', 'Eve'], { courts: 2 });
 const endedSession = () => ({ ...running(), endedAt: Date.now() });
@@ -20,7 +21,7 @@ beforeEach(async () => {
   window.history.replaceState({ pk: 0, view: 'home' }, '');
   window.history.pushState(null, '');
   useSessionStore.setState({ session: null, undoStack: [], saveFailed: false });
-  useSlotsStore.setState({ slots: DEFAULT_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {} });
+  useSlotsStore.setState({ slots: BLANK_SLOTS.slots.map((s) => ({ ...s })), venues: [], tonight: {} });
   await resetRosterDbForTests();
   await resetHistoryDbForTests();
   useRosterStore.setState({ players: [], loaded: false });
