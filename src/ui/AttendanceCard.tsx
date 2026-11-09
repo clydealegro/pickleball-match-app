@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { shortDate } from '../store/attendance';
 import { formatClock, type Slot } from '../store/slots';
+import { listText, nudgeText } from '../sync/attendance/copy';
 import { shareUrl, titleFor, weekdayName } from '../sync/attendance/links';
 import { useAttendanceStore, type AttendanceResult } from '../sync/attendance/store';
 import type { AttendanceStatus } from '../sync/attendance/types';
 import { useAuthStore } from '../sync/auth';
-import { CancelSheet, ResetSheet } from './AttendanceSheets';
+import { CancelSheet, ResetSheet, ReviewSheet } from './AttendanceSheets';
 import { useAttendance } from './useAttendance';
 
 interface Props {
@@ -57,10 +58,14 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
   const savedChange = useAttendanceStore((s) => s.lastChange[slot.id]);
   const savedError = useAttendanceStore((s) => s.lastError[slot.id]);
   const busy = useAttendanceStore((s) => !!s.busy[slot.id]);
-  const [sheet, setSheet] = useState<'reset' | 'cancel' | null>(null);
+  const [sheet, setSheet] = useState<'reset' | 'cancel' | 'review' | null>(null);
+  // The review sheet closed on its own because the last name was dealt with.
+  const [reviewed, setReviewed] = useState(false);
+  const [copied, setCopied] = useState<{ kind: 'list' | 'nudge'; ok: boolean; text: string } | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [shared, setShared] = useState<'copied' | 'field' | null>(null);
   const fieldRef = useRef<HTMLInputElement>(null);
+  const copyRef = useRef<HTMLTextAreaElement>(null);
 
   // A different account's copy is not shown while the new one loads.
   const mine = ownerId === null || userId === null || ownerId === userId;
@@ -72,6 +77,16 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
   useEffect(() => {
     if (shared === 'field') fieldRef.current?.select();
   }, [shared]);
+
+  useEffect(() => {
+    if (copied && !copied.ok) copyRef.current?.select();
+  }, [copied]);
+
+  // The sheet shuts itself when the list is empty. A stable function, so it is not called again by a re-render.
+  const finishReview = useCallback(() => {
+    setSheet((now) => (now === 'review' ? null : now));
+    setReviewed(true);
+  }, []);
 
   if (status === 'unconfigured' || status === 'loading') return null;
 
@@ -102,8 +117,21 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
     else setProblem(result.message);
   }
 
+  async function copy(kind: 'list' | 'nudge', text: string) {
+    setShared(null);
+    setReviewed(false);
+    setProblem(null);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied({ kind, ok: true, text });
+    } catch {
+      setCopied({ kind, ok: false, text });
+    }
+  }
+
   async function share(url: string) {
     setShared(null);
+    setCopied(null);
     setProblem(null);
     if (typeof navigator.share === 'function') {
       try {
@@ -212,6 +240,7 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
 
   const url = shareUrl(window.location.origin, link.code);
   const { counts, waiting } = summary;
+  const nudge = counts.maybe > 0 ? nudgeText(slot, summary) : '';
   return (
     <Shell weekday={weekdayName(slot.weekday)}>
       <ul className="attendance-pills" aria-label="Answers">
@@ -228,7 +257,19 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
         stale || !!change || waiting.length > 0,
         <>
           {change && <p className="attendance-line">{`${change.player} changed to ${STATUS_LABEL[change.to]} at ${clock(change.at)}.`}</p>}
-          {waiting.length > 0 && <p className="attendance-line">{`${plural(waiting.length, 'new name', 'new names')} to review`}</p>}
+          {waiting.length > 0 && (
+            <button
+              type="button"
+              className="btn attendance-btn attendance-review"
+              onClick={() => {
+                setReviewed(false);
+                setProblem(null);
+                setSheet('review');
+              }}
+            >
+              {`${plural(waiting.length, 'new name', 'new names')} to review`}
+            </button>
+          )}
         </>,
       )}
       <p className="attendance-link">{url}</p>
@@ -242,7 +283,31 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
         <button type="button" className="btn attendance-btn" disabled={busy} onClick={() => setSheet('cancel')}>
           Cancel this week
         </button>
+        <button type="button" className="btn attendance-btn" onClick={() => void copy('list', listText(slot, summary))}>
+          Copy list for the group chat
+        </button>
+        {nudge && (
+          <button type="button" className="btn attendance-btn" onClick={() => void copy('nudge', nudge)}>
+            Nudge the maybes
+          </button>
+        )}
       </div>
+      {reviewed && waiting.length === 0 && (
+        <p className="attendance-line" role="status">
+          All done.
+        </p>
+      )}
+      {copied?.ok && (
+        <p className="attendance-line" role="status">
+          {copied.kind === 'list' ? 'List copied' : 'Message copied'}
+        </p>
+      )}
+      {copied && !copied.ok && (
+        <>
+          <p className="attendance-line">Could not copy. Select the text below.</p>
+          <textarea ref={copyRef} className="field attendance-text" readOnly rows={4} aria-label="Text to copy" value={copied.text} />
+        </>
+      )}
       {shared === 'copied' && (
         <p className="attendance-line" role="status">
           Link copied
@@ -253,6 +318,7 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
       {sheet === 'reset' && (
         <ResetSheet busy={busy} error={problem} onClose={closeSheet} onConfirm={() => void run(() => store().resetLink(slot.id), closeSheet)} />
       )}
+      {sheet === 'review' && <ReviewSheet slotId={slot.id} waiting={waiting} names={summary.names} onEmpty={finishReview} onClose={closeSheet} />}
       {sheet === 'cancel' && (
         <CancelSheet
           dateLabel={dateLabel(summary.playDate)}

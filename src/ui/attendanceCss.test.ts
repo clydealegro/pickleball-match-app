@@ -54,6 +54,21 @@ describe('Attendance card styles', () => {
     expect(rule('.attendance-actions')).toMatch(/flex-wrap:\s*wrap/);
   });
 
+  it('makes the review button full width at 44 px or more, and the copy text 16 px', () => {
+    expect(rule('.attendance-review')).toMatch(/width:\s*100%/);
+    expect(rule('.attendance-btn')).toMatch(/min-height:\s*44px/);
+    expect(rule('.attendance-text')).toMatch(/font-size:\s*16px/);
+  });
+
+  it('draws the review sheet rows from the line and surface variables, and wraps long names and actions', () => {
+    expect(rule('.review-row')).toMatch(/border:[^;]*var\(--line\)/);
+    expect(rule('.review-row')).toMatch(/background:\s*var\(--surface\)/);
+    expect(rule('.review-name')).toMatch(/overflow-wrap:\s*anywhere/);
+    expect(rule('.review-hint')).toMatch(/overflow-wrap:\s*anywhere/);
+    expect(rule('.review-actions')).toMatch(/flex-wrap:\s*wrap/);
+    expect(rule('.review-list')).toMatch(/flex-direction:\s*column/);
+  });
+
   it('has no hard-coded colours and adds no variables', () => {
     expect(section).toContain('var(--');
     expect(section).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);

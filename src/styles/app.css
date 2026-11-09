@@ -2639,6 +2639,65 @@ caption {
   font-size: 14px;
 }
 
+.attendance-review {
+  width: 100%;
+  justify-content: center;
+  font-weight: 700;
+}
+
+/* The text the clipboard would not take, selected so a long press can copy it. */
+.attendance-text {
+  font-size: 16px;
+  line-height: 1.4;
+  resize: none;
+}
+
+/* The review sheet: one block per name, with the actions under it. */
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.review-name {
+  font-size: 16px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.review-note {
+  font-size: 14px;
+}
+
+.review-hint {
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  color: var(--ink);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
 /* Member page */
 /* What a club member sees at the join link. It uses the app colours; only the name circles bring their own. */
 .member {

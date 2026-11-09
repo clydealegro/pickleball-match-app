@@ -20,7 +20,7 @@ const TUE: Slot = { id: 'tue', weekday: 2, startMin: 1140, endMin: 1260, venue: 
 const OFFLINE = 'No connection. Try again when you are online.';
 const actions = (() => {
   const s = useAttendanceStore.getState();
-  return { refresh: s.refresh, ensureLink: s.ensureLink, resetLink: s.resetLink, cancelWeek: s.cancelWeek, undoCancel: s.undoCancel };
+  return { refresh: s.refresh, ensureLink: s.ensureLink, resetLink: s.resetLink, cancelWeek: s.cancelWeek, undoCancel: s.undoCancel, setGuestState: s.setGuestState };
 })();
 
 function resetEverything() {
@@ -314,7 +314,7 @@ describe('the link state', () => {
   it('counts the new names to review, with the right plural', () => {
     seed({ waiting: [{ id: 'g1', name: 'Mika', broughtBy: null }] });
     const one = setup();
-    expect(screen.getByText('1 new name to review')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '1 new name to review' })).toBeInTheDocument();
     one.unmount();
     seed({
       waiting: [
@@ -323,20 +323,21 @@ describe('the link state', () => {
       ],
     });
     setup();
-    expect(screen.getByText('2 new names to review')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '2 new names to review' })).toBeInTheDocument();
+    expect(document.querySelector('p.attendance-line:not([role])')).toBeNull();
   });
 
-  it('shows no review line when nobody is waiting', () => {
+  it('shows no review button when nobody is waiting', () => {
     seed();
     setup();
     expect(screen.queryByText(/to review/)).not.toBeInTheDocument();
   });
 
-  it('puts the lines in order: pills, stale, change, review, link, buttons', () => {
+  it('puts the lines in order: pills, stale, change, review button, link, buttons, copy buttons', () => {
     seed({ fetchedAt: new Date(2026, 10, 9, 16, 12).getTime(), waiting: [{ id: 'g1', name: 'Mika', broughtBy: null }] }, { change: { player: 'Ben', from: 'in', to: 'out', at: NOW } });
     const { container } = setup();
     const text = container.textContent!;
-    const order = ['Attendance link', '11 in', 'Updated 4:12 pm', 'Ben changed to Out', '1 new name to review', '/#/j/abc123', 'Share'].map((t) => text.indexOf(t));
+    const order = ['Attendance link', '11 in', 'Updated 4:12 pm', 'Ben changed to Out', '1 new name to review', '/#/j/abc123', 'Share', 'Copy list for the group chat'].map((t) => text.indexOf(t));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
