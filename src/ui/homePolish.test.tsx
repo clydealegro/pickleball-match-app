@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 const show = () => render(<HomeScreen onStart={() => {}} onResume={() => {}} onHistory={() => {}} onViewSummary={() => {}} />);
-const note = () => screen.queryByText('This time only');
+const note = () => within(document.querySelector<HTMLElement>('.home-slide[data-active="true"]')!).queryByText('This time only');
 
 describe('the This time only caption', () => {
   it('is not there when nothing was changed for this time', () => {

@@ -41,7 +41,9 @@ function setup() {
 
 const chips = () => within(screen.getByRole('radiogroup', { name: 'Sessions' })).getAllByRole('radio');
 const chip = (name: string) => screen.getByRole('radio', { name });
-const pill = () => document.querySelector('.home-pill')!.textContent;
+/** The picked day's card. The other days sit beside it in the track, out of reach and hidden from screen readers. */
+const active = () => document.querySelector<HTMLElement>('.home-slide[data-active="true"]')!;
+const pill = () => active().querySelector('.home-pill')!.textContent;
 const startButton = (day: string) => screen.getByRole('button', { name: `Start session, ${day}` });
 
 describe('HomeScreen chips', () => {
@@ -100,14 +102,32 @@ describe('HomeScreen chips', () => {
     expect(screen.queryByRole('heading', { name: 'Saturday' })).not.toBeInTheDocument();
   });
 
-  it('mounts a fresh hero with the slide-in class on every switch', async () => {
+  it('puts every day in one track, with only the picked day active and readable', async () => {
     const { user } = setup();
-    const first = document.querySelector('.home-hero')!;
-    expect(first).toHaveClass('home-hero-in');
+    const slides = [...document.querySelectorAll<HTMLElement>('.home-track > .home-slide')];
+    // The three days, then the one-off.
+    expect(slides).toHaveLength(4);
+    expect(slides.map((el) => el.dataset.active)).toEqual(['true', 'false', 'false', 'false']);
+    expect(slides[0]).not.toHaveAttribute('aria-hidden', 'true');
+    for (const el of slides.slice(1)) {
+      expect(el).toHaveAttribute('aria-hidden', 'true');
+      expect(el).toHaveAttribute('inert');
+    }
     await user.click(chip('Tue 10'));
-    const second = document.querySelector('.home-hero')!;
-    expect(second).not.toBe(first);
-    expect(second).toHaveClass('home-hero-in');
+    expect(slides.map((el) => el.dataset.active)).toEqual(['false', 'true', 'false', 'false']);
+    expect(slides[1]).not.toHaveAttribute('aria-hidden', 'true');
+    expect(slides[1]).not.toHaveAttribute('inert');
+  });
+
+  it('slides the track to the day when its chip is tapped', async () => {
+    const { user } = setup();
+    const el = document.querySelector<HTMLElement>('.home-track')!;
+    Object.defineProperty(el, 'clientWidth', { value: 300, configurable: true });
+    const scrollTo = vi.fn();
+    el.scrollTo = scrollTo as unknown as typeof el.scrollTo;
+    await user.click(chip('Thu 12'));
+    // Two slides along, and the twelve pixel gap between slides.
+    expect(scrollTo).toHaveBeenCalledWith({ left: 2 * 312, behavior: expect.stringMatching(/smooth|auto/) });
   });
 
   it('selects the one-off with the dashed plus chip', async () => {
@@ -259,12 +279,12 @@ describe('HomeScreen hero', () => {
       useHistoryStore.setState({ entries: saturdays.slice(0, 2).map((d) => entry(d, names)) });
     }
 
-    const avatars = () => document.querySelectorAll('.home-hero .avatar');
+    const avatars = () => active().querySelectorAll('.avatar');
 
     it('shows no stack and no caption without enough history', () => {
       setup();
       expect(avatars()).toHaveLength(0);
-      expect(screen.queryByText(/^Usually/)).not.toBeInTheDocument();
+      expect(within(active()).queryByText(/^Usually/)).not.toBeInTheDocument();
     });
 
     it('stacks the Saturday regulars and says how many usually play', () => {
@@ -296,7 +316,7 @@ describe('HomeScreen hero', () => {
       const { user } = setup();
       await user.click(chip('Thu 12'));
       expect(avatars()).toHaveLength(0);
-      expect(screen.queryByText(/^Usually/)).not.toBeInTheDocument();
+      expect(within(active()).queryByText(/^Usually/)).not.toBeInTheDocument();
     });
 
     it('leaves out regulars who are no longer saved players', () => {
@@ -324,7 +344,7 @@ describe('HomeScreen one-off', () => {
     expect(screen.getByText('Pick who is playing and go.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Edit/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^\+ Add/ })).not.toBeInTheDocument();
-    expect(document.querySelector('.home-pill')).toBeNull();
+    expect(active().querySelector('.home-pill')).toBeNull();
   });
 
   it('starts it with no plan from a lime button', async () => {

@@ -2293,7 +2293,6 @@ caption {
 
 @media (prefers-reduced-motion: reduce) {
   .home-hero-in,
-  .home-hero-in-left,
   .home-live-dot {
     animation: none;
   }
@@ -3047,28 +3046,34 @@ caption {
   color: var(--danger);
 }
 
-/* Swiping between sessions. Vertical scrolling still works; only sideways drags move the card. */
-.home-swipe {
-  touch-action: pan-y;
+/* The days sit side by side in one row that scrolls and snaps, so a drag shows the next day coming in. */
+.home-track {
   display: flex;
+  flex: 1 0 auto;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.home-track::-webkit-scrollbar {
+  display: none;
+}
+
+.home-slide {
+  display: flex;
+  flex: 0 0 100%;
   flex-direction: column;
+  min-width: 0;
+  scroll-snap-align: start;
+  /* A fast flick moves one day, not three. */
+  scroll-snap-stop: always;
+}
+
+.home-slide > .home-hero {
   flex: 1;
-  min-height: 0;
-}
-
-.home-hero-in-left {
-  animation-name: home-hero-in-left;
-}
-
-@keyframes home-hero-in-left {
-  from {
-    opacity: 0;
-    transform: translateX(-24px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
 }
 
 .home-dots {

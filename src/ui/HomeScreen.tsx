@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { chipLabel, ctaGrade, doneEntry, sessionWeekday, sortedSlots } from '../store/homeInfo';
 import { useHistoryStore } from '../store/historyStore';
 import { useSessionStore } from '../store/sessionStore';
@@ -15,6 +15,7 @@ import { EditSlotSheet, type SlotPatch, type SlotScope } from './EditSlotSheet';
 import { DoneCard, ViewSummaryRow, useSharePicture } from './HomeDone';
 import { OneOffHero, SlotHero } from './HomeHero';
 import { LiveHero } from './HomeLive';
+import { motionOK } from './motion';
 import { Sheet } from './Sheet';
 import { WEEKDAY_NAMES } from './weekdays';
 
@@ -42,6 +43,11 @@ interface Props {
 
 const ONE_OFF = 'one-off';
 const noop = () => {};
+/** The space between slides in the track. The stylesheet uses the same number. */
+const SLIDE_GAP = 12;
+/** A tap on a chip scrolls the track. Scroll events are ignored until it has been this quiet, and for this long at least. */
+const SETTLE_QUIET_MS = 120;
+const SETTLE_MIN_MS = 450;
 
 export function HomeScreen({ onStart, onResume, onHistory, onViewSummary, onSignIn }: Props) {
   const slots = useSlotsStore((s) => s.slots);
@@ -65,11 +71,9 @@ export function HomeScreen({ onStart, onResume, onHistory, onViewSummary, onSign
   const [venueId, setVenueId] = useState<string | null>(null);
   // The places drawer opens in edit mode when it is reached from the Edit places link.
   const [venueEdit, setVenueEdit] = useState(false);
-  // Which way the last swipe went, so the next card slides in from that side.
-  const [dir, setDir] = useState<1 | -1>(1);
-  const swipe = useRef<{ x: number; y: number; dx: number; on: boolean } | null>(null);
   const track = useRef<HTMLDivElement>(null);
-  const swallowClick = useRef(false);
+  // Set while a tap on a chip is scrolling the track, so the scroll does not pick the slides it passes.
+  const settling = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const now = new Date();
   const live = session && !session.endedAt ? session : undefined;
@@ -88,52 +92,52 @@ export function HomeScreen({ onStart, onResume, onHistory, onViewSummary, onSign
   const order = [...ordered.map((s) => s.id), ONE_OFF];
   const index = Math.max(0, order.indexOf(selected?.id ?? ONE_OFF));
 
-  function go(delta: 1 | -1) {
-    const next = order[index + delta];
-    if (next === undefined) return;
-    setDir(delta);
-    setPicked(next);
+  const selectedId = selected?.id ?? ONE_OFF;
+  const carousel = !live && !showDone;
+  const slideStep = () => (track.current?.clientWidth ?? 0) + SLIDE_GAP;
+
+  /** Ignores the track's scroll events for this long, so the slides it passes on the way are not picked. */
+  function settle(ms: number) {
+    clearTimeout(settling.current);
+    settling.current = setTimeout(() => (settling.current = undefined), ms);
   }
 
+  /** A tap on a chip picks that day and slides the track to it. */
   function pick(id: string) {
-    setDir(order.indexOf(id) < index ? -1 : 1);
     setPicked(id);
+    const el = track.current;
+    const at = order.indexOf(id);
+    if (!el || at < 0) return;
+    settle(SETTLE_MIN_MS);
+    const left = at * slideStep();
+    if (typeof el.scrollTo === 'function') el.scrollTo({ left, behavior: motionOK() ? 'smooth' : 'auto' });
+    else el.scrollLeft = left;
   }
 
-  const SWIPE_MIN = 56;
-  function down(e: PointerEvent<HTMLDivElement>) {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    swipe.current = { x: e.clientX, y: e.clientY, dx: 0, on: false };
-  }
-  function move(e: PointerEvent<HTMLDivElement>) {
-    const st = swipe.current;
-    if (!st) return;
-    const dx = e.clientX - st.x;
-    const dy = e.clientY - st.y;
-    // A mostly vertical move is a scroll, so the card stays put.
-    if (!st.on && (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy) * 1.5)) return;
-    if (!st.on) e.currentTarget.setPointerCapture?.(e.pointerId);
-    st.on = true;
-    st.dx = dx;
-    // Held back at the ends, where there is no next card.
-    const blocked = (dx < 0 && !order[index + 1]) || (dx > 0 && !order[index - 1]);
-    if (track.current) {
-      track.current.style.transition = 'none';
-      track.current.style.transform = `translateX(${blocked ? dx * 0.2 : dx * 0.7}px)`;
+  /** A drag moves the track itself, and whichever slide is nearest becomes the picked day, so the chips follow live. */
+  function onTrackScroll() {
+    const el = track.current;
+    if (!el) return;
+    // Still scrolling to a tapped chip's slide: stay quiet until it stops.
+    if (settling.current) {
+      settle(SETTLE_QUIET_MS);
+      return;
     }
+    const step = slideStep();
+    if (step <= SLIDE_GAP) return;
+    const at = Math.min(order.length - 1, Math.max(0, Math.round(el.scrollLeft / step)));
+    if (order[at] !== selectedId) setPicked(order[at]);
   }
-  function up() {
-    const st = swipe.current;
-    swipe.current = null;
-    if (!st?.on) return;
-    swallowClick.current = true;
-    setTimeout(() => (swallowClick.current = false), 0);
-    if (track.current) {
-      track.current.style.transition = 'transform 160ms ease-out';
-      track.current.style.transform = '';
-    }
-    if (Math.abs(st.dx) >= SWIPE_MIN) go(st.dx < 0 ? 1 : -1);
-  }
+
+  // The track opens on the picked day, without sliding there.
+  useLayoutEffect(() => {
+    const el = track.current;
+    if (!el || !carousel) return;
+    el.scrollLeft = index * slideStep();
+    // Only when the track appears: after that the scroll position is the user's.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carousel]);
+
   const editing = slots.find((s) => s.id === editingId);
   const venueSlot = slots.find((s) => s.id === venueId);
 
@@ -169,19 +173,42 @@ export function HomeScreen({ onStart, onResume, onHistory, onViewSummary, onSign
   }
 
   const attendanceOn = authStatus !== 'unconfigured' && authStatus !== 'loading';
-  const last = selected ? lastWeekStats(entries, selected.weekday, now) : undefined;
   const day = selected ? WEEKDAY_NAMES[selected.weekday] : '';
   const grade = eff ? ctaGrade(eff, now) : 'primary';
+
+  /** One day's card in the track. Only the picked one can be tapped or read out. */
+  const slide = (slot: Slot) => {
+    const active = slot.id === selectedId;
+    return (
+      <div key={slot.id} className="home-slide" data-active={active} aria-hidden={!active} {...(active ? {} : ({ inert: '' } as object))}>
+        <SlotHero
+          effective={effectiveSlot(slot, tonight)}
+          now={now}
+          thisTimeOnly={Object.keys(tonight[slot.id] ?? {}).length > 0}
+          onEdit={() => setEditingId(slot.id)}
+          onVenue={() => {
+            setVenueEdit(false);
+            setVenueId(slot.id);
+          }}
+          last={lastWeekStats(entries, slot.weekday, now)}
+          attendance={attendanceOn ? <HomeAttendance slot={slot} onOpen={() => setAttendanceOpen(true)} onSignIn={onSignIn ?? noop} /> : undefined}
+        />
+      </div>
+    );
+  };
 
   let hero;
   if (live) hero = <LiveHero key="live" session={live} />;
   else if (showDone) hero = <DoneCard key="done" entry={done} now={now} />;
-  // The key makes a fresh hero for each choice, so the slide-in plays again.
-  else if (selected && eff) hero = <SlotHero key={selected.id} fromLeft={dir < 0} effective={eff} now={now} thisTimeOnly={Object.keys(tonight[selected.id] ?? {}).length > 0} onEdit={() => setEditingId(selected.id)} onVenue={() => {
-            setVenueEdit(false);
-            setVenueId(selected.id);
-          }} last={last} attendance={attendanceOn ? <HomeAttendance slot={selected} onOpen={() => setAttendanceOpen(true)} onSignIn={onSignIn ?? noop} /> : undefined} />;
-  else hero = <OneOffHero key={ONE_OFF} fromLeft={dir < 0} />;
+  else
+    hero = (
+      <div ref={track} className="home-track" onScroll={onTrackScroll}>
+        {ordered.map(slide)}
+        <div key={ONE_OFF} className="home-slide" data-active={oneOff} aria-hidden={!oneOff} {...(oneOff ? {} : ({ inert: '' } as object))}>
+          <OneOffHero />
+        </div>
+      </div>
+    );
 
   let action;
   if (live) {
@@ -232,27 +259,7 @@ export function HomeScreen({ onStart, onResume, onHistory, onViewSummary, onSign
         </div>
       )}
 
-      {live || showDone ? (
-        hero
-      ) : (
-        <div
-          ref={track}
-          className="home-swipe"
-          onPointerDown={down}
-          onPointerMove={move}
-          onPointerUp={up}
-          onPointerCancel={up}
-          onClickCapture={(e) => {
-            // A drag that ends over a button is not a tap.
-            if (swallowClick.current) {
-              e.stopPropagation();
-              e.preventDefault();
-            }
-          }}
-        >
-          {hero}
-        </div>
-      )}
+      {hero}
 
       {!live && !showDone && (
         <div className="home-dots" aria-hidden="true">

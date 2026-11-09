@@ -81,11 +81,14 @@ function setup(onSignIn = vi.fn()) {
   return { user, onSignIn };
 }
 
-const swipe = (from: number, to: number) => {
-  const el = document.querySelector('.home-swipe') as HTMLElement;
-  fireEvent.pointerDown(el, { clientX: from, clientY: 100, pointerId: 1 });
-  fireEvent.pointerMove(el, { clientX: to, clientY: 104, pointerId: 1 });
-  fireEvent.pointerUp(el, { clientX: to, clientY: 104, pointerId: 1 });
+const SLIDE_W = 300;
+const STEP = SLIDE_W + 12;
+/** Drags the track to this scroll position, as a finger would, and lets the screen react. */
+const scrollTrackTo = (left: number) => {
+  const el = document.querySelector<HTMLElement>('.home-track')!;
+  Object.defineProperty(el, 'clientWidth', { value: SLIDE_W, configurable: true });
+  el.scrollLeft = left;
+  fireEvent.scroll(el);
 };
 const checked = () => screen.getByRole('radio', { checked: true }).textContent;
 
@@ -118,35 +121,34 @@ describe('last session stats on Home', () => {
   });
 });
 
-describe('swiping between sessions', () => {
-  it('moves to the next chip on a left swipe and back on a right swipe', () => {
+describe('sliding between sessions', () => {
+  it('picks the day whose slide is nearest as the track is dragged, and the chips follow', () => {
     setup();
     expect(checked()).toBe('Sat 7');
-    swipe(300, 150);
+    scrollTrackTo(STEP * 0.4);
+    expect(checked()).toBe('Sat 7');
+    scrollTrackTo(STEP * 0.6);
     expect(checked()).toBe('Tue 10');
-    swipe(300, 150);
+    scrollTrackTo(STEP * 2);
     expect(checked()).toBe('Thu 12');
-    swipe(150, 300);
+    scrollTrackTo(STEP);
     expect(checked()).toBe('Tue 10');
   });
 
-  it('reaches the one-off last and stops at both ends', () => {
+  it('reaches the one-off last and never goes past either end', () => {
     setup();
-    swipe(150, 300);
-    expect(checked()).toBe('Sat 7');
-    for (let i = 0; i < 6; i += 1) swipe(300, 150);
+    scrollTrackTo(STEP * 9);
     expect(screen.getByRole('radio', { name: 'One-off session', checked: true })).toBeInTheDocument();
+    scrollTrackTo(-STEP * 4);
+    expect(checked()).toBe('Sat 7');
   });
 
-  it('ignores a short drag and a mostly vertical one', () => {
+  it('makes the dragged-to slide the active one, and the others hidden from screen readers', () => {
     setup();
-    swipe(300, 270);
-    expect(checked()).toBe('Sat 7');
-    const el = document.querySelector('.home-swipe') as HTMLElement;
-    fireEvent.pointerDown(el, { clientX: 200, clientY: 100, pointerId: 1 });
-    fireEvent.pointerMove(el, { clientX: 120, clientY: 400, pointerId: 1 });
-    fireEvent.pointerUp(el, { clientX: 120, clientY: 400, pointerId: 1 });
-    expect(checked()).toBe('Sat 7');
+    scrollTrackTo(STEP);
+    const slides = [...document.querySelectorAll<HTMLElement>('.home-track > .home-slide')];
+    expect(slides.map((el) => el.dataset.active)).toEqual(['false', 'true', 'false', 'false']);
+    expect(screen.getByRole('button', { name: 'Start session, Tuesday' })).toBeInTheDocument();
   });
 
   it('shows one dot per session and the one-off, with the current one marked', () => {
@@ -154,14 +156,26 @@ describe('swiping between sessions', () => {
     const dots = document.querySelectorAll('.home-dots i');
     expect(dots).toHaveLength(4);
     expect(dots[0]).toHaveClass('on');
-    swipe(300, 150);
+    scrollTrackTo(STEP);
     expect(document.querySelectorAll('.home-dots i')[1]).toHaveClass('on');
   });
 
-  it('is not swipeable while a session runs or on the done card', () => {
+  it('ignores the scroll events of its own slide to a tapped chip, so the chips do not flicker', async () => {
+    const { user } = setup();
+    const el = document.querySelector<HTMLElement>('.home-track')!;
+    Object.defineProperty(el, 'clientWidth', { value: SLIDE_W, configurable: true });
+    el.scrollTo = vi.fn() as unknown as typeof el.scrollTo;
+    await user.click(screen.getByRole('radio', { name: 'Thu 12' }));
+    // A scroll event from the slide passing Tuesday on the way to Thursday.
+    el.scrollLeft = STEP;
+    fireEvent.scroll(el);
+    expect(checked()).toBe('Thu 12');
+  });
+
+  it('is not a track while a session runs or on the done card', () => {
     useSessionStore.setState({ session: { ...mkSession([mkPlayer('A'), mkPlayer('B'), mkPlayer('C'), mkPlayer('D')], { createdAt: NOW - 1_800_000 }) } });
     setup();
-    expect(document.querySelector('.home-swipe')).toBeNull();
+    expect(document.querySelector('.home-track')).toBeNull();
     expect(document.querySelector('.home-dots')).toBeNull();
   });
 });

@@ -68,8 +68,6 @@ interface SlotHeroProps {
   onVenue?: () => void;
   /** Who stood out last time on this weekday. */
   last?: LastWeekStats;
-  /** The card came in from a swipe to the right, so it slides in from the left. */
-  fromLeft?: boolean;
 }
 
 const STAT_LABEL: Record<'played' | 'wins' | 'losses', string> = { played: 'most played', wins: 'most wins', losses: 'most losses' };
@@ -114,13 +112,13 @@ const PinIcon = () => (
 );
 
 /** The lime card for one slot. It only shows things; the Start bar is the only way to go on. */
-export function SlotHero({ effective, now, onEdit, thisTimeOnly = false, attendance, onVenue, last, fromLeft = false }: SlotHeroProps) {
+export function SlotHero({ effective, now, onEdit, thisTimeOnly = false, attendance, onVenue, last }: SlotHeroProps) {
   const loaded = useHistoryStore((s) => s.loaded);
   const day = WEEKDAY_NAMES[effective.weekday];
   const courts = effective.courts === undefined ? undefined : `${effective.courts} ${effective.courts === 1 ? 'court' : 'courts'}`;
   const noTime = effective.startMin === undefined && effective.endMin === undefined;
   return (
-    <section className={`home-hero home-hero-split home-hero-in${fromLeft ? ' home-hero-in-left' : ''}`}>
+    <section className="home-hero home-hero-split">
       <CourtLines />
       <div className="home-hero-head">
         <div className="home-hero-top">
@@ -169,9 +167,9 @@ export function SlotHero({ effective, now, onEdit, thisTimeOnly = false, attenda
 }
 
 /** The calm hero for a one-off session: same shape, no pencil, no pill. */
-export function OneOffHero({ fromLeft = false }: { fromLeft?: boolean }) {
+export function OneOffHero() {
   return (
-    <section className={`home-hero home-hero-in${fromLeft ? ' home-hero-in-left' : ''}`}>
+    <section className="home-hero">
       <CourtLines />
       <h1 className="home-day home-day-oneoff">One-off session</h1>
       <p className="home-line">Pick who is playing and go.</p>
