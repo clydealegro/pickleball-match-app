@@ -164,25 +164,27 @@ export function EditSlotSheet({ slot, effective, venues, onSave, onClose, onEdit
         {courts === undefined && <p className="muted slot-hint">You choose when you start.</p>}
       </div>
 
-      <div className="slot-seg" role="radiogroup" aria-label="Apply to">
-        <label>
-          <input type="radio" name="slot-scope" checked={scope === 'this-time'} onChange={() => setScope('this-time')} />
-          <span>Just this time</span>
-        </label>
-        <label>
-          <input type="radio" name="slot-scope" checked={scope === 'always'} onChange={() => setScope('always')} />
-          <span>Always for {day}</span>
-        </label>
+      {/* Stays at the bottom edge while the sheet scrolls, so Save and Just this time or Always are never hidden below the courts. */}
+      <div className="sheet-actions">
+        <div className="slot-seg" role="radiogroup" aria-label="Apply to">
+          <label>
+            <input type="radio" name="slot-scope" checked={scope === 'this-time'} onChange={() => setScope('this-time')} />
+            <span>Just this time</span>
+          </label>
+          <label>
+            <input type="radio" name="slot-scope" checked={scope === 'always'} onChange={() => setScope('always')} />
+            <span>Always for {day}</span>
+          </label>
+        </div>
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        <button type="button" className="btn btn-primary btn-block" onClick={save}>
+          Save
+        </button>
       </div>
-
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      <button type="button" className="btn btn-primary btn-block" onClick={save}>
-        Save
-      </button>
     </Sheet>
   );
 }

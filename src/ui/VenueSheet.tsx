@@ -277,9 +277,11 @@ export function VenueSheet({ slot, effective, venues, onSave, onClose, initialEd
         </div>
       )}
       {!editing && (
-        <button type="button" className="btn btn-primary" disabled={!changed} onClick={save}>
-          {newVenue.trim() ? 'Save and use' : 'Save'}
-        </button>
+        <div className="sheet-actions">
+          <button type="button" className="btn btn-primary btn-block" disabled={!changed} onClick={save}>
+            {newVenue.trim() ? 'Save and use' : 'Save'}
+          </button>
+        </div>
       )}
       {confirm && (
         <Sheet title={`Remove ${confirm}?`} onClose={() => setConfirm(null)}>
