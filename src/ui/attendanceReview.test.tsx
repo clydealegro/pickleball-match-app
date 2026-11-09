@@ -448,6 +448,26 @@ describe('the copy buttons', () => {
     expect(screen.queryByText('List copied')).not.toBeInTheDocument();
   });
 
+  it('gives the fallback box a row for every line of a long list, so nothing is cut off, up to a limit', async () => {
+    const many = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`p${i}`, `Player${i}`]));
+    const inAnswers = Object.fromEntries(Object.keys(many).map((id) => [id, 'in' as const]));
+    seed({ counts: { in: 40, maybe: 0, out: 0, late: 0 }, answers: inAnswers, names: many });
+    const { user } = setup();
+    stubClipboard(vi.fn(async () => { throw new Error('denied'); }));
+    await user.click(screen.getByRole('button', { name: 'Copy list for the group chat' }));
+    expect(Number((await screen.findByLabelText('Text to copy')).getAttribute('rows'))).toBe(12);
+  });
+
+  it('sizes the fallback box to a short nudge too', async () => {
+    full();
+    const { user } = setup();
+    stubClipboard(undefined);
+    await user.click(screen.getByRole('button', { name: 'Nudge the maybes' }));
+    const rows = Number((await screen.findByLabelText('Text to copy')).getAttribute('rows'));
+    expect(rows).toBeGreaterThanOrEqual(3);
+    expect(rows).toBeLessThanOrEqual(4);
+  });
+
   it('falls back the same way for the nudge, and when there is no clipboard at all', async () => {
     full();
     const { user } = setup();

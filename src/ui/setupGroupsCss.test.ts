@@ -17,7 +17,7 @@ describe('Setup group styles', () => {
   it('sit with the other Setup rules, before Home', () => {
     expect(START).toBeGreaterThan(0);
     expect(END).toBeGreaterThan(START);
-    for (const sel of ['.pick-group', '.pick-group-title', '.pick-wide', '.pick-tag']) expect(section).toContain(`${sel} {`);
+    for (const sel of ['.pick-group', '.pick-group-title', '.pick-group .pick-grid', '.pick-wide', '.pick-tag']) expect(section).toContain(`${sel} {`);
   });
 
   it('stack a group as a heading over its list', () => {
@@ -28,6 +28,10 @@ describe('Setup group styles', () => {
     expect(rule('.pick-group-title')).toMatch(/color:\s*var\(--muted\)/);
   });
 
+  it('fill the gap beside a half-width row, so a tagged row does not leave holes', () => {
+    expect(rule('.pick-group .pick-grid')).toMatch(/grid-auto-flow:\s*dense/);
+  });
+
   it('give a tagged row the whole width of the grid', () => {
     expect(rule('.pick-wide')).toMatch(/grid-column:\s*1\s*\/\s*-1/);
   });
@@ -36,6 +40,13 @@ describe('Setup group styles', () => {
     expect(rule('.pick-tag')).toMatch(/border:\s*1px solid currentColor/);
     expect(rule('.pick-tag')).toMatch(/background:\s*transparent/);
     expect(rule('.pick-tag')).toMatch(/margin-left:\s*auto/);
+  });
+
+  it('drops the tag under the name on a narrow phone, so the name is not cut', () => {
+    const media = /@media \(max-width: 380px\) \{([\s\S]*?)\n\}/.exec(section);
+    expect(media).not.toBeNull();
+    expect(media![1]).toMatch(/\.pick-wide \.pick \{[^}]*flex-wrap:\s*wrap/);
+    expect(media![1]).toMatch(/\.pick-wide \.pick-tag \{[^}]*flex:\s*1 0 100%/);
   });
 
   it('let a long name shrink instead of pushing the row sideways', () => {

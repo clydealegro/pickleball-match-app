@@ -31,6 +31,12 @@ function dateLabel(playDate: string): string {
   return shortDate(new Date(y, m - 1, d).getTime());
 }
 
+/** Rows for the copy box: a line per line of text, plus one for each time a long line wraps, up to a limit. */
+const MAX_ROWS = 12;
+const CHARS_PER_ROW = 28;
+const rowsFor = (text: string) =>
+  Math.min(MAX_ROWS, Math.max(3, text.split('\n').reduce((n, line) => n + Math.max(1, Math.ceil(line.length / CHARS_PER_ROW)), 0)));
+
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 function Shell({ weekday, children }: { weekday?: string; children: ReactNode }) {
@@ -305,7 +311,7 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
       {copied && !copied.ok && (
         <>
           <p className="attendance-line">Could not copy. Select the text below.</p>
-          <textarea ref={copyRef} className="field attendance-text" readOnly rows={4} aria-label="Text to copy" value={copied.text} />
+          <textarea ref={copyRef} className="field attendance-text" readOnly rows={rowsFor(copied.text)} aria-label="Text to copy" value={copied.text} />
         </>
       )}
       {shared === 'copied' && (

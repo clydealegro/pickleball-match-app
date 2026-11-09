@@ -1451,6 +1451,10 @@ caption {
   gap: 8px;
 }
 
+.pick-group .pick-grid {
+  grid-auto-flow: dense;
+}
+
 .pick-group-title {
   margin: 0;
   color: var(--muted);
@@ -1478,6 +1482,22 @@ caption {
 .pick-wide .row-name {
   flex: 0 1 auto;
   min-width: 0;
+}
+
+/* On a narrow phone the tag drops under the name, so the name keeps its room. */
+@media (max-width: 380px) {
+  .pick-wide .pick {
+    flex-wrap: wrap;
+    padding-block: 8px;
+  }
+
+  .pick-wide .pick-tag {
+    flex: 1 0 100%;
+    margin-left: 0;
+    padding: 0 0 0 40px;
+    border: 0;
+    text-align: left;
+  }
 }
 
 /* ---------- Saved players rows ---------- */
