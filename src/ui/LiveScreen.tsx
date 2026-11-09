@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { gsap } from 'gsap';
+import { useMemo, useRef, useState } from 'react';
 import * as engine from '../engine';
 import type { GameResult, Session } from '../engine';
 import { useRosterStore } from '../store/rosterStore';
@@ -9,6 +10,7 @@ import { CourtCard } from './CourtCard';
 import { CourtTabs } from './CourtTabs';
 import { ExtendSheet } from './ExtendSheet';
 import { LiveMenu } from './LiveMenu';
+import { motionOK, MOTION } from './motion';
 import { PlayerSheet } from './PlayerSheet';
 import { ResultSheet } from './ResultSheet';
 import { getBoolPref, getPlayTo, VIBRATE_KEY } from './prefs';
@@ -125,11 +127,28 @@ export function LiveScreen({ session, onHome, onSettings, onShowBoard }: { sessi
   }
 
   // Swiping left brings the next court in from the right, swiping right the one before. It stops at the first and last.
-  const swipe = useSwipe((direction) => {
-    const index = sorted.findIndex((c) => c.id === selected?.id);
-    const target = sorted[index + (direction === 'left' ? 1 : -1)];
-    if (target) showCourt(target.id);
-  });
+  const slotRef = useRef<HTMLDivElement>(null);
+  const swipe = useSwipe(
+    (direction) => {
+      const index = sorted.findIndex((c) => c.id === selected?.id);
+      const target = sorted[index + (direction === 'left' ? 1 : -1)];
+      if (target) showCourt(target.id);
+    },
+    {
+      // The court follows the finger, and pulls back with more resistance where there is no court to go to.
+      onDrag(dx) {
+        const slot = slotRef.current;
+        if (!slot || !motionOK()) return;
+        const index = sorted.findIndex((c) => c.id === selected?.id);
+        const atEdge = (dx > 0 && index <= 0) || (dx < 0 && index >= sorted.length - 1);
+        gsap.set(slot, { x: dx * (atEdge ? 0.25 : 0.85) });
+      },
+      onRelease() {
+        const slot = slotRef.current;
+        if (slot && gsap.getProperty(slot, 'x') !== 0) gsap.to(slot, { x: 0, duration: MOTION.slow, ease: MOTION.spring, overwrite: true });
+      },
+    },
+  );
 
   return (
     <div className="live-screen">
@@ -190,7 +209,7 @@ export function LiveScreen({ session, onHome, onSettings, onShowBoard }: { sessi
           {selected && (
             <>
               <CourtTabs courts={sorted} selectedId={selected.id} onSelect={showCourt} />
-              <div key={selected.id} className={`court-slot${slide ? ` slide-${slide}` : ''}`} {...swipe}>
+              <div ref={slotRef} key={selected.id} className={`court-slot${slide ? ` slide-${slide}` : ''}`} {...swipe}>
                 <CourtCard
                   court={selected}
                   playersById={playersById}

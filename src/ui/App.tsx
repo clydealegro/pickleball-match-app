@@ -16,7 +16,8 @@ import { SavedPlayersScreen } from './SavedPlayersScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { SetupScreen } from './SetupScreen';
 import { SummaryScreen, confirmLeave } from './SummaryScreen';
-import { KEEP_AWAKE_KEY, useBoolPref } from './prefs';
+import { applyMotionPref } from './motion';
+import { KEEP_AWAKE_KEY, REDUCE_MOTION_KEY, useBoolPref } from './prefs';
 import { useSessionConflict } from './useSessionConflict';
 import { useScreenHistory } from './useScreenHistory';
 import { useWakeLock } from './useWakeLock';
@@ -34,6 +35,7 @@ export default function App() {
   const loadHistory = useHistoryStore((s) => s.load);
   const initAuth = useAuthStore((s) => s.init);
   const [keepAwake] = useBoolPref(KEEP_AWAKE_KEY, true);
+  const [reduceMotion] = useBoolPref(REDUCE_MOTION_KEY, false);
   const sessionConflict = useSessionConflict();
   // 'live' is the session's own screen (live court, or the summary once it ended). A running session at load
   // starts there; Home is also reachable over a running session.
@@ -174,6 +176,11 @@ export default function App() {
   useEffect(() => {
     void initAuth();
   }, [initAuth]);
+
+  // Tells the stylesheet whether the organizer switched motion off.
+  useEffect(() => {
+    applyMotionPref();
+  }, [reduceMotion]);
 
   // The screen stays on for as long as a session is running, however many screens the organizer visits.
   useWakeLock(!!session && !session.endedAt && keepAwake);

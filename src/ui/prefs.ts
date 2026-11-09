@@ -7,6 +7,7 @@ export const COURTS_KEY = 'pickleball.courts';
 export const AUTO_START_KEY = 'pickleball.autoStart';
 export const PLAY_TO_KEY = 'pickleball.playTo';
 export const REGULARS_FIRST_KEY = 'pickleball.regularsFirst';
+export const REDUCE_MOTION_KEY = 'pickleball.reduceMotion';
 
 /** The scores a game can be played to. */
 export const PLAY_TO_CHOICES = [11, 15, 21] as const;

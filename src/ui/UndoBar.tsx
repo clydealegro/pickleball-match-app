@@ -26,11 +26,16 @@ export function UndoBar() {
 
   if (!last || hiddenId === last.id || Date.now() - last.at >= SECONDS * 1000) return null;
   return (
-    <div className="undo-bar" role="status">
+    <div key={last.id} className="undo-bar" role="status">
       <span className="undo-text">{last.label}</span>
       <button type="button" className="btn btn-small undo-btn" onClick={undo}>
         Undo
       </button>
+      <span
+        className="undo-drain"
+        aria-hidden="true"
+        style={{ animationDuration: `${SECONDS}s`, animationDelay: `-${Date.now() - last.at}ms` }}
+      />
     </div>
   );
 }
