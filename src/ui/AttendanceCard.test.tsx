@@ -321,6 +321,24 @@ describe('the link state', () => {
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
+  it('keeps the small lines together in one block, and has no block when there are none', () => {
+    seed({ fetchedAt: new Date(2026, 10, 9, 16, 12).getTime(), waiting: [{ id: 'g1', name: 'Mika', broughtBy: null }] }, { change: { player: 'Ben', from: 'in', to: 'out', at: NOW } });
+    const first = setup();
+    const meta = document.querySelectorAll('.attendance-meta');
+    expect(meta).toHaveLength(1);
+    expect(meta[0].textContent).toBe('Updated 4:12 pmBen changed to Out at 4:20 pm.1 new name to review');
+    first.unmount();
+    seed();
+    setup();
+    expect(document.querySelector('.attendance-meta')).toBeNull();
+  });
+
+  it('puts only the stale lines in the block of a cancelled week', () => {
+    seed({ cancelled: { reason: null }, fetchedAt: new Date(2026, 10, 9, 16, 12).getTime() });
+    setup();
+    expect(document.querySelector('.attendance-meta')!.textContent).toBe('Updated 4:12 pm');
+  });
+
   it('disables every button while a write is running', () => {
     seed({}, { busy: true });
     setup();

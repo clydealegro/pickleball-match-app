@@ -30,6 +30,11 @@ describe('Attendance card styles', () => {
     expect(rule('.attendance')).toMatch(/flex:\s*none/);
   });
 
+  it('keeps the small lines close together so the card stays short', () => {
+    expect(rule('.attendance-meta')).toMatch(/display:\s*flex/);
+    expect(rule('.attendance-meta')).toMatch(/gap:\s*[0-4]px/);
+  });
+
   it('uses the normal surface, line and ink variables', () => {
     const card = rule('.attendance');
     expect(card).toMatch(/background:\s*var\(--surface\)/);

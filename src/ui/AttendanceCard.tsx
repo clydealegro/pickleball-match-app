@@ -176,6 +176,14 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
       {error === 'offline' && <p className="attendance-line">Offline, showing the last list</p>}
     </>
   );
+  // The small lines sit close together, so the card stays short on a small phone.
+  const meta = (show: boolean, extra?: ReactNode) =>
+    show && (
+      <div className="attendance-meta">
+        {staleLines}
+        {extra}
+      </div>
+    );
   // While a sheet is open it shows the message itself.
   const alert = problem && sheet === null && (
     <p className="error" role="alert">
@@ -190,7 +198,7 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
         <p className="attendance-notice">
           Cancelled for {dateLabel(summary.playDate)}.{reason ? ` ${reason}` : ''}
         </p>
-        {staleLines}
+        {meta(stale)}
         <div className="attendance-actions">
           <button type="button" className="btn attendance-btn" disabled={busy} onClick={() => void run(() => store().undoCancel(slot.id))}>
             Undo
@@ -215,9 +223,13 @@ export function AttendanceCard({ slot, onSignIn }: Props) {
           </li>
         )}
       </ul>
-      {staleLines}
-      {change && <p className="attendance-line">{`${change.player} changed to ${STATUS_LABEL[change.to]} at ${clock(change.at)}.`}</p>}
-      {waiting.length > 0 && <p className="attendance-line">{`${plural(waiting.length, 'new name', 'new names')} to review`}</p>}
+      {meta(
+        stale || !!change || waiting.length > 0,
+        <>
+          {change && <p className="attendance-line">{`${change.player} changed to ${STATUS_LABEL[change.to]} at ${clock(change.at)}.`}</p>}
+          {waiting.length > 0 && <p className="attendance-line">{`${plural(waiting.length, 'new name', 'new names')} to review`}</p>}
+        </>,
+      )}
       <p className="attendance-link">{url}</p>
       <div className="attendance-actions">
         <button type="button" className="btn btn-live attendance-btn" disabled={busy} onClick={() => void share(url)}>
