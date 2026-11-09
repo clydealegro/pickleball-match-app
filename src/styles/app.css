@@ -2607,6 +2607,13 @@ caption {
   min-width: 0;
 }
 
+.home-hero-tags .home-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+}
+
 .home-time {
   font-size: 16px;
   font-weight: 700;
