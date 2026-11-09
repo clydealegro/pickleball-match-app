@@ -76,6 +76,12 @@ describe('listText', () => {
     expect(lines[3]).toBe('Friends (2): Amy, zoe');
   });
 
+  it('skips an answer from someone with no display name', () => {
+    const s = summary({ names: { a: 'Ana' }, answers: { a: 'in', gone: 'in', gone2: 'maybe' } });
+    expect(listText(TUE, s).split('\n').slice(1)).toEqual(['In (1): Ana']);
+    expect(nudgeText(TUE, s)).toBe('');
+  });
+
   it('leaves out the time part when the slot has no time', () => {
     const slot: Slot = { id: 'tue', weekday: 2, venue: 'Sample Hall' };
     expect(listText(slot, summary()).split('\n')[0]).toBe('Tuesday open play, Tue 10 Nov, Sample Hall');
