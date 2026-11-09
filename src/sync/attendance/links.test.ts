@@ -109,7 +109,7 @@ describe('summarize', () => {
 
   it('counts in, maybe, out and late, and keeps friends and waiting names', () => {
     const waiting = [{ id: 'g1', name: 'Zed', broughtBy: null }];
-    const s = summarize('tue', 'abc', view(), waiting, 5000);
+    const s = summarize('tue', 'abc', view(), waiting, [], 5000);
     expect(s).toEqual({
       slotId: 'tue',
       code: 'abc',
@@ -118,6 +118,8 @@ describe('summarize', () => {
       counts: { in: 2, maybe: 1, out: 1, late: 1 },
       friends: 2,
       waiting,
+      tonight: [],
+      lateIds: ['a'],
       answers: { a: 'in', b: 'in', c: 'maybe', d: 'out' },
       names: { a: 'Ana', b: 'Ben', c: 'Cy', d: 'Di', e: 'Ed' },
       fetchedAt: 5000,
@@ -125,18 +127,18 @@ describe('summarize', () => {
   });
 
   it('counts a player who has not answered nowhere', () => {
-    const s = summarize('tue', 'abc', view({ answers: [] }), [], 1);
+    const s = summarize('tue', 'abc', view({ answers: [] }), [], [], 1);
     expect(s.counts).toEqual({ in: 0, maybe: 0, out: 0, late: 0 });
   });
 
   it('ignores an answer from someone no longer on the roster', () => {
-    const s = summarize('tue', 'abc', view({ answers: [{ player_id: 'gone', status: 'in', late: false }] }), [], 1);
+    const s = summarize('tue', 'abc', view({ answers: [{ player_id: 'gone', status: 'in', late: false }] }), [], [], 1);
     expect(s.counts.in).toBe(0);
     expect(s.answers).toEqual({});
   });
 
   it('carries the cancellation', () => {
-    const s = summarize('tue', 'abc', view({ cancelled: { reason: 'Rain' } }), [], 1);
+    const s = summarize('tue', 'abc', view({ cancelled: { reason: 'Rain' } }), [], [], 1);
     expect(s.cancelled).toEqual({ reason: 'Rain' });
   });
 });
@@ -202,5 +204,40 @@ describe('shareUrl', () => {
 
   it('does not double a trailing slash', () => {
     expect(shareUrl('https://pikl.example/', 'abc')).toBe('https://pikl.example/#/j/abc');
+  });
+});
+
+describe('summarize, the play-tonight list and the late ids', () => {
+  const base: AttendanceViewData = {
+    title: 'Tuesday open play', weekday: 2, venue: null, start_min: null, end_min: null, courts: null, play_date: '2026-11-10', cancelled: null,
+    players: [player('a', 'Ana'), player('b', 'Ben'), player('c', 'Cy'), player('d', 'Di')],
+    answers: [], friends: 0,
+  };
+
+  it('keeps the play-tonight list as given', () => {
+    const tonight = [{ id: 'g1', name: 'Fay', broughtBy: 'a' }];
+    expect(summarize('tue', 'x', base, [], tonight, 1).tonight).toBe(tonight);
+  });
+
+  it('lists as late only the players whose answer is In with late set', () => {
+    const view: AttendanceViewData = {
+      ...base,
+      answers: [
+        { player_id: 'a', status: 'in', late: true },
+        { player_id: 'b', status: 'in', late: false },
+        { player_id: 'c', status: 'maybe', late: true },
+        { player_id: 'd', status: 'out', late: true },
+      ],
+    };
+    expect(summarize('tue', 'x', view, [], [], 1).lateIds).toEqual(['a']);
+  });
+
+  it('leaves out a late answer from someone no longer on the roster', () => {
+    const view: AttendanceViewData = { ...base, answers: [{ player_id: 'gone', status: 'in', late: true }, { player_id: 'b', status: 'in', late: true }] };
+    expect(summarize('tue', 'x', view, [], [], 1).lateIds).toEqual(['b']);
+  });
+
+  it('has no late ids when nobody is late', () => {
+    expect(summarize('tue', 'x', base, [], [], 1).lateIds).toEqual([]);
   });
 });

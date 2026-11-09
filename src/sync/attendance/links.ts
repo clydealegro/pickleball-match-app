@@ -53,17 +53,22 @@ export function summarize(
   code: string,
   view: AttendanceViewData,
   waiting: WaitingName[],
+  tonight: WaitingName[],
   now: number,
 ): Summary {
   const names = displayNames(view.players);
   const counts = { in: 0, maybe: 0, out: 0, late: 0 };
   const answers: Record<string, AttendanceStatus> = {};
+  const lateIds: string[] = [];
   for (const a of view.answers) {
     // An answer from someone removed from the roster is not counted.
     if (!(a.player_id in names)) continue;
     answers[a.player_id] = a.status;
     counts[a.status] += 1;
-    if (a.status === 'in' && a.late) counts.late += 1;
+    if (a.status === 'in' && a.late) {
+      counts.late += 1;
+      lateIds.push(a.player_id);
+    }
   }
   return {
     slotId,
@@ -73,6 +78,8 @@ export function summarize(
     counts,
     friends: view.friends,
     waiting,
+    tonight,
+    lateIds,
     answers,
     names,
     fetchedAt: now,

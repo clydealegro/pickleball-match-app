@@ -142,6 +142,28 @@ describe('refresh', () => {
     expect(state().lastError.tue).toBeNull();
   });
 
+  it('fills the play-tonight list and the late ids', async () => {
+    const code = await withAnswers();
+    await answerAs(code, BEN, 'in', false);
+    await state().refresh('tue');
+    expect(state().summaries.tue.tonight).toEqual([]);
+    expect(state().summaries.tue.lateIds).toEqual([ANA]);
+    const zed = state().summaries.tue.waiting.find((w) => w.name === 'Zed')!;
+    await fakeAttendanceRemote(db, USER_A).setGuestState(zed.id, 'play_tonight');
+    await state().refresh('tue');
+    expect(state().summaries.tue.tonight.map((w) => [w.name, w.broughtBy])).toEqual([['Zed', ANA]]);
+    expect(state().summaries.tue.waiting.map((w) => w.name)).toEqual(['Newbie']);
+  });
+
+  it('asks for the play-tonight list for the date of the view', async () => {
+    await withAnswers();
+    flags.calls.length = 0;
+    await state().refresh('tue');
+    const date = state().summaries.tue.playDate;
+    expect(flags.calls).toContain(`listTonight:tue:${date}`);
+    expect(flags.calls).toContain(`listWaiting:tue:${date}`);
+  });
+
   it('keeps the cached summary when the request fails offline, and says why', async () => {
     await withAnswers();
     await state().refresh('tue');
@@ -399,6 +421,60 @@ describe('reset, cancel and undo', () => {
   });
 });
 
+describe('guest states', () => {
+  async function withGuests() {
+    await state().ensureLink(TUE);
+    const code = (await codeOf())!;
+    await guest(code, 'Zed', ANA);
+    await guest(code, 'Newbie');
+    await state().refresh('tue');
+    const byName = (n: string) => state().summaries.tue.waiting.find((w) => w.name === n)!;
+    return { byName };
+  }
+  const stateOf = async (name: string) =>
+    (await db.query<{ state: string }>('select state from public.attendance_guests where name = $1', [name])).rows[0]?.state;
+
+  it('writes the state, then reloads so the row leaves waiting', async () => {
+    const { byName } = await withGuests();
+    expect(await state().setGuestState('tue', byName('Newbie').id, 'dismissed')).toEqual({ ok: true });
+    expect(await stateOf('Newbie')).toBe('dismissed');
+    expect(state().summaries.tue.waiting.map((w) => w.name)).toEqual(['Zed']);
+  });
+
+  it('moves a friend to the play-tonight list', async () => {
+    const { byName } = await withGuests();
+    await state().setGuestState('tue', byName('Zed').id, 'play_tonight');
+    expect(state().summaries.tue.tonight.map((w) => w.name)).toEqual(['Zed']);
+    expect(state().summaries.tue.waiting.map((w) => w.name)).toEqual(['Newbie']);
+  });
+
+  it('says so and changes nothing offline', async () => {
+    const { byName } = await withGuests();
+    const before = state().summaries;
+    flags.offline = true;
+    expect(await state().setGuestState('tue', byName('Zed').id, 'added')).toEqual({ ok: false, message: OFFLINE });
+    flags.offline = false;
+    expect(state().summaries).toBe(before);
+    expect(await stateOf('Zed')).toBe('pending');
+  });
+
+  it('asks to sign in when nobody is signed in', async () => {
+    signedIn = null;
+    const result = await state().setGuestState('tue', 'g1', 'added');
+    expect(result).toEqual({ ok: false, message: 'Sign in to use the attendance link.' });
+  });
+
+  it('shows busy only while it runs', async () => {
+    const { byName } = await withGuests();
+    const seen: boolean[] = [];
+    const unsubscribe = useAttendanceStore.subscribe((s) => seen.push(Boolean(s.busy.tue)));
+    await state().setGuestState('tue', byName('Zed').id, 'added');
+    unsubscribe();
+    expect(seen).toContain(true);
+    expect(state().busy.tue).toBeFalsy();
+  });
+});
+
 describe('writes with no connection', () => {
   it('say so and change nothing', async () => {
     await state().ensureLink(TUE);
@@ -616,12 +692,35 @@ describe('the saved copy', () => {
 describe('reading a bad saved copy', () => {
   const summary = {
     slotId: 'tue', code: 'c', playDate: '2026-11-10', cancelled: null,
-    counts: { in: 1, maybe: 0, out: 0, late: 0 }, friends: 0, waiting: [], answers: { p: 'in' }, names: { p: 'Ana' }, fetchedAt: 5,
+    counts: { in: 1, maybe: 0, out: 0, late: 0 }, friends: 0, waiting: [], tonight: [], lateIds: [], answers: { p: 'in' }, names: { p: 'Ana' }, fetchedAt: 5,
   };
   const good = { version: 1, userId: 'u', links: { tue: { code: 'c' } }, summaries: { tue: summary }, lastChange: {}, pendingClose: [] };
 
   it('accepts a good copy', () => {
     expect(parseAttendanceCache(JSON.stringify(good))).toMatchObject({ ownerId: 'u', links: { tue: { code: 'c' } }, summaries: { tue: summary } });
+  });
+
+  it('keeps a copy saved before the new fields, with both as empty lists', () => {
+    const { tonight: _t, lateIds: _l, ...old } = summary;
+    const parsed = parseAttendanceCache(JSON.stringify({ ...good, summaries: { tue: old } }))!;
+    expect(parsed.summaries.tue).toEqual(summary);
+  });
+
+  it('keeps the new fields when they are there', () => {
+    const next = { ...summary, tonight: [{ id: 'g', name: 'Fay', broughtBy: 'p' }], lateIds: ['p'] };
+    expect(parseAttendanceCache(JSON.stringify({ ...good, summaries: { tue: next } }))!.summaries.tue).toEqual(next);
+  });
+
+  it('drops a summary whose new fields are malformed', () => {
+    for (const bad of [
+      { ...summary, tonight: 'x' },
+      { ...summary, tonight: [{ id: 'g', name: 5, broughtBy: null }] },
+      { ...summary, tonight: [{ id: 'g', name: 'Fay', broughtBy: 5 }] },
+      { ...summary, lateIds: 'p' },
+      { ...summary, lateIds: [5] },
+    ]) {
+      expect(parseAttendanceCache(JSON.stringify({ ...good, summaries: { tue: bad } }))!.summaries).toEqual({});
+    }
   });
 
   it('gives nothing for missing, broken or foreign data', () => {

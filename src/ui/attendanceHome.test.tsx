@@ -24,6 +24,8 @@ const summary = (slotId: string): Summary => ({
   counts: { in: 4, maybe: 1, out: 0, late: 0 },
   friends: 0,
   waiting: [],
+  tonight: [],
+  lateIds: [],
   answers: {},
   names: {},
   fetchedAt: NOW,

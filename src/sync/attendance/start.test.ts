@@ -17,6 +17,8 @@ const remote = (): AttendanceRemote => ({
   upsertLink: async (row) => void upserts.push(row),
   view: async () => null,
   listWaiting: async () => [],
+  listTonight: async () => [],
+  setGuestState: async () => undefined,
   resetLink: async () => null,
   cancel: async () => undefined,
   undoCancel: async () => undefined,

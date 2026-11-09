@@ -35,6 +35,10 @@ export interface Summary {
   counts: { in: number; maybe: number; out: number; late: number };
   friends: number;
   waiting: WaitingName[];
+  /** Friends the organizer said will play tonight. */
+  tonight: WaitingName[];
+  /** Players whose answer is In and who said they are late. */
+  lateIds: string[];
   answers: Record<string, AttendanceStatus>;
   /** Display first name by player id, with a last initial when two players share a first name. */
   names: Record<string, string>;

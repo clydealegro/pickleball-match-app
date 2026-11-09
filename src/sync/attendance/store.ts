@@ -5,7 +5,7 @@ import { useAuthStore } from '../auth';
 import { getSupabase } from '../client';
 import { isRemoteError, RemoteError } from '../remote';
 import { diffChange, linkRow, localDate, safeTimezone, summarize } from './links';
-import { supabaseAttendanceRemote, type AttendanceRemote } from './remote';
+import { supabaseAttendanceRemote, type AttendanceRemote, type GuestState } from './remote';
 import type { AttendanceStatus, ChangeNote, Failure, Summary } from './types';
 
 export const ATTENDANCE_KEY = 'pickleball.attendance.v1';
@@ -62,6 +62,8 @@ interface AttendanceState extends Data {
   resetLink: (slotId: string) => Promise<AttendanceResult>;
   cancelWeek: (slotId: string, reason: string) => Promise<AttendanceResult>;
   undoCancel: (slotId: string) => Promise<AttendanceResult>;
+  /** Moves a waiting name on, then reads the answers again so it leaves the waiting list. */
+  setGuestState: (slotId: string, guestId: string, state: GuestState) => Promise<AttendanceResult>;
   /** Closes the date a session started on. Never throws. */
   closeForSession: (session: Session) => Promise<AttendanceResult>;
   /** Sends a saved slot to its link, when it has one. */
@@ -84,6 +86,8 @@ const isObject = (x: unknown): x is Record<string, unknown> => typeof x === 'obj
 const isStatus = (x: unknown): x is AttendanceStatus => x === 'in' || x === 'maybe' || x === 'out';
 const isCount = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x) && x >= 0;
 const isDate = (x: unknown): x is string => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x);
+const isWaitingName = (w: unknown): boolean =>
+  isObject(w) && typeof w.id === 'string' && typeof w.name === 'string' && (w.broughtBy === null || typeof w.broughtBy === 'string');
 const isText = (x: unknown): x is string => typeof x === 'string' && x !== '';
 const everyValue = (x: unknown, ok: (v: unknown) => boolean) => isObject(x) && Object.values(x).every(ok);
 
@@ -102,9 +106,10 @@ function isSummary(key: string, x: unknown): x is Summary {
     isCount(counts.late) &&
     isCount(x.friends) &&
     Array.isArray(waiting) &&
-    waiting.every(
-      (w) => isObject(w) && typeof w.id === 'string' && typeof w.name === 'string' && (w.broughtBy === null || typeof w.broughtBy === 'string'),
-    ) &&
+    waiting.every(isWaitingName) &&
+    // A copy saved before these two fields existed has neither; they default to empty lists.
+    (x.tonight === undefined || (Array.isArray(x.tonight) && x.tonight.every(isWaitingName))) &&
+    (x.lateIds === undefined || (Array.isArray(x.lateIds) && x.lateIds.every((id) => typeof id === 'string'))) &&
     everyValue(x.answers, isStatus) &&
     everyValue(x.names, (v) => typeof v === 'string') &&
     typeof x.fetchedAt === 'number' &&
@@ -128,7 +133,7 @@ export function parseAttendanceCache(raw: string | null): Data | null {
     }
     const summaries: Data['summaries'] = {};
     if (isObject(data.summaries)) {
-      for (const [slotId, s] of Object.entries(data.summaries)) if (slotId in links && isSummary(slotId, s)) summaries[slotId] = s;
+      for (const [slotId, s] of Object.entries(data.summaries)) if (slotId in links && isSummary(slotId, s)) summaries[slotId] = { ...s, tonight: s.tonight ?? [], lateIds: s.lateIds ?? [] };
     }
     const lastChange: Data['lastChange'] = {};
     if (isObject(data.lastChange)) {
@@ -248,9 +253,10 @@ export const useAttendanceStore = create<AttendanceState>()((set, get) => {
         if (!view) throw new RemoteError('server');
       }
       const waiting = await remote.listWaiting(slotId, view.play_date);
+      const tonight = await remote.listTonight(slotId, view.play_date);
       if (!current()) return { ok: true };
       const now = deps.now();
-      const summary = summarize(slotId, code!, view, waiting, now);
+      const summary = summarize(slotId, code!, view, waiting, tonight, now);
       const before = get().summaries[slotId];
       let change = get().lastChange[slotId] ?? null;
       if (before && before.playDate !== summary.playDate) change = null;
@@ -334,6 +340,10 @@ export const useAttendanceStore = create<AttendanceState>()((set, get) => {
       const date = get().summaries[slotId]?.playDate;
       if (!date) return { ok: false, message: 'Could not find the date. Try again.' };
       return write(slotId, (remote) => remote.undoCancel(slotId, date));
+    },
+
+    setGuestState(slotId, guestId, state) {
+      return write(slotId, (remote) => remote.setGuestState(guestId, state));
     },
 
     async closeForSession(session) {

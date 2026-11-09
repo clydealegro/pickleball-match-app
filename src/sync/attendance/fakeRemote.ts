@@ -27,6 +27,15 @@ export function fakeAttendanceRemote(db: PGlite, user: string, flags: FakeFlags 
       throw new RemoteError('server');
     }
   };
+  const guests = async (call: string, slotId: string, playDate: string, state: string) => {
+    const rows = await sql(
+      call,
+      `select id, name, brought_by from public.attendance_guests
+       where slot_id = $1 and play_date = $2::date and state = $3 order by created_at, id`,
+      [slotId, playDate, state],
+    );
+    return rows.map((g) => ({ id: String(g.id), name: String(g.name), broughtBy: (g.brought_by as string | null) ?? null }));
+  };
   return {
     async getLink(slotId) {
       const rows = await sql(`getLink:${slotId}`, 'select code, closed_through::text as closed_through from public.attendance_links where slot_id = $1', [slotId]);
@@ -47,14 +56,10 @@ export function fakeAttendanceRemote(db: PGlite, user: string, flags: FakeFlags 
       const rows = await sql('view', 'select public.attendance_view($1) as v', [code]);
       return (rows[0]?.v as AttendanceViewData | null) ?? null;
     },
-    async listWaiting(slotId, playDate) {
-      const rows = await sql(
-        `listWaiting:${slotId}:${playDate}`,
-        `select id, name, brought_by from public.attendance_guests
-         where slot_id = $1 and play_date = $2::date and state = 'pending' order by created_at, id`,
-        [slotId, playDate],
-      );
-      return rows.map((g) => ({ id: String(g.id), name: String(g.name), broughtBy: (g.brought_by as string | null) ?? null }));
+    listWaiting: (slotId, playDate) => guests(`listWaiting:${slotId}:${playDate}`, slotId, playDate, 'pending'),
+    listTonight: (slotId, playDate) => guests(`listTonight:${slotId}:${playDate}`, slotId, playDate, 'play_tonight'),
+    async setGuestState(guestId, state) {
+      await sql(`setGuestState:${guestId}:${state}`, 'update public.attendance_guests set state = $2 where id = $1', [guestId, state]);
     },
     async resetLink(slotId) {
       const rows = await sql(`resetLink:${slotId}`, 'select public.reset_attendance_link($1) as code', [slotId]);

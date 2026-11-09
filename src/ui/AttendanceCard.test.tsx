@@ -46,6 +46,8 @@ const summary = (over: Partial<Summary> = {}): Summary => ({
   counts: { in: 11, maybe: 3, out: 2, late: 0 },
   friends: 1,
   waiting: [],
+  tonight: [],
+  lateIds: [],
   answers: {},
   names: {},
   fetchedAt: NOW,

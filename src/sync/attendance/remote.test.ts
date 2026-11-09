@@ -220,6 +220,74 @@ describe('view and waiting names', () => {
   });
 });
 
+describe('guest states and the play-tonight list', () => {
+  const stateOf = async (name: string) =>
+    (await db.query<{ state: string }>('select state from public.attendance_guests where name = $1', [name])).rows[0]?.state;
+  async function seeded() {
+    await a.upsertLink(tue);
+    const code = (await a.getLink('tue'))!.code;
+    const date = (await a.view(code))!.play_date;
+    await guest(code, 'Newbie');
+    await guest(code, 'Friend', ANA);
+    const all = await a.listWaiting('tue', date);
+    const named = (n: string) => all.find((g) => g.name === n)!;
+    return { code, date, newbie: named('Newbie'), friend: named('Friend') };
+  }
+
+  it('sets each of the three states on a guest', async () => {
+    const { newbie, friend } = await seeded();
+    await a.setGuestState(newbie.id, 'play_tonight');
+    expect(await stateOf('Newbie')).toBe('play_tonight');
+    await a.setGuestState(newbie.id, 'added');
+    expect(await stateOf('Newbie')).toBe('added');
+    await a.setGuestState(friend.id, 'dismissed');
+    expect(await stateOf('Friend')).toBe('dismissed');
+  });
+
+  it('changes only the guest it was given', async () => {
+    const { newbie } = await seeded();
+    await a.setGuestState(newbie.id, 'dismissed');
+    expect(await stateOf('Friend')).toBe('pending');
+  });
+
+  it('cannot change another organizer guest', async () => {
+    const { newbie } = await seeded();
+    await b.setGuestState(newbie.id, 'dismissed');
+    expect(await stateOf('Newbie')).toBe('pending');
+  });
+
+  it('lists only play_tonight guests for the date, in the order they asked, and not the pending ones', async () => {
+    const { code, date, newbie, friend } = await seeded();
+    await guest(code, 'Third', BEN);
+    await a.setGuestState(friend.id, 'play_tonight');
+    await db.exec("update public.attendance_guests set created_at = '2026-11-09 08:00+00' where name = 'Friend'");
+    const third = (await a.listWaiting('tue', date)).find((g) => g.name === 'Third')!;
+    await a.setGuestState(third.id, 'play_tonight');
+    await db.exec("update public.attendance_guests set created_at = '2026-11-09 09:00+00' where name = 'Third'");
+    await a.setGuestState(newbie.id, 'added');
+    const list = await a.listTonight('tue', date);
+    expect(list.map((g) => [g.name, g.broughtBy])).toEqual([['Friend', ANA], ['Third', BEN]]);
+    expect(list[0].id).toBe(friend.id);
+    expect((await a.listWaiting('tue', date)).map((g) => g.name)).toEqual([]);
+    expect(await a.listTonight('tue', '2020-01-07')).toEqual([]);
+  });
+
+  it('does not list another organizer play_tonight guests', async () => {
+    const { date, newbie } = await seeded();
+    await a.setGuestState(newbie.id, 'play_tonight');
+    expect(await b.listTonight('tue', date)).toEqual([]);
+  });
+
+  it('fails offline and changes nothing', async () => {
+    const { newbie } = await seeded();
+    flags.offline = true;
+    const error = await a.setGuestState(newbie.id, 'added').catch((e: unknown) => e);
+    expect(isRemoteError(error) && error.kind).toBe('offline');
+    flags.offline = false;
+    expect(await stateOf('Newbie')).toBe('pending');
+  });
+});
+
 describe('the in-memory remote itself', () => {
   it('fails with an offline error and changes nothing while offline', async () => {
     flags.offline = true;
@@ -237,6 +305,8 @@ describe('the in-memory remote itself', () => {
     await a.closeThrough('tue', '2026-11-10');
     await a.resetLink('tue');
     await a.listWaiting('tue', '2026-11-10');
+    await a.listTonight('tue', '2026-11-10');
+    await a.setGuestState(ANA, 'added');
     await a.view('abc');
     expect(flags.calls).toEqual([
       'upsertLink:tue',
@@ -246,6 +316,8 @@ describe('the in-memory remote itself', () => {
       'closeThrough:tue:2026-11-10',
       'resetLink:tue',
       'listWaiting:tue:2026-11-10',
+      'listTonight:tue:2026-11-10',
+      `setGuestState:${ANA}:added`,
       'view',
     ]);
   });

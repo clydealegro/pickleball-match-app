@@ -105,6 +105,48 @@ describe('what the attendance remote sends', () => {
     expect(url.searchParams.get('order')).toBe('created_at.asc');
   });
 
+  it('lists the play-tonight guests the same way as the waiting ones, with the other state', async () => {
+    reply = () => json(200, [{ id: 'g2', name: 'Fay', brought_by: 'p1' }]);
+    expect(await realRemote().listTonight('tue', '2026-11-10')).toEqual([{ id: 'g2', name: 'Fay', broughtBy: 'p1' }]);
+    const { method, url } = seen[0];
+    expect(method).toBe('GET');
+    expect(url.pathname).toBe('/rest/v1/attendance_guests');
+    expect(url.searchParams.get('select')).toBe('id,name,brought_by');
+    expect(url.searchParams.get('slot_id')).toBe('eq.tue');
+    expect(url.searchParams.get('play_date')).toBe('eq.2026-11-10');
+    expect(url.searchParams.get('state')).toBe('eq.play_tonight');
+    expect(url.searchParams.get('order')).toBe('created_at.asc');
+  });
+
+  it('sets a guest state with an update filtered on the guest id', async () => {
+    reply = () => new Response(null, { status: 204 });
+    await realRemote().setGuestState('g9', 'play_tonight');
+    expect(seen).toHaveLength(1);
+    const { method, url, body } = seen[0];
+    expect(method).toBe('PATCH');
+    expect(url.pathname).toBe('/rest/v1/attendance_guests');
+    expect(url.searchParams.get('id')).toBe('eq.g9');
+    expect([...url.searchParams.keys()]).toEqual(['id']);
+    expect(JSON.parse(body!)).toEqual({ state: 'play_tonight' });
+  });
+
+  it('writes each state in the body', async () => {
+    reply = () => new Response(null, { status: 204 });
+    for (const state of ['play_tonight', 'added', 'dismissed'] as const) await realRemote().setGuestState('g1', state);
+    expect(seen.map((c) => JSON.parse(c.body!).state)).toEqual(['play_tonight', 'added', 'dismissed']);
+  });
+
+  it('turns a refused guest update into the right error kind', async () => {
+    reply = () => json(401, { code: 'PGRST301', message: 'JWT expired' });
+    let error = await realRemote().setGuestState('g1', 'added').catch((e: unknown) => e);
+    expect(isRemoteError(error) && error.kind).toBe('auth');
+    reply = () => json(500, { code: 'XX000', message: 'boom' });
+    error = await realRemote().listTonight('tue', '2026-11-10').catch((e: unknown) => e);
+    expect(isRemoteError(error) && error.kind).toBe('server');
+    error = await realRemote().setGuestState('g1', 'added').catch((e: unknown) => e);
+    expect(isRemoteError(error) && error.kind).toBe('server');
+  });
+
   it('resets the link through the database function and returns the new code', async () => {
     reply = () => json(200, 'newcode0123456789abcdef');
     expect(await realRemote().resetLink('tue')).toBe('newcode0123456789abcdef');
