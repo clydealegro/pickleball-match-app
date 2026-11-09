@@ -1,7 +1,8 @@
-import { useId, useState, type KeyboardEvent } from 'react';
+import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import * as engine from '../engine';
 import type { Session } from '../engine';
 import { PlayerAvatar } from './PlayerAvatar';
+import { useFlip } from './useFlip';
 import { useIsWide } from './useIsWide';
 import { useSheetSwipe } from './useSheetSwipe';
 
@@ -22,9 +23,13 @@ export function WaitingSheet({ session, onSelect, onAdd }: Props) {
   const [open, setOpen] = useState(false);
   const titleId = useId();
   const bodyId = useId();
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   const waiting = engine.orderedWaiting(session);
   const onBreak = session.players.filter((p) => p.status === 'break');
+  // When the order changes, the players who moved travel to their new place.
+  // The sheet opening also counts, so the list has a starting place to move from.
+  useFlip(bodyRef, `${open}|${waiting.map((p) => p.id).join(',')}|${onBreak.map((p) => p.id).join(',')}`);
   const next = engine.previewNext(session);
   const byId = new Map(session.players.map((p) => [p.id, p]));
   const peek = next ? next.playerIds.flatMap((id) => (byId.get(id) ? [byId.get(id)!] : [])) : waiting.slice(0, 4);
@@ -95,13 +100,13 @@ export function WaitingSheet({ session, onSelect, onAdd }: Props) {
         </div>
       )}
 
-      <div id={bodyId} className="waiting-body">
+      <div ref={bodyRef} id={bodyId} className="waiting-body">
         {waiting.length === 0 ? (
           <p className="muted">Nobody is waiting.</p>
         ) : (
           <ul className="list" aria-label="Waiting">
             {waiting.map((p, i) => (
-              <li key={p.id}>
+              <li key={p.id} data-flip={p.id}>
                 <button type="button" className="row-btn" onClick={() => onSelect(p.id)}>
                   <span className="row-index muted" aria-hidden="true">
                     {i + 1}
@@ -124,7 +129,7 @@ export function WaitingSheet({ session, onSelect, onAdd }: Props) {
             <h3 className="section-title muted">On break</h3>
             <ul className="list" aria-label="On break">
               {onBreak.map((p) => (
-                <li key={p.id}>
+                <li key={p.id} data-flip={p.id}>
                   <button type="button" className="row-btn" onClick={() => onSelect(p.id)}>
                     <PlayerAvatar name={p.name} rosterId={p.rosterId} size="sm" />
                     <span className="row-name">{p.name}</span>

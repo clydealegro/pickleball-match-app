@@ -2474,6 +2474,70 @@ caption {
   display: none;
 }
 
+/* ---------- Motion, part 2 ---------- */
+:root {
+  --stagger: 40ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --stagger: 0ms;
+  }
+}
+
+:root[data-motion='reduced'] {
+  --stagger: 0ms;
+}
+
+/* A screen eases in as it opens. */
+.screen-enter {
+  animation: screen-in var(--dur-slow) var(--ease-out);
+}
+
+@keyframes screen-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* Picking a player gives the row a small pop. */
+.pick:has(input:checked) {
+  animation: pick-pop var(--dur) var(--ease-spring);
+}
+
+@keyframes pick-pop {
+  from {
+    transform: scale(0.94);
+  }
+}
+
+/* The summary: the three figures rise in turn, and each player's bar grows from nothing. */
+.sum-stats > div {
+  animation: screen-in var(--dur-slow) var(--ease-out) both;
+  animation-delay: calc(var(--stagger) * 2);
+}
+
+.sum-stats > div:nth-child(2) {
+  animation-delay: calc(var(--stagger) * 3);
+}
+
+.sum-stats > div:nth-child(3) {
+  animation-delay: calc(var(--stagger) * 4);
+}
+
+.sum-bar > span {
+  transform-origin: left;
+  animation: bar-grow calc(var(--dur-slow) * 2) var(--ease-out) both;
+  animation-delay: calc(var(--stagger) * (var(--i, 0) + 4));
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
 /* Board */
 /* A full-screen board for a TV or a phone on a stand. It sets its own dark colours whatever the app theme is. */
 .board {

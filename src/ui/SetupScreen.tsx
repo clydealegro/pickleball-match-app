@@ -1,3 +1,4 @@
+import { gsap } from 'gsap';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { attendanceByRoster, regularsForWeekday, sortByAttendance } from '../store/attendance';
 import { useHistoryStore } from '../store/historyStore';
@@ -8,6 +9,7 @@ import { effectiveSlot, formatClock, formatRange, useSlotsStore } from '../store
 import { getDefaultMode, useDefaultMode } from './matchmaking';
 import { AUTO_START_KEY, COURTS_KEY, getBoolPref, getNumPref, REGULARS_FIRST_KEY, setNumPref, useBoolPref } from './prefs';
 import type { SessionPlan } from './HomeScreen';
+import { motionOK, MOTION } from './motion';
 import { PlayerAvatar } from './PlayerAvatar';
 import { WEEKDAY_NAMES } from './weekdays';
 
@@ -74,6 +76,22 @@ export function SetupScreen({ onManage, plan, onBack }: Props) {
   const lastIds = lastSessionIds(roster);
   const chosen = roster.filter((p) => selected.has(p.id));
   const canStart = chosen.length >= MIN_PLAYERS;
+  const countRef = useRef<HTMLSpanElement>(null);
+  const startRef = useRef<HTMLButtonElement>(null);
+  const counted = useRef<{ count: number; canStart: boolean } | null>(null);
+
+  // The count gives a small bump each time it changes, and the Start button springs when it becomes available.
+  useEffect(() => {
+    const before = counted.current;
+    counted.current = { count: chosen.length, canStart };
+    if (!before || !motionOK()) return;
+    if (before.count !== chosen.length && countRef.current) {
+      gsap.fromTo(countRef.current, { y: before.count < chosen.length ? 6 : -6, scale: 1.18 }, { y: 0, scale: 1, duration: MOTION.fast + 0.1, ease: MOTION.out, clearProps: 'transform' });
+    }
+    if (canStart && !before.canStart && startRef.current) {
+      gsap.fromTo(startRef.current, { scale: 0.94 }, { scale: 1, duration: MOTION.slow + 0.1, ease: 'back.out(2.4)', clearProps: 'transform' });
+    }
+  }, [chosen.length, canStart]);
   const typed = query.trim();
   const exact = roster.find((p) => norm(p.name) === norm(typed));
   const shown = typed ? roster.filter((p) => norm(p.name).includes(norm(typed))) : roster;
@@ -144,7 +162,7 @@ export function SetupScreen({ onManage, plan, onBack }: Props) {
       )}
       <div className="setup-head">
         <h1 className="screen-title">Who’s playing?</h1>
-        <span className="setup-count" aria-live="polite">
+        <span ref={countRef} className="setup-count" aria-live="polite">
           {chosen.length} selected
         </span>
       </div>
@@ -260,6 +278,7 @@ export function SetupScreen({ onManage, plan, onBack }: Props) {
             </button>
           </div>
           <button
+            ref={startRef}
             type="button"
             className={`btn btn-block start-btn${canStart ? ' btn-live' : ''}`}
             disabled={!canStart}

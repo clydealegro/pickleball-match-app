@@ -86,7 +86,7 @@ export function SavedPlayersScreen({ onBack }: Props) {
   }
 
   return (
-    <div className="stack">
+    <div className="stack screen-enter">
       <div className="row-flex spread">
         <h1 className="screen-title">Saved players</h1>
         <button type="button" className="btn" onClick={onBack}>

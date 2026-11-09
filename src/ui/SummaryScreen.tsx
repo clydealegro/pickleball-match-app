@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type MutableRefObject } from 'react';
+import { useEffect, useId, useState, type CSSProperties, type MutableRefObject } from 'react';
 import * as engine from '../engine';
 import type { PlayerSummary, Session } from '../engine';
 import { shortDate } from '../store/attendance';
@@ -22,7 +22,7 @@ function partnerList(items: PlayerSummary['partners']): string {
     .join(', ');
 }
 
-function PlayerRow({ row, maxGames, showBar }: { row: PlayerSummary; maxGames: number; showBar: boolean }) {
+function PlayerRow({ row, maxGames, showBar, index }: { row: PlayerSummary; maxGames: number; showBar: boolean; index: number }) {
   const width = maxGames > 0 ? Math.round((row.gamesPlayed / maxGames) * 100) : 0;
   return (
     <li>
@@ -42,7 +42,7 @@ function PlayerRow({ row, maxGames, showBar }: { row: PlayerSummary; maxGames: n
           </span>
           {showBar && (
             <span className="sum-bar" aria-hidden="true">
-              <span style={{ width: `${width}%` }} />
+              <span style={{ width: `${width}%`, '--i': Math.min(index, 12) } as CSSProperties} />
             </span>
           )}
           <span className="sum-count">
@@ -209,7 +209,7 @@ export function SummaryScreen({
   });
 
   return (
-    <div className="stack">
+    <div className="stack screen-enter">
       <div className="row-flex spread">
         <div>
           <p className="sum-eyebrow">Session summary</p>
@@ -251,8 +251,8 @@ export function SummaryScreen({
 
       <div className="card">
         <ul className="sum-list" aria-label="Games per player">
-          {rows.map((r) => (
-            <PlayerRow key={r.id} row={r} maxGames={stats.maxGames} showBar={uneven} />
+          {rows.map((r, i) => (
+            <PlayerRow key={r.id} row={r} maxGames={stats.maxGames} showBar={uneven} index={i} />
           ))}
         </ul>
         <p className="muted sum-hint">Tap a player to see partners and opponents.</p>

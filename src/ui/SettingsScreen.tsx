@@ -47,7 +47,7 @@ export function SettingsScreen({ onBack, onManage, onHistory }: Props) {
   }
 
   return (
-    <div className="stack">
+    <div className="stack screen-enter">
       <div className="row-flex spread">
         <h1 className="screen-title">Settings</h1>
         <button type="button" className="btn" onClick={onBack}>
